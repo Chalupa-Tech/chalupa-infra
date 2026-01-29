@@ -32,10 +32,10 @@ SERVER_IP="$2"
 # K3s requires cgroup_memory to be enabled. On Pi OS, this is often disabled by default.
 check_pi_cgroups() {
     CMDLINE_FILE=""
-    if [ -f /boot/cmdline.txt ]; then
-        CMDLINE_FILE="/boot/cmdline.txt"
-    elif [ -f /boot/firmware/cmdline.txt ]; then
+    if [ -f /boot/firmware/cmdline.txt ]; then
         CMDLINE_FILE="/boot/firmware/cmdline.txt"
+    elif [ -f /boot/cmdline.txt ]; then
+        CMDLINE_FILE="/boot/cmdline.txt"
     fi
 
     if [ -n "$CMDLINE_FILE" ]; then
@@ -127,6 +127,9 @@ COMMON_ARGS="--vpn-auth=name=tailscale,joinKey=$TS_AUTHKEY --node-external-ip=$T
 
 if [ "$ROLE" == "server" ]; then
     
+    # Servers need to include their Tailscale IP in the TLS SAN list so others can verify the cert
+    SERVER_ARGS="$COMMON_ARGS --tls-san=$TS_IP"
+
     if [ -z "$SERVER_IP" ]; then
         # Case A: First Server (Cluster Init)
         echo "Mode: Initializing NEW Cluster..."
@@ -138,14 +141,14 @@ if [ "$ROLE" == "server" ]; then
             TOKEN_ARG=""
         fi
 
-        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --cluster-init $TOKEN_ARG $COMMON_ARGS" sh -
+        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --cluster-init $TOKEN_ARG $SERVER_ARGS" sh -
         
     else
         # Case B: Joining Server (HA)
         echo "Mode: Joining EXISTING Cluster as Server (HA)..."
         
         # Must have token and server IP (validated above)
-        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --server https://${SERVER_IP}:6443 --token=$K3S_TOKEN $COMMON_ARGS" sh -
+        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --server https://${SERVER_IP}:6443 --token=$K3S_TOKEN $SERVER_ARGS" sh -
     fi
 
 elif [ "$ROLE" == "agent" ]; then
