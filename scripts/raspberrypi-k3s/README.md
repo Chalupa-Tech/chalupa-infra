@@ -88,3 +88,21 @@ On any server node, check the nodes:
 sudo kubectl get nodes -o wide
 ```
 You should see all nodes using their **Tailscale IPs** as their InternalIP.
+
+## Accessing the Cluster from your Local Machine
+
+To manage the cluster from your laptop/desktop (e.g., using OpenLens or local `kubectl`), use the provided helper script located in `scripts/fetch-kubeconfig.sh`.
+
+This script fetches the kubeconfig from a remote node via SSH/Tailscale, replaces the server IP with the node's Tailscale IP, and safely merges it into your local `~/.kube/config`.
+
+```bash
+# Run from the repository root or scripts directory
+# Usage: ./scripts/fetch-kubeconfig.sh <user>@<TAILSCALE-IP>
+
+./scripts/fetch-kubeconfig.sh pi@100.x.y.z
+```
+
+Once run, you can switch contexts:
+```bash
+kubectl config use-context chalupa-k3s
+```
