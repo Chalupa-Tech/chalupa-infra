@@ -1,0 +1,105 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: goldpinger-serviceaccount
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: goldpinger-clusterrole
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: goldpinger-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: goldpinger-clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: goldpinger-serviceaccount
+    namespace: default
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: goldpinger
+  namespace: default
+  labels:
+    app: goldpinger
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: goldpinger
+  template:
+    metadata:
+      labels:
+        app: goldpinger
+    spec:
+      serviceAccountName: goldpinger-serviceaccount
+      tolerations:
+        - operator: Exists
+      securityContext:
+        fsGroup: 2000
+      containers:
+        - name: goldpinger
+          image: bloomberg/goldpinger:v3.5.0
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "8080"
+              # Goldpinger needs to know its own pod IP to identify itself in the mesh
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: goldpinger
+  namespace: default
+  labels:
+    app: goldpinger
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: goldpinger
