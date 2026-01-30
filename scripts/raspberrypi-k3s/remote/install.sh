@@ -20,8 +20,9 @@ if [ -z "$1" ]; then
   echo "  agent <server_ip>  : Join as a worker only"
   echo ""
   echo "Environment Variables:"
-  echo "  TS_AUTHKEY  (Required) Tailscale Auth Key (must be reusable or valid)"
-  echo "  K3S_TOKEN   (Required for joining nodes, Optional for 1st server) Shared secret"
+  echo "  TS_AUTHKEY      (Required) Tailscale Auth Key (must be reusable or valid)"
+  echo "  K3S_TOKEN       (Required for joining nodes, Optional for 1st server) Shared secret"
+  echo "  TS_SERVICE_NAME (Optional) Tailscale Service name for K3s API (default: svc:chalupa-k3s)"
   exit 1
 fi
 
@@ -161,6 +162,22 @@ elif [ "$ROLE" == "agent" ]; then
 else
     echo "Error: Invalid role '$ROLE'. Use 'server' or 'agent'."
     exit 1
+fi
+
+# --- 5. Configure Tailscale Service Host ---
+if [ "$ROLE" == "server" ]; then
+    echo "Configuring Tailscale Service host for K3s management port (6443)..."
+    SERVICE_NAME="${TS_SERVICE_NAME:-svc:chalupa-k3s}"
+    
+    # We use 'tailscale serve' to expose the local K3s API (127.0.0.1:6443) 
+    # as a Tailscale Service. This requires the node to be tagged.
+    if tailscale serve --service="$SERVICE_NAME" --https=6443 127.0.0.1:6443; then
+        echo "Tailscale Service host configured: $SERVICE_NAME (port 6443) -> 127.0.0.1:6443"
+        echo "Make sure to approve this service host in the Tailscale Admin Console if necessary."
+    else
+        echo "Warning: Could not configure Tailscale Service host."
+        echo "Ensure the Tailscale node is tagged and version is >= 1.86.0."
+    fi
 fi
 
 echo "-------------------------------------------------------"
