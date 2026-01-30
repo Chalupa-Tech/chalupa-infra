@@ -1,0 +1,69 @@
+# HashiCorp Vault Configuration Values for K3s HA with Raft
+
+global:
+  enabled: true
+
+# Vault UI Configuration
+ui:
+  enabled: true
+  serviceType: "LoadBalancer"
+  externalPort: 8200
+  targetPort: 8200
+
+# Injector for sidecar injection (optional, disable if not needed)
+injector:
+  enabled: true
+
+# Server Configuration
+server:
+  # Resource limits for Raspberry Pi
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+  # Data storage configuration for Raft
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: local-path # K3s default storage class
+
+  # Audit storage (optional)
+  auditStorage:
+    enabled: false
+
+  # HA Configuration
+  ha:
+    enabled: true
+    replicas: 3
+
+    # Raft Integrated Storage Configuration
+    raft:
+      enabled: true
+      setNodeId: true
+
+      config: |
+        ui = true
+
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        service_registration "kubernetes" {}
+
+    # Pod Disruption Budget
+    disruptionBudget:
+      enabled: true
+
+  # Standalone mode disabled (using HA instead)
+  standalone:
+    enabled: false
