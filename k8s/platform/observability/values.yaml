@@ -1,0 +1,66 @@
+kube-prometheus-stack:
+  ## Grafana
+  grafana:
+    replicas: 1
+    persistence:
+      enabled: true
+      size: 1Gi
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+  ## Prometheus
+  prometheus:
+    prometheusSpec:
+      replicas: 1 # Non-HA
+      shards: 1
+      retention: 10d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 20Gi # NVMe space is cheap
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi # Give it some room, but not 2GB
+        limits:
+          cpu: 1000m
+          memory: 2Gi # RAM is the constraint on Pi 8GB
+
+  ## Alertmanager
+  alertmanager:
+    alertmanagerSpec:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 50m
+          memory: 128Mi
+
+  ## Components
+  prometheus-node-exporter:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
+
+  kube-state-metrics:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
