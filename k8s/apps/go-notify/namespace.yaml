@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: go-notify
+  labels:
+    name: go-notify
+    # Enable Istio injection if we use it later, or other platform labels
