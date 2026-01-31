@@ -49,7 +49,7 @@ if [ $? -ne 0 ] || [ ! -s "$TEMP_CONFIG" ]; then
 fi
 
 # Extract the IP from the remote string (user@ip -> ip)
-REMOTE_IP="${REMOTE#*@}"
+REMOTE_IP="chalupa-k3s.tailbecff0.ts.net"
 
 echo "Updating server address to https://$REMOTE_IP:6443..."
 # Replace 127.0.0.1 with the Tailscale IP of the remote node
