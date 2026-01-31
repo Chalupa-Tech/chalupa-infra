@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-notify
+  namespace: go-notify
+spec:
+  selector:
+    app: go-notify
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: http

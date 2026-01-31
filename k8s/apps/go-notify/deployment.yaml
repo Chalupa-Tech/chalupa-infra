@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-notify
+  namespace: go-notify
+  labels:
+    app: go-notify
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-notify
+  template:
+    metadata:
+      labels:
+        app: go-notify
+    spec:
+      containers:
+      - name: go-notify
+        image: ghcr.io/chalupa-tech/go-notify:latest
+        imagePullPolicy: Always
+        envFrom:
+        - secretRef:
+            name: go-notify-secrets
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "250m"
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
