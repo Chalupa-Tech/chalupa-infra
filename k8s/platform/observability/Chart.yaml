@@ -1,0 +1,10 @@
+apiVersion: v2
+name: observability-wrapper
+description: Wrapper chart for Kube Prometheus Stack
+type: application
+version: 0.1.0
+appVersion: "56.6.0"
+dependencies:
+  - name: kube-prometheus-stack
+    version: 56.6.0
+    repository: https://prometheus-community.github.io/helm-charts
