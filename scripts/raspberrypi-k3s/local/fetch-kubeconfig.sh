@@ -77,7 +77,8 @@ if command -v kubectl &> /dev/null; then
     # If KUBECONFIG is set, use it; otherwise default
     # We explicitly include the existing config only if it exists
     if [ -f ~/.kube/config ]; then
-        export KUBECONFIG=~/.kube/config:$TEMP_CONFIG
+        # Put TEMP_CONFIG first so it overrides existing contexts/clusters with same name
+        export KUBECONFIG=$TEMP_CONFIG:~/.kube/config
     else
         export KUBECONFIG=$TEMP_CONFIG
     fi
