@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Tuning for low resource environments
+  # server.insecure: "true" # Optional if we use ingress termination
+  reposerver.parallelism.limit: "2" # Limit concurrent manifest generations to save CPU/Ram
+  controller.status.processors: "20" # Default is 20, keeping it sane
+  controller.operation.processors: "10" # Default 10
+  # Redis is configured via different means usually, but this CM controls go-params.
