@@ -121,6 +121,34 @@ fi
 TS_IP=$(tailscale ip -4)
 echo "Detected Tailscale IP: $TS_IP"
 
+# Get Tailscale DNS Name (MagicDNS) for TLS SAN
+# We use python3 to robustly parse the JSON output from tailscale status
+if command -v python3 &> /dev/null; then
+    TS_DNS_NAME=$(tailscale status --json | python3 -c "import sys, json; print(json.load(sys.stdin).get('Self', {}).get('DNSName', '').rstrip('.'))")
+    echo "Detected Tailscale DNS: $TS_DNS_NAME"
+else
+    echo "Warning: python3 not found, cannot auto-detect Tailscale DNS name for TLS SAN."
+    TS_DNS_NAME=""
+fi
+
+# Construct Tailscale Service FQDN
+# The service name defaults to svc:chalupa-k3s.
+# We need to extract the tailnet base domain from the TS_DNS_NAME to build the full service URL.
+SERVICE_NAME="${TS_SERVICE_NAME:-svc:chalupa-k3s}"
+TS_SERVICE_FQDN=""
+
+if [ -n "$TS_DNS_NAME" ]; then
+    # Extract everything after the first dot (e.g., node1.tailnet.ts.net -> tailnet.ts.net)
+    # This assumes the node name doesn't contain dots, which is standard for MagicDNS.
+    TS_BASE_DOMAIN=$(echo "$TS_DNS_NAME" | cut -d. -f2-)
+    
+    # Extract the service name part (remove svc: prefix)
+    CLEAN_SVC_NAME=$(echo "$SERVICE_NAME" | sed 's/^svc://')
+    
+    TS_SERVICE_FQDN="${CLEAN_SVC_NAME}.${TS_BASE_DOMAIN}"
+    echo "Constructed Service FQDN: $TS_SERVICE_FQDN"
+fi
+
 # --- 4. Install K3s ---
 echo "Installing K3s ($ROLE)..."
 
@@ -130,6 +158,16 @@ if [ "$ROLE" == "server" ]; then
     
     # Servers need to include their Tailscale IP in the TLS SAN list so others can verify the cert
     SERVER_ARGS="$COMMON_ARGS --tls-san=$TS_IP"
+    
+    # Add DNS name to SAN if detected
+    if [ -n "$TS_DNS_NAME" ]; then
+        SERVER_ARGS="$SERVER_ARGS --tls-san=$TS_DNS_NAME"
+    fi
+
+    # Add Service FQDN to SAN if constructed
+    if [ -n "$TS_SERVICE_FQDN" ]; then
+        SERVER_ARGS="$SERVER_ARGS --tls-san=$TS_SERVICE_FQDN"
+    fi
 
     if [ -z "$SERVER_IP" ]; then
         # Case A: First Server (Cluster Init)
@@ -167,11 +205,36 @@ fi
 # --- 5. Configure Tailscale Service Host ---
 if [ "$ROLE" == "server" ]; then
     echo "Configuring Tailscale Service host for K3s management port (6443)..."
-    SERVICE_NAME="${TS_SERVICE_NAME:-svc:chalupa-k3s}"
     
+    # Check for existing conflicting configuration (Web/HTTPS instead of TCP)
+    if command -v python3 &> /dev/null; then
+        SHOULD_RESET=$(tailscale serve status --json | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    services = data.get('Services', {})
+    svc_name = '$SERVICE_NAME'
+    if svc_name in services:
+        tcp_config = services[svc_name].get('TCP', {}).get('6443', {})
+        # If it has 'HTTPS': true, it is terminating TLS, which we don't want.
+        # If it has a 'Web' handler for this port, it's also a conflict.
+        if tcp_config.get('HTTPS') is True or 'Web' in services[svc_name]:
+             print('yes')
+except Exception:
+    pass
+")
+        if [ "$SHOULD_RESET" == "yes" ]; then
+            echo "Detected conflicting Web/HTTPS configuration for $SERVICE_NAME."
+            echo "Resetting service configuration to switch to TCP pass-through..."
+            tailscale serve reset
+        fi
+    fi
+
     # We use 'tailscale serve' to expose the local K3s API (127.0.0.1:6443) 
-    # as a Tailscale Service. This requires the node to be tagged.
-    if tailscale serve --service="$SERVICE_NAME" --https=6443 127.0.0.1:6443; then
+    # as a Tailscale Service.
+    # We use --tcp to PASS THROUGH the traffic to K3s, allowing K3s to handle TLS.
+    # This prevents the "certificate signed by unknown authority" error.
+    if tailscale serve --service="$SERVICE_NAME" --tcp=6443 127.0.0.1:6443; then
         echo "Tailscale Service host configured: $SERVICE_NAME (port 6443) -> 127.0.0.1:6443"
         echo "Make sure to approve this service host in the Tailscale Admin Console if necessary."
     else
