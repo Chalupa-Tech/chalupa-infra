@@ -18,7 +18,7 @@ spec:
       containers:
       - name: mesh
         image: registry.chalupa.local:5000/go-telemetry-mesh:latest
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
         env:
