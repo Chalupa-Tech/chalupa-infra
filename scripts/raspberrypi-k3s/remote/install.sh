@@ -121,6 +121,19 @@ fi
 TS_IP=$(tailscale ip -4)
 echo "Detected Tailscale IP: $TS_IP"
 
+# Determine node location label based on hostname
+HOSTNAME=$(hostname)
+NODE_LOCATION_LABEL=""
+if [[ $HOSTNAME == d* ]]; then
+    NODE_LOCATION_LABEL="node_location=dustin"
+elif [[ $HOSTNAME == t* ]]; then
+    NODE_LOCATION_LABEL="node_location=tayven"
+fi
+
+if [ -n "$NODE_LOCATION_LABEL" ]; then
+    echo "Detected hostname $HOSTNAME, adding label: $NODE_LOCATION_LABEL"
+fi
+
 # Get Tailscale DNS Name (MagicDNS) for TLS SAN
 # We use python3 to robustly parse the JSON output from tailscale status
 if command -v python3 &> /dev/null; then
@@ -153,6 +166,10 @@ fi
 echo "Installing K3s ($ROLE)..."
 
 COMMON_ARGS="--vpn-auth=name=tailscale,joinKey=$TS_AUTHKEY --node-external-ip=$TS_IP --flannel-iface=tailscale0"
+
+if [ -n "$NODE_LOCATION_LABEL" ]; then
+    COMMON_ARGS="$COMMON_ARGS --node-label $NODE_LOCATION_LABEL"
+fi
 
 if [ "$ROLE" == "server" ]; then
     
