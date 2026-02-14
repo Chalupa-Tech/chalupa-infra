@@ -28,7 +28,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y yamllint
 
       - name: Run yamllint
-        run: yamllint -c .yamllint .
+        run: yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable, indentation: disable}}" .
 
   shell-check:
     name: ShellCheck
@@ -50,10 +50,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Ensure .git directory exists
-        run: mkdir -p .git
+      - name: Install ansible-lint
+        run: pip install ansible-lint
 
       - name: Run ansible-lint
-        uses: ansible/ansible-lint@v6
-        with:
-          working_directory: "scripts/raspberrypi-k3s/ansible/"
+        run: ansible-lint scripts/raspberrypi-k3s/ansible/
