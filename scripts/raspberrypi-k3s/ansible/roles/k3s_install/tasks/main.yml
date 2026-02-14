@@ -1,0 +1,25 @@
+---
+- name: Copy K3s install script
+  copy:
+    src: "{{ playbook_dir }}/../remote/install.sh"
+    dest: /tmp/install.sh
+    mode: "0755"
+
+- name: Run K3s installation
+  shell: /tmp/install.sh {{ k3s_role }} {{ k3s_server_ip | default('') }}
+  environment:
+    TS_AUTHKEY: "{{ ts_authkey }}"
+    K3S_TOKEN: "{{ k3s_token | default('') }}"
+    TS_SERVICE_NAME: "{{ ts_service_name | default('svc:chalupa-k3s') }}"
+  args:
+    executable: /bin/bash
+  register: k3s_install_result
+
+- name: Display K3s installation output
+  debug:
+    var: k3s_install_result.stdout_lines
+
+- name: Remove install script
+  file:
+    path: /tmp/install.sh
+    state: absent

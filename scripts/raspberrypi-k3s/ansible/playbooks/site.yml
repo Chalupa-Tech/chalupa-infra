@@ -1,0 +1,17 @@
+---
+- name: Provision K3s Nodes
+  hosts: all
+  become: yes
+  vars:
+    # Default list of services to expose via Tailscale
+    tailscale_services_list:
+      - "svc:chalupa-k3s:6443"
+
+  roles:
+    - role: preflight
+    - role: user_setup
+    - role: pi_prepare
+    - role: k3s_install
+      when: k3s_role is defined
+    - role: tailscale_services
+      when: k3s_role == 'server'

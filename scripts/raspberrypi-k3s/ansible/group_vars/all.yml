@@ -1,0 +1,11 @@
+# Users to configure on all nodes
+managed_users:
+  - name: ddowell
+    pubkey_file: "{{ playbook_dir }}/../../public_ssh_keys/ddowell.pub"
+  - name: tbigelow
+    pubkey_file: "{{ playbook_dir }}/../../public_ssh_keys/tbigelow.pub"
+
+# Secrets from environment
+ts_authkey: "{{ lookup('env', 'TS_AUTHKEY') }}"
+k3s_token: "{{ lookup('env', 'K3S_TOKEN') }}"
+ts_service_name: "{{ lookup('env', 'TS_SERVICE_NAME') | default('svc:chalupa-k3s', true) }}"

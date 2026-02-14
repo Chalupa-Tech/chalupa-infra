@@ -219,47 +219,6 @@ else
     exit 1
 fi
 
-# --- 5. Configure Tailscale Service Host ---
-if [ "$ROLE" == "server" ]; then
-    echo "Configuring Tailscale Service host for K3s management port (6443)..."
-    
-    # Check for existing conflicting configuration (Web/HTTPS instead of TCP)
-    if command -v python3 &> /dev/null; then
-        SHOULD_RESET=$(tailscale serve status --json | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    services = data.get('Services', {})
-    svc_name = '$SERVICE_NAME'
-    if svc_name in services:
-        tcp_config = services[svc_name].get('TCP', {}).get('6443', {})
-        # If it has 'HTTPS': true, it is terminating TLS, which we don't want.
-        # If it has a 'Web' handler for this port, it's also a conflict.
-        if tcp_config.get('HTTPS') is True or 'Web' in services[svc_name]:
-             print('yes')
-except Exception:
-    pass
-")
-        if [ "$SHOULD_RESET" == "yes" ]; then
-            echo "Detected conflicting Web/HTTPS configuration for $SERVICE_NAME."
-            echo "Resetting service configuration to switch to TCP pass-through..."
-            tailscale serve reset
-        fi
-    fi
-
-    # We use 'tailscale serve' to expose the local K3s API (127.0.0.1:6443) 
-    # as a Tailscale Service.
-    # We use --tcp to PASS THROUGH the traffic to K3s, allowing K3s to handle TLS.
-    # This prevents the "certificate signed by unknown authority" error.
-    if tailscale serve --service="$SERVICE_NAME" --tcp=6443 127.0.0.1:6443; then
-        echo "Tailscale Service host configured: $SERVICE_NAME (port 6443) -> 127.0.0.1:6443"
-        echo "Make sure to approve this service host in the Tailscale Admin Console if necessary."
-    else
-        echo "Warning: Could not configure Tailscale Service host."
-        echo "Ensure the Tailscale node is tagged and version is >= 1.86.0."
-    fi
-fi
-
 echo "-------------------------------------------------------"
 echo "K3s installation complete!"
 if [ "$ROLE" == "server" ]; then
