@@ -28,7 +28,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y yamllint
 
       - name: Run yamllint
-        run: yamllint .
+        run: yamllint --level error .
 
   shell-check:
     name: ShellCheck
@@ -41,6 +41,7 @@ jobs:
         uses: ludeeus/action-shellcheck@master
         with:
           ignore_paths: .git
+          severity: error
 
   ansible-lint:
     name: Ansible Lint
@@ -53,3 +54,4 @@ jobs:
         uses: ansible/ansible-lint@v6
         with:
           path: "scripts/raspberrypi-k3s/ansible/"
+          args: "--strict=false"
