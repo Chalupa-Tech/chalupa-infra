@@ -28,7 +28,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y yamllint
 
       - name: Run yamllint
-        run: yamllint .
+        run: yamllint -c .yamllint .
 
   shell-check:
     name: ShellCheck
@@ -54,3 +54,4 @@ jobs:
         uses: ansible/ansible-lint@v6
         with:
           working_directory: "scripts/raspberrypi-k3s/ansible/"
+          setup_python: false
