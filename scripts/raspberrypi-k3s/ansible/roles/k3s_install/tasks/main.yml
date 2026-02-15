@@ -6,7 +6,7 @@
     mode: "0755"
 
 - name: Run K3s installation
-  shell: /tmp/install.sh {{ k3s_role }} {{ k3s_server_ip | default('') }}
+  shell: /tmp/install.sh {{ (k3s_role == 'ha-server') | ternary('server', k3s_role) }} {{ k3s_server_ip | default('') }}
   environment:
     TS_AUTHKEY: "{{ ts_authkey }}"
     K3S_TOKEN: "{{ k3s_token | default('') }}"

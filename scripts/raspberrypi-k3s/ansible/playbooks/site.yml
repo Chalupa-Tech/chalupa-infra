@@ -1,17 +1,53 @@
 ---
-- name: Provision K3s Nodes
-  hosts: all
+- name: Provision Primary K3s Server
+  hosts: k3s_servers
   become: yes
   vars:
-    # Default list of services to expose via Tailscale
     tailscale_services_list:
       - "svc:chalupa-k3s:6443"
-
   roles:
-    - role: preflight
-    - role: user_setup
-    - role: pi_prepare
+    - preflight
+    - user_setup
+    - pi_prepare
+    - k3s_install
+    - tailscale_services
+    - argocd_setup
+  post_tasks:
+    - name: Register Primary Server Tailscale IP
+      set_fact:
+        primary_server_ip: "{{ ansible_facts['tailscale0']['ipv4']['address'] }}"
+      run_once: true
+
+    - name: Extract K3s Token from output
+      set_fact:
+        captured_k3s_token: "{{ k3s_install_result.stdout | regex_search('K10.*::server:[a-f0-9]+') }}"
+      when: k3s_install_result.stdout is defined
+      run_once: true
+
+- name: Provision K3s HA Servers
+  hosts: k3s_ha_servers
+  become: yes
+  vars:
+    tailscale_services_list:
+      - "svc:chalupa-k3s:6443"
+  roles:
+    - preflight
+    - user_setup
+    - pi_prepare
     - role: k3s_install
-      when: k3s_role is defined
-    - role: tailscale_services
-      when: k3s_role == 'server'
+      vars:
+        k3s_server_ip: "{{ hostvars[groups['k3s_servers'][0]]['primary_server_ip'] | default('tpi2.tailbecff0.ts.net') }}"
+        k3s_token: "{{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] | default(k3s_token) }}"
+    - tailscale_services
+
+- name: Provision K3s Agents
+  hosts: k3s_agents
+  become: yes
+  roles:
+    - preflight
+    - user_setup
+    - pi_prepare
+    - role: k3s_install
+      vars:
+        k3s_server_ip: "{{ hostvars[groups['k3s_servers'][0]]['primary_server_ip'] | default('tpi2.tailbecff0.ts.net') }}"
+        k3s_token: "{{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] | default(k3s_token) }}"

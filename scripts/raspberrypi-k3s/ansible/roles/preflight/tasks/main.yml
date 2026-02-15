@@ -2,13 +2,13 @@
 - name: Verify OS is Debian-based (Ubuntu/Raspbian)
   assert:
     that:
-      - ansible_os_family == "Debian"
+      - ansible_facts['os_family'] == "Debian"
     fail_msg: "This playbook only supports Debian-based systems."
 
 - name: Verify architecture is 64-bit ARM
   assert:
     that:
-      - ansible_architecture == "aarch64"
+      - ansible_facts['architecture'] == "aarch64"
     fail_msg: "K3s setup in this project targets 64-bit ARM (aarch64)."
 
 - name: Check if Tailscale is installed
