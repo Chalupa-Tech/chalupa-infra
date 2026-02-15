@@ -3,7 +3,6 @@ set -e
 
 # Configuration
 APPSET_FILE="${APPSET_FILE:-k8s/platform/core-apps-appset.yaml}"
-EXAMPLE_APPSET_FILE="${EXAMPLE_APPSET_FILE:-k8s/apps/example-app-appset.yaml}"
 CRD_BOOTSTRAP_SCRIPT="${CRD_BOOTSTRAP_SCRIPT:-scripts/raspberrypi-k3s/local/observability/bootstrap_observability_crds.sh}"
 NAMESPACE="argocd"
 
@@ -29,10 +28,5 @@ fi
 # Apply the ApplicationSet with the correct Repo URL
 echo "Deploying Core ApplicationSet..."
 sed "s|{{REPO_URL}}|$REPO_URL|g" "$APPSET_FILE" | kubectl apply -n "$NAMESPACE" -f -
-
-if [ -f "$EXAMPLE_APPSET_FILE" ]; then
-    echo "Deploying Example ApplicationSet..."
-    sed "s|{{REPO_URL}}|$REPO_URL|g" "$EXAMPLE_APPSET_FILE" | kubectl apply -n "$NAMESPACE" -f -
-fi
 
 echo "Core applications deployed successfully."
