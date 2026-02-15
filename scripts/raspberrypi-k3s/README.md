@@ -18,7 +18,24 @@ This setup allows your nodes to be on different physical networks (e.g., home, o
 
 ## Usage
 
-### 1. Prepare Environment Variables
+### Option 1: Ansible (Recommended)
+
+Ansible provides a more automated and idempotent way to manage multiple nodes, including user setup and pre-flight checks.
+
+1.  **Configure Inventory**: Edit `ansible/inventory/hosts.yml` to add your nodes.
+2.  **Setup Secrets**: Copy `ansible/.env.example` to `ansible/.env` and fill in your keys.
+3.  **Run Playbook**:
+    ```bash
+    cd ansible
+    # It is recommended to run with --check --diff first
+    ansible-playbook playbooks/site.yml --check --diff
+    
+    # Apply changes
+    ansible-playbook playbooks/site.yml
+    ```
+
+### Option 2: Manual Script (install.sh)
+
 On **every node**, you need to export the following variables before running the script.
 
 ```bash

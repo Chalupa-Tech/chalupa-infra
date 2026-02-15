@@ -1,0 +1,57 @@
+name: Infrastructure Validation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.yml'
+      - '**.yaml'
+      - '**.sh'
+      - 'scripts/raspberrypi-k3s/ansible/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.yml'
+      - '**.yaml'
+      - '**.sh'
+      - 'scripts/raspberrypi-k3s/ansible/**'
+
+jobs:
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: sudo apt-get update && sudo apt-get install -y yamllint
+
+      - name: Run yamllint
+        run: yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable, indentation: disable}}" .
+
+  shell-check:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          ignore_paths: .git
+          severity: error
+
+  ansible-lint:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ansible-lint
+        run: pip install ansible-lint
+
+      - name: Run ansible-lint
+        run: ansible-lint scripts/raspberrypi-k3s/ansible/

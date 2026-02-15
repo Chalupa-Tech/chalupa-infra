@@ -1,0 +1,11 @@
+---
+- name: Copy Tailscale service management script
+  copy:
+    src: "{{ playbook_dir }}/../remote/manage_tailscale_services.sh"
+    dest: /usr/local/bin/manage_tailscale_services.sh
+    mode: "0755"
+
+- name: Configure Tailscale services
+  command: /usr/local/bin/manage_tailscale_services.sh "{{ item }}"
+  loop: "{{ tailscale_services_list }}"
+  when: tailscale_services_list | length > 0
