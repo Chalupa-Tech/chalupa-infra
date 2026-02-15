@@ -1,0 +1,34 @@
+configs:
+  cm:
+    admin.enabled: "true"
+{% for user in managed_users %}
+    accounts.{{ user.name }}: login,apiKey
+{% endfor %}
+
+  params:
+    reposerver.parallelism.limit: "2"
+    controller.status.processors: "20"
+    controller.operation.processors: "10"
+    server.insecure: "true"
+
+  rbac:
+    policy.default: "role:readonly"
+    policy.csv: |
+{% for user in managed_users if user.argocd_admin | default(false) %}
+      g, {{ user.name }}, role:admin
+{% endfor %}
+
+server:
+  ingress:
+    enabled: true
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/service.serversscheme: https
+    hosts:
+      - argocd.local
+    tls:
+      - hosts:
+          - argocd.local
+        secretName: argocd-server-tls
