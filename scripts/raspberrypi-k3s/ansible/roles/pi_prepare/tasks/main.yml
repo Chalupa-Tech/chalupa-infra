@@ -1,4 +1,11 @@
 ---
+- name: Ensure Journald is configured for persistent logging
+  lineinfile:
+    path: /etc/systemd/journald.conf
+    regexp: "^#?Storage="
+    line: "Storage=persistent"
+  notify: Restart journald
+
 - name: Check cmdline.txt locations
   stat:
     path: "{{ item }}"
