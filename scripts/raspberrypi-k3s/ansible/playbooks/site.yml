@@ -1,7 +1,7 @@
 ---
 - name: Provision Primary K3s Server
   hosts: k3s_servers
-  become: yes
+  become: true
   vars:
     tailscale_services_list:
       - "svc:chalupa-k3s:6443"
@@ -14,19 +14,19 @@
     - argocd_setup
   post_tasks:
     - name: Register Primary Server Tailscale IP
-      set_fact:
+      ansible.builtin.set_fact:
         primary_server_ip: "{{ ansible_facts['tailscale0']['ipv4']['address'] }}"
       run_once: true
 
     - name: Extract K3s Token from output
-      set_fact:
+      ansible.builtin.set_fact:
         captured_k3s_token: "{{ k3s_install_result.stdout | regex_search('K10.*::server:[a-f0-9]+') }}"
       when: k3s_install_result.stdout is defined
       run_once: true
 
 - name: Provision K3s HA Servers
   hosts: k3s_ha_servers
-  become: yes
+  become: true
   vars:
     tailscale_services_list:
       - "svc:chalupa-k3s:6443"
@@ -42,7 +42,7 @@
 
 - name: Provision K3s Agents
   hosts: k3s_agents
-  become: yes
+  become: true
   roles:
     - preflight
     - user_setup
