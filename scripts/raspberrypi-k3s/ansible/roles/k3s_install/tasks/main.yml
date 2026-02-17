@@ -6,10 +6,13 @@
     mode: "0755"
 
 - name: Run K3s installation
-  ansible.builtin.shell: /tmp/install.sh {{ (k3s_role == 'ha-server') | ternary('server', k3s_role) }} {{ k3s_server_ip | default('') }}
+  ansible.builtin.shell: >
+    /tmp/install.sh
+    {{ (k3s_install_role == 'ha-server') | ternary('server', k3s_install_role) }}
+    {{ k3s_install_server_ip | default('') }}
   environment:
     TS_AUTHKEY: "{{ ts_authkey }}"
-    K3S_TOKEN: "{{ k3s_token | default('') }}"
+    K3S_TOKEN: "{{ k3s_install_token | default('') }}"
     TS_SERVICE_NAME: "{{ ts_service_name | default('svc:chalupa-k3s') }}"
   args:
     executable: /bin/bash

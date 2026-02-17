@@ -46,7 +46,8 @@
 
 - name: Set initial passwords for managed users
   ansible.builtin.shell: |
-    kubectl patch secret argocd-secret -n argocd -p '{"stringData": {"accounts.{{ item.name }}.password": "$2a$12$WkgbDDM51Gb5Mk76L77b.un3xGE8XkBdn0Jdr78P0DXJFwaqHdZs6", "accounts.{{ item.name }}.passwordMtime": "{{ ansible_facts.date_time.iso8601 }}"}}'
+    kubectl patch secret argocd-secret -n argocd -p \
+      '{"stringData": {"accounts.{{ item.name }}.password": "$2a$12$WkgbDDM51Gb5Mk76L77b.un3xGE8XkBdn0Jdr78P0DXJFwaqHdZs6", "accounts.{{ item.name }}.passwordMtime": "{{ ansible_facts.date_time.iso8601 }}"}}'
     touch /var/lib/rancher/k3s/server/argocd_passwords_initialized_{{ item.name }}
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -83,7 +84,7 @@
       mode: "0755"
 
 - name: Get repository URL
-  ansible.builtin.command: git remote get-url origin
+  ansible.builtin.command: git remote get-url origin  # noqa: command-instead-of-module
   delegate_to: localhost
   register: argocd_setup_repo_url_cmd
   become: false
@@ -97,7 +98,8 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     REPO_URL: "{{ argocd_setup_repo_url_cmd.stdout }}"
     APPSET_FILE: "/tmp/argocd-bootstrap/core-apps-appset.yaml"
-    CRD_BOOTSTRAP_SCRIPT: "/tmp/argocd-bootstrap/bootstrap_observability_crds.sh"
+    CRD_BOOTSTRAP_SCRIPT: >-
+      /tmp/argocd-bootstrap/bootstrap_observability_crds.sh
   changed_when: true
 
 - name: Cleanup bootstrap files

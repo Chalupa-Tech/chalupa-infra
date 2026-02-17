@@ -51,4 +51,4 @@
 - name: Warn about reboot requirement
   ansible.builtin.debug:
     msg: "REBOOT REQUIRED: cgroups were configured. Please reboot and re-run the playbook."
-  when: pi_prepare_cgroup_updated.changed | default(false)
+  when: pi_prepare_cgroup_updated.changed | default(false)  # noqa: no-handler
