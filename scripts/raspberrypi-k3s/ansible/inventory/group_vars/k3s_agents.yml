@@ -1,2 +1,2 @@
 ---
-k3s_role: agent
+k3s_install_role: agent

@@ -2,14 +2,14 @@ name: Infrastructure Validation
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - '**.yml'
       - '**.yaml'
       - '**.sh'
       - 'scripts/raspberrypi-k3s/ansible/**'
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
       - '**.yml'
       - '**.yaml'
@@ -28,7 +28,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y yamllint
 
       - name: Run yamllint
-        run: yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable, indentation: disable}}" .
+        run: |
+          yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable, indentation: disable}}" .
 
   shell-check:
     name: ShellCheck

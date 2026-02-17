@@ -2,10 +2,14 @@
 exclude_paths:
   - .github/
   - .gemini/
-parseable: true
 quiet: false
 use_default_rules: true
-# Point to the ansible directory
 project_dir: scripts/raspberrypi-k3s/ansible/
-# Only fail on errors
 progressive: false
+mock_roles:
+  - preflight
+  - user_setup
+  - pi_prepare
+  - k3s_install
+  - tailscale_services
+  - argocd_setup

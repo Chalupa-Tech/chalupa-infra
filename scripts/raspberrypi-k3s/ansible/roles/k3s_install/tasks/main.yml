@@ -1,25 +1,29 @@
 ---
 - name: Copy K3s install script
-  copy:
+  ansible.builtin.copy:
     src: "{{ playbook_dir }}/../remote/install.sh"
     dest: /tmp/install.sh
     mode: "0755"
 
 - name: Run K3s installation
-  shell: /tmp/install.sh {{ (k3s_role == 'ha-server') | ternary('server', k3s_role) }} {{ k3s_server_ip | default('') }}
+  ansible.builtin.shell: >
+    /tmp/install.sh
+    {{ (k3s_install_role == 'ha-server') | ternary('server', k3s_install_role) }}
+    {{ k3s_install_server_ip | default('') }}
   environment:
     TS_AUTHKEY: "{{ ts_authkey }}"
-    K3S_TOKEN: "{{ k3s_token | default('') }}"
+    K3S_TOKEN: "{{ k3s_install_token | default('') }}"
     TS_SERVICE_NAME: "{{ ts_service_name | default('svc:chalupa-k3s') }}"
   args:
     executable: /bin/bash
   register: k3s_install_result
+  changed_when: true
 
 - name: Display K3s installation output
-  debug:
+  ansible.builtin.debug:
     var: k3s_install_result.stdout_lines
 
 - name: Remove install script
-  file:
+  ansible.builtin.file:
     path: /tmp/install.sh
     state: absent
