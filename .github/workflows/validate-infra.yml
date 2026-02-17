@@ -2,14 +2,14 @@ name: Infrastructure Validation
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - '**.yml'
       - '**.yaml'
       - '**.sh'
       - 'scripts/raspberrypi-k3s/ansible/**'
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
       - '**.yml'
       - '**.yaml'

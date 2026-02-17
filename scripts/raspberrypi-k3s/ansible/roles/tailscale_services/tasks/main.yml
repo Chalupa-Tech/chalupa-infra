@@ -1,11 +1,14 @@
 ---
 - name: Copy Tailscale service management script
-  copy:
+  ansible.builtin.copy:
     src: "{{ playbook_dir }}/../remote/manage_tailscale_services.sh"
     dest: /usr/local/bin/manage_tailscale_services.sh
     mode: "0755"
+  become: true
 
 - name: Configure Tailscale services
-  command: /usr/local/bin/manage_tailscale_services.sh "{{ item }}"
+  ansible.builtin.command: /usr/local/bin/manage_tailscale_services.sh "{{ item }}"
   loop: "{{ tailscale_services_list }}"
   when: tailscale_services_list | length > 0
+  changed_when: true
+  become: true

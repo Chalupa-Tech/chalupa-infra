@@ -1,3 +1,4 @@
+---
 # Users to configure on all nodes
 managed_users:
   - name: ddowell

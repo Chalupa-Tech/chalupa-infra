@@ -2,7 +2,6 @@
 exclude_paths:
   - .github/
   - .gemini/
-parseable: true
 quiet: false
 use_default_rules: true
 # Point to the ansible directory

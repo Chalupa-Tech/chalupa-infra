@@ -1,12 +1,12 @@
 ---
 - name: Detect local running user
-  set_fact:
+  ansible.builtin.set_fact:
     detected_user: "{{ lookup('env', 'USER') }}"
   delegate_to: localhost
   run_once: true
 
 - name: Validate detected user is allowed
-  assert:
+  ansible.builtin.assert:
     that:
       - detected_user in ['ddowell', 'tbigelow']
     fail_msg: "Running user '{{ detected_user }}' is not in the allowed list [ddowell, tbigelow]"
@@ -15,30 +15,29 @@
   run_once: true
 
 - name: Create managed users
-  user:
+  ansible.builtin.user:
     name: "{{ item.name }}"
     state: present
     shell: /bin/bash
-    create_home: yes
+    create_home: true
     groups: sudo
-    append: yes
+    append: true
   loop: "{{ managed_users }}"
 
 - name: Deploy authorized_keys for users
-  authorized_key:
+  ansible.posix.authorized_key:
     user: "{{ item.name }}"
     key: "{{ lookup('file', item.pubkey_file) }}"
     path: "/home/{{ item.name }}/.ssh/authorized_keys"
     state: present
-    exclusive: no
+    exclusive: false
   loop: "{{ managed_users }}"
 
 - name: Configure passwordless sudo for managed users
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/sudoers.d/{{ item.name }}
     line: "{{ item.name }} ALL=(ALL) NOPASSWD: ALL"
-    create: yes
+    create: true
     mode: "0440"
     validate: "visudo -cf %s"
   loop: "{{ managed_users }}"
-  
