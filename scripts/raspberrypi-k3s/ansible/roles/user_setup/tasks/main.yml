@@ -1,16 +1,16 @@
 ---
 - name: Detect local running user
   ansible.builtin.set_fact:
-    detected_user: "{{ lookup('env', 'USER') }}"
+    user_setup_detected_user: "{{ lookup('env', 'USER') }}"
   delegate_to: localhost
   run_once: true
 
 - name: Validate detected user is allowed
   ansible.builtin.assert:
     that:
-      - detected_user in ['ddowell', 'tbigelow']
-    fail_msg: "Running user '{{ detected_user }}' is not in the allowed list [ddowell, tbigelow]"
-    success_msg: "Detected running user: {{ detected_user }}"
+      - user_setup_detected_user in ['ddowell', 'tbigelow']
+    fail_msg: "Running user '{{ user_setup_detected_user }}' is not in the allowed list [ddowell, tbigelow]"
+    success_msg: "Detected running user: {{ user_setup_detected_user }}"
   delegate_to: localhost
   run_once: true
 

@@ -13,11 +13,11 @@
 
 - name: Check if Tailscale is installed
   ansible.builtin.command: tailscale version
-  register: ts_version
+  register: preflight_ts_version
   ignore_errors: true
   changed_when: false
 
 - name: Warn if Tailscale is missing
   ansible.builtin.debug:
     msg: "Tailscale is not installed. The k3s_install role will attempt to install it."
-  when: ts_version.rc != 0
+  when: preflight_ts_version.rc != 0
