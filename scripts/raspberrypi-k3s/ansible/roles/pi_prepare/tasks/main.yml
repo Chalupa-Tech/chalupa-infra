@@ -4,13 +4,15 @@
     path: /etc/systemd/journald.conf
     regexp: "^#?Storage="
     line: "Storage=persistent"
-  notify: Force Reload Systemd-Journald
+  notify:
+    - Reload systemd-journald service
 
 - name: Delete /usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf
   file:
     path: /usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf
     state: absent
-  notify: Force Reload Systemd-Journald
+  notify:
+    - Reload systemd-journald service
 
 - name: Check cmdline.txt locations
   stat:
@@ -48,10 +50,3 @@
   debug:
     msg: "REBOOT REQUIRED: cgroups were configured. Please reboot and re-run the playbook."
   when: cgroup_updated.changed | default(false)
-
-
-
-# Handlers
-handlers:
-  - name: Force Reload Systemd-Journald
-    command: systemctl force-reload systemd-journald

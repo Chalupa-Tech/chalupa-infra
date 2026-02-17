@@ -1,0 +1,14 @@
+- name: Restart systemd-journald service
+  systemd:
+    name: systemd-journald
+    state: restarted
+  become: yes
+  changed_when: true
+
+- name: Reload systemd-journald service
+  systemd:
+    name: systemd-journald
+    daemon_reload: yes
+  become: yes
+  changed_when: true
+  notify: Restart systemd-journald service
