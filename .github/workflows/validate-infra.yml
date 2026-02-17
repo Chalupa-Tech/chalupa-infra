@@ -28,7 +28,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y yamllint
 
       - name: Run yamllint
-        run: yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable, indentation: disable}}" .
+        run: |
+          yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable, indentation: disable}}" .
 
   shell-check:
     name: ShellCheck
