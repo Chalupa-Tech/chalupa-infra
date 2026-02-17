@@ -47,8 +47,14 @@
 - name: Set initial passwords for managed users
   ansible.builtin.shell: |
     kubectl patch secret argocd-secret -n argocd -p \
-      '{"stringData": {"accounts.{{ item.name }}.password": "$2a$12$WkgbDDM51Gb5Mk76L77b.un3xGE8XkBdn0Jdr78P0DXJFwaqHdZs6", "accounts.{{ item.name }}.passwordMtime": "{{ ansible_facts.date_time.iso8601 }}"}}'
+      '{"stringData": {
+        "accounts.{{ item.name }}.password": "{{ argocd_setup_initial_password_hash }}",
+        "accounts.{{ item.name }}.passwordMtime": "{{ ansible_facts.date_time.iso8601 }}"
+      }}'
     touch /var/lib/rancher/k3s/server/argocd_passwords_initialized_{{ item.name }}
+  vars:
+    # ArgoCD123! hashed
+    argocd_setup_initial_password_hash: "$2a$12$WkgbDDM51Gb5Mk76L77b.un3xGE8XkBdn0Jdr78P0DXJFwaqHdZs6"
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   loop: "{{ managed_users }}"
