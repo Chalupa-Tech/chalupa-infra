@@ -18,23 +18,27 @@
 
 - name: Setup OpenBao for {{ user_item.name }}
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl exec -n openbao openbao-0 -- sh -c "
       BAO_TOKEN={{ openbao_setup_root_token }} bao namespace create {{ user_item.name }} || true
 
       # Create policy for user (full access within their namespace)
-      BAO_TOKEN={{ openbao_setup_root_token }} bao policy write -namespace={{ user_item.name }} user-policy - <<EOF
+      BAO_TOKEN={{ openbao_setup_root_token }} \
+        bao policy write -namespace={{ user_item.name }} user-policy - <<EOF
       path \"*\" {
         capabilities = [\"create\", \"read\", \"update\", \"delete\", \"list\", \"sudo\"]
       }
     EOF
 
       # Setup userpass user
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write -namespace={{ user_item.name }} auth/userpass/users/{{ user_item.name }} \
+      BAO_TOKEN={{ openbao_setup_root_token }} \
+        bao write -namespace={{ user_item.name }} auth/userpass/users/{{ user_item.name }} \
         password=OpenBao123! \
         policies=user-policy
 
       # Setup Kubernetes auth role
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write -namespace={{ user_item.name }} auth/kubernetes/role/{{ user_item.name }}-role \
+      BAO_TOKEN={{ openbao_setup_root_token }} \
+        bao write -namespace={{ user_item.name }} auth/kubernetes/role/{{ user_item.name }}-role \
         bound_service_account_names={{ user_item.name }}-sa \
         bound_service_account_namespaces={{ user_item.name }} \
         policies=user-policy \
@@ -47,9 +51,11 @@
 
 - name: Verify OpenBao setup for {{ user_item.name }}
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl exec -n openbao openbao-0 -- sh -c "
       BAO_TOKEN={{ openbao_setup_root_token }} bao namespace list | grep -q '{{ user_item.name }}/' && \
-      BAO_TOKEN={{ openbao_setup_root_token }} bao read -namespace={{ user_item.name }} auth/userpass/users/{{ user_item.name }}
+      BAO_TOKEN={{ openbao_setup_root_token }} \
+        bao read -namespace={{ user_item.name }} auth/userpass/users/{{ user_item.name }}
     "
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml

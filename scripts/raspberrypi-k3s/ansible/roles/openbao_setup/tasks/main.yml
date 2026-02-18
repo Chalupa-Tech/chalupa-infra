@@ -91,6 +91,7 @@
 
     - name: Enable auth methods
       ansible.builtin.shell: |
+        set -o pipefail
         kubectl exec -n openbao openbao-0 -- sh -c "
           BAO_TOKEN={{ openbao_setup_root_token }} bao auth enable userpass || true
           BAO_TOKEN={{ openbao_setup_root_token }} bao auth enable kubernetes || true
@@ -102,6 +103,7 @@
 
     - name: Configure Kubernetes auth
       ansible.builtin.shell: |
+        set -o pipefail
         kubectl exec -n openbao openbao-0 -- sh -c "
           BAO_TOKEN={{ openbao_setup_root_token }} bao write auth/kubernetes/config \
             kubernetes_host=https://kubernetes.default.svc \
