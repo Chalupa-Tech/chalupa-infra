@@ -48,6 +48,7 @@ New applications are added by:
   ```
 
 ## Development Conventions
+- **Workflow**: All changes must be merged via Pull Requests (PRs). Direct commits to the main branch are discouraged/restricted.
 - **Ansible**: Roles are modular and located in `scripts/raspberrypi-k3s/ansible/roles/`. Use `ansible-lint` to verify playbooks.
 - **Kubernetes**: Prefer `ApplicationSet` for grouping related applications. Namespace creation and server-side apply are standard sync options in `ApplicationSets`.
 - **Networking**: All node communication and Kubernetes API access are routed through Tailscale.
