@@ -1,7 +1,7 @@
 # GEMINI.md - chalupa-infra
 
 ## Project Overview
-`chalupa-infra` is a GitOps-based infrastructure repository for managing a K3s Kubernetes cluster on Raspberry Pi nodes. It follows a two-stage management lifecycle:
+`chalupa-infra` is a GitOps-based infrastructure repository for managing a K3s Kubernetes cluster on Raspberry Pi 5 nodes (8GB or 16GB RAM). It follows a two-stage management lifecycle:
 1.  **Ansible**: Used for initial node preparation, K3s installation in HA mode, and bootstrapping ArgoCD.
 2.  **ArgoCD**: Once bootstrapped, ArgoCD manages the lifecycle of core platform services and end-user applications using the `ApplicationSet` (App-of-Apps) pattern.
 
@@ -52,6 +52,13 @@ New applications are added by:
 - **Ansible**: Roles are modular and located in `scripts/raspberrypi-k3s/ansible/roles/`. Use `ansible-lint` to verify playbooks.
 - **Kubernetes**: Prefer `ApplicationSet` for grouping related applications. Namespace creation and server-side apply are standard sync options in `ApplicationSets`.
 - **Networking**: All node communication and Kubernetes API access are routed through Tailscale.
+
+## Pull Request Process
+1.  **Branching**: All changes must be developed on a feature or fix branch (e.g., `feat/my-feature` or `fix/issue-description`).
+2.  **Linting**: Ensure all YAML and Ansible files pass `yamllint` and `ansible-lint` locally before pushing.
+3.  **Opening PR**: Create a Pull Request targeting the `main` branch.
+4.  **Verification**: PR body must describe the Goal, Changes, and Testing. All CI checks (validation actions) must pass.
+5.  **Merging**: Once approved and checks are green, PRs are merged into `main`, which ArgoCD automatically tracks for deployment.
 
 ## Maintenance & Troubleshooting
 - **Logs**: Standard `kubectl logs` and ArgoCD UI (`https://argocd.local`).
