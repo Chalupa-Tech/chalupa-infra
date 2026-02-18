@@ -35,7 +35,7 @@ ansible-playbook playbooks/site.yml
 New applications are added by:
 1. Creating manifests in `k8s/apps/<app-name>`.
 2. Adding an entry to the `generators.list.elements` in an `ApplicationSet` (e.g., `k8s/apps/example-app-appset.yaml`).
-3. Committing and pushing changes to the repository.
+3. Committing and pushing changes to the repository's `main` branch (ArgoCD is configured to track `main`).
 
 ### 3. Local Environment Setup
 - **Kubeconfig**: Fetch the cluster's kubeconfig locally using:
