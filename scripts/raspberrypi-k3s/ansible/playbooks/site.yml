@@ -12,6 +12,7 @@
     - k3s_install
     - tailscale_services
     - argocd_setup
+    - openbao_setup
   post_tasks:
     - name: Register Primary Server Tailscale IP
       ansible.builtin.set_fact:
