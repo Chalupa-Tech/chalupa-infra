@@ -1,8 +1,8 @@
 ---
 - name: Wait for OpenBao namespace to exist
   ansible.builtin.command: kubectl get namespace openbao
-  register: openbao_ns_check
-  until: openbao_ns_check.rc == 0
+  register: openbao_setup_ns_check
+  until: openbao_setup_ns_check.rc == 0
   retries: 30
   delay: 10
   environment:
@@ -34,7 +34,7 @@
     - not ansible_check_mode
     - openbao_setup_status.stdout is defined
     - openbao_setup_status.stdout | length > 0
-    - (openbao_setup_status.stdout | from_json).initialized == false
+    - not (openbao_setup_status.stdout | from_json).initialized
   block:
     - name: Run OpenBao init
       ansible.builtin.command: >
@@ -113,7 +113,7 @@
       no_log: true
 
     - name: Setup Users, Namespaces and SAs
-      include_tasks: user_setup.yml
+      ansible.builtin.include_tasks: user_setup.yml
       loop: "{{ managed_users }}"
       loop_control:
         loop_var: user_item

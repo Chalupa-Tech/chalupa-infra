@@ -6,6 +6,8 @@ quiet: false
 use_default_rules: true
 project_dir: scripts/raspberrypi-k3s/ansible/
 progressive: false
+roles_path:
+  - scripts/raspberrypi-k3s/ansible/roles/
 mock_roles:
   - preflight
   - user_setup
