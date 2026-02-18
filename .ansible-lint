@@ -13,3 +13,4 @@ mock_roles:
   - k3s_install
   - tailscale_services
   - argocd_setup
+  - openbao_setup

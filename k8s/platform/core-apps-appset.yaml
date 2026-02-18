@@ -5,14 +5,16 @@ metadata:
   namespace: argocd
 spec:
   generators:
-  - list:
-      elements:
-      - name: cert-manager
-        path: k8s/platform/cert-manager
-      - name: external-secrets
-        path: k8s/platform/external-secrets
-      - name: observability
-        path: k8s/platform/observability
+    - list:
+        elements:
+          - name: cert-manager
+            path: k8s/platform/cert-manager
+          - name: external-secrets
+            path: k8s/platform/external-secrets
+          - name: observability
+            path: k8s/platform/observability
+          - name: openbao
+            path: k8s/platform/openbao
   template:
     metadata:
       name: '{{name}}'
@@ -30,5 +32,5 @@ spec:
           prune: true
           selfHeal: true
         syncOptions:
-        - CreateNamespace=true
-        - ServerSideApply=true
+          - CreateNamespace=true
+          - ServerSideApply=true
