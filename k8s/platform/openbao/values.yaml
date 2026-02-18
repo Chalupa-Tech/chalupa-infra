@@ -22,3 +22,5 @@ openbao:
       size: 1Gi
     ui:
       enabled: true
+  image:
+    tag: "2.3.1"

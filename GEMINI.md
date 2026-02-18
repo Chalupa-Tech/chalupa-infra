@@ -1,7 +1,7 @@
 # GEMINI.md - chalupa-infra
 
 ## Project Overview
-`chalupa-infra` is a GitOps-based infrastructure repository for managing a K3s Kubernetes cluster on Raspberry Pi nodes. It follows a two-stage management lifecycle:
+`chalupa-infra` is a GitOps-based infrastructure repository for managing a K3s Kubernetes cluster on Raspberry Pi 5 nodes (8GB or 16GB RAM). It follows a two-stage management lifecycle:
 1.  **Ansible**: Used for initial node preparation, K3s installation in HA mode, and bootstrapping ArgoCD.
 2.  **ArgoCD**: Once bootstrapped, ArgoCD manages the lifecycle of core platform services and end-user applications using the `ApplicationSet` (App-of-Apps) pattern.
 
