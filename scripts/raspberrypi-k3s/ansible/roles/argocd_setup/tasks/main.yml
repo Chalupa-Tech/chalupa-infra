@@ -68,25 +68,31 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
 
+- name: Set bootstrap directory fact
+  ansible.builtin.set_fact:
+    argocd_setup_bootstrap_dir: /tmp/argocd-bootstrap
+
 - name: Create temporary directory for core apps bootstrap
   ansible.builtin.file:
-    path: /tmp/argocd-bootstrap
+    path: "{{ argocd_setup_bootstrap_dir }}"
     state: directory
     mode: "0755"
+  check_mode: no
 
 - name: Copy core apps bootstrap files
   ansible.builtin.copy:
     src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
+    dest: "{{ argocd_setup_bootstrap_dir }}/{{ item.dest | basename }}"
     mode: "{{ item.mode | default('0644') }}"
+  check_mode: no
   loop:
     - src: "../../../../scripts/deploy-core-apps.sh"
-      dest: "/tmp/argocd-bootstrap/deploy-core-apps.sh"
+      dest: "deploy-core-apps.sh"
       mode: "0755"
     - src: "../../../../k8s/platform/core-apps-appset.yaml"
-      dest: "/tmp/argocd-bootstrap/core-apps-appset.yaml"
+      dest: "core-apps-appset.yaml"
     - src: "../../local/observability/bootstrap_observability_crds.sh"
-      dest: "/tmp/argocd-bootstrap/bootstrap_observability_crds.sh"
+      dest: "bootstrap_observability_crds.sh"
       mode: "0755"
 
 - name: Get repository URL
@@ -99,16 +105,17 @@
 - name: Deploy core applications via ArgoCD
   ansible.builtin.command: ./deploy-core-apps.sh
   args:
-    chdir: /tmp/argocd-bootstrap
+    chdir: "{{ argocd_setup_bootstrap_dir }}"
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-    REPO_URL: "{{ argocd_setup_repo_url_cmd.stdout }}"
-    APPSET_FILE: "/tmp/argocd-bootstrap/core-apps-appset.yaml"
+    REPO_URL: "{{ argocd_setup_repo_url_cmd.stdout | default('https://github.com/example/repo') }}"
+    APPSET_FILE: "{{ argocd_setup_bootstrap_dir }}/core-apps-appset.yaml"
     CRD_BOOTSTRAP_SCRIPT: >-
-      /tmp/argocd-bootstrap/bootstrap_observability_crds.sh
+      {{ argocd_setup_bootstrap_dir }}/bootstrap_observability_crds.sh
   changed_when: true
 
 - name: Cleanup bootstrap files
   ansible.builtin.file:
-    path: /tmp/argocd-bootstrap
+    path: "{{ argocd_setup_bootstrap_dir }}"
     state: absent
+  when: not ansible_check_mode
