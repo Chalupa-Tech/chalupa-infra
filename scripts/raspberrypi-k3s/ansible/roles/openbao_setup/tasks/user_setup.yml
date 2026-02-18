@@ -23,10 +23,10 @@
 
       # Create policy for user (full access within their namespace)
       BAO_TOKEN={{ openbao_setup_root_token }} bao policy write -namespace={{ user_item.name }} user-policy - <<EOF
-path \"*\" {
-  capabilities = [\"create\", \"read\", \"update\", \"delete\", \"list\", \"sudo\"]
-}
-EOF
+      path \"*\" {
+        capabilities = [\"create\", \"read\", \"update\", \"delete\", \"list\", \"sudo\"]
+      }
+    EOF
 
       # Setup userpass user
       BAO_TOKEN={{ openbao_setup_root_token }} bao write -namespace={{ user_item.name }} auth/userpass/users/{{ user_item.name }} \
