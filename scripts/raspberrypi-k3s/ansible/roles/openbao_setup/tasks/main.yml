@@ -1,4 +1,15 @@
 ---
+- name: Wait for OpenBao namespace to exist
+  ansible.builtin.command: kubectl get namespace openbao
+  register: openbao_ns_check
+  until: openbao_ns_check.rc == 0
+  retries: 30
+  delay: 10
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+  check_mode: no
+
 - name: Wait for OpenBao pods to be ready
   ansible.builtin.command: >
     kubectl wait --namespace openbao
@@ -7,6 +18,7 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: false
+  check_mode: no
 
 - name: Check if OpenBao is initialized
   ansible.builtin.command: kubectl exec -n openbao openbao-0 -- bao status -format=json
