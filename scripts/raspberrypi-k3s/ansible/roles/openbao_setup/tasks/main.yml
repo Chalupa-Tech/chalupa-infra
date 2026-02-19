@@ -10,11 +10,14 @@
   changed_when: false
   check_mode: no
 
-- name: Wait for OpenBao pods to be ready
+- name: Wait for OpenBao pods to be running
   ansible.builtin.command: >
-    kubectl wait --namespace openbao
-    --for=condition=ready pod/openbao-0 pod/openbao-1 pod/openbao-2
-    --timeout=300s
+    kubectl get pod/openbao-{{ item }} -n openbao -o jsonpath='{.status.phase}'
+  register: openbao_setup_pod_phase
+  until: openbao_setup_pod_phase.stdout == "Running"
+  retries: 60
+  delay: 10
+  loop: [0, 1, 2]
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: false
