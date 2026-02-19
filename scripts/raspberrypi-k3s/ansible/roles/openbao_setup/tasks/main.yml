@@ -28,6 +28,9 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: openbao_setup_status
+  until: openbao_setup_status.rc == 0 or "Sealed" in openbao_setup_status.stdout
+  retries: 30
+  delay: 10
   failed_when: false
   changed_when: false
   check_mode: no
@@ -81,15 +84,49 @@
         openbao_setup_root_token: "{{ (openbao_setup_init_slurp.content | b64decode | from_json).root_token }}"
       no_log: true
 
-    - name: Unseal OpenBao pods
+    - name: Unseal OpenBao leader (openbao-0)
+      ansible.builtin.command: >
+        kubectl exec -n openbao openbao-0 --
+        bao operator unseal {{ openbao_setup_unseal_key }}
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: openbao_setup_unseal_leader
+      until: openbao_setup_unseal_leader.rc == 0
+      retries: 30
+      delay: 30
+      changed_when: "'Sealed               false' in openbao_setup_unseal_leader.stdout"
+      no_log: true
+
+    - name: Join OpenBao followers to Raft cluster
+      ansible.builtin.command: >
+        kubectl exec -n openbao openbao-{{ item }} --
+        bao operator raft join http://openbao-0.openbao-internal:8200
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      loop: [1, 2]
+      register: openbao_setup_raft_join
+      until: openbao_setup_raft_join.rc == 0
+      retries: 20
+      delay: 10
+      changed_when: true
+      failed_when: false
+
+    - name: Wait for Raft join to stabilize
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Unseal OpenBao followers (openbao-1, openbao-2)
       ansible.builtin.command: >
         kubectl exec -n openbao openbao-{{ item }} --
         bao operator unseal {{ openbao_setup_unseal_key }}
       environment:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      loop: [0, 1, 2]
-      register: openbao_setup_unseal_result
-      changed_when: "'Sealed               false' in openbao_setup_unseal_result.stdout"
+      loop: [1, 2]
+      register: openbao_setup_unseal_followers
+      until: openbao_setup_unseal_followers.rc == 0
+      retries: 60
+      delay: 30
+      changed_when: "'Sealed               false' in openbao_setup_unseal_followers.stdout"
       no_log: true
 
     - name: Enable auth methods
