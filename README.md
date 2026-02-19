@@ -44,16 +44,37 @@ This command will:
 - Set up Linux users and SSH keys.
 - Install K3s in an HA configuration.
 - Install Helm and ArgoCD on the primary node.
-- **Bootstrap Core Services**: Deploy `cert-manager`, `external-secrets`, and the `observability` stack via a core `ApplicationSet`.
+- **Bootstrap Core Services**: Deploy the core `ApplicationSet` which includes:
+    - **cert-manager**: TLS certificate management via Let's Encrypt.
+    - **external-secrets**: Syncs secrets from OpenBao into Kubernetes Secrets.
+    - **observability**: Full stack (Prometheus, Grafana) for cluster monitoring.
+    - **openbao**: HA secret management (Vault fork).
 
-### 4. Accessing ArgoCD
+### 4. Accessing Services
+
+#### ArgoCD
 ArgoCD is configured with an Ingress at `https://argocd.local`.
 
 **Managed Users & Passwords**:
 Initial passwords for users defined in `inventory/group_vars/all.yml` (e.g., `tbigelow`, `ddowell`) are set to:
 `ArgoCD123!`
 
-It is recommended to change these immediately upon first login.
+#### OpenBao (Secret Management)
+OpenBao is available within the cluster and manages secrets in per-user namespaces.
+
+**Authentication for Managed Users**:
+- **Userpass (Web UI/CLI)**:
+    - **Namespace**: `{{ username }}` (e.g., `tbigelow`)
+    - **Method**: `userpass`
+    - **Username**: `{{ username }}`
+    - **Password**: `OpenBao123!`
+- **Kubernetes Auth (Applications)**:
+    - **Namespace**: `{{ username }}`
+    - **Role**: `{{ username }}-role`
+    - **Service Account**: `{{ username }}-sa`
+    - **Bound Namespace**: `{{ username }}`
+
+Policies are automatically created granting users full administrative rights (`create`, `read`, `update`, `delete`, `list`, `sudo`) within their assigned OpenBao namespace.
 
 ## Managing Applications
 
