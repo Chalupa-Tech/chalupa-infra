@@ -1,5 +1,8 @@
 openbao:
   server:
+    extraEnvironmentVars:
+      BAO_CLUSTER_ADDR: "http://$(HOSTNAME).openbao-internal:8201"
+      BAO_API_ADDR: "http://$(POD_IP):8200"
     ha:
       enabled: true
       raft:
@@ -11,8 +14,8 @@ openbao:
           cluster_addr = "http://HOSTNAME.openbao-internal:8201"
           listener "tcp" {
             tls_disable = 1
-            address = "[::]:8200"
-            cluster_address = "[::]:8201"
+            address = "0.0.0.0:8200"
+            cluster_address = "0.0.0.0:8201"
           }
           storage "raft" {
             path = "/openbao/data"
