@@ -7,6 +7,14 @@
   failed_when: false
   changed_when: "'created' in openbao_setup_ns_create.stdout"
 
+- name: Ensure K8s test namespace exists for {{ user_item.name }}
+  ansible.builtin.command: kubectl create namespace {{ user_item.name }}_test
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: openbao_setup_test_ns_create
+  failed_when: false
+  changed_when: "'created' in openbao_setup_test_ns_create.stdout"
+
 - name: Ensure ServiceAccount exists for {{ user_item.name }}
   ansible.builtin.command: >
     kubectl create serviceaccount {{ user_item.name }}-sa -n {{ user_item.name }}
@@ -15,6 +23,15 @@
   register: openbao_setup_sa_create
   failed_when: false
   changed_when: "'created' in openbao_setup_sa_create.stdout"
+
+- name: Ensure test ServiceAccount exists for {{ user_item.name }}
+  ansible.builtin.command: >
+    kubectl create serviceaccount {{ user_item.name }}-test-sa -n {{ user_item.name }}_test
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: openbao_setup_test_sa_create
+  failed_when: false
+  changed_when: "'created' in openbao_setup_test_sa_create.stdout"
 
 - name: Setup OpenBao for {{ user_item.name }}
   ansible.builtin.shell: |
@@ -47,6 +64,14 @@
         bao write -namespace={{ user_item.name }} auth/kubernetes/role/{{ user_item.name }}-role \
         bound_service_account_names={{ user_item.name }}-sa \
         bound_service_account_namespaces={{ user_item.name }} \
+        policies=user-policy \
+        ttl=1h
+
+      # Setup Kubernetes auth role for test SA
+      BAO_TOKEN={{ openbao_setup_root_token }} \
+        bao write -namespace={{ user_item.name }} auth/kubernetes/role/{{ user_item.name }}-test-role \
+        bound_service_account_names={{ user_item.name }}-test-sa \
+        bound_service_account_namespaces={{ user_item.name }}_test \
         policies=user-policy \
         ttl=1h
     "
