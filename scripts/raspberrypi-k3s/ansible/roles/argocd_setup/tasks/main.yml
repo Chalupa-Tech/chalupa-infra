@@ -61,12 +61,7 @@
   changed_when: true
   args:
     creates: /var/lib/rancher/k3s/server/argocd_passwords_initialized_{{ item.name }}
-
-- name: Restart ArgoCD Server to pick up password changes
-  ansible.builtin.command: kubectl rollout restart deployment argocd-server -n argocd
-  environment:
-    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  changed_when: true
+  notify: Restart ArgoCD Server
 
 - name: Set bootstrap directory fact
   ansible.builtin.set_fact:

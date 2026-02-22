@@ -22,6 +22,12 @@
     kubectl exec -n openbao openbao-0 -- sh -c "
       BAO_TOKEN={{ openbao_setup_root_token }} bao namespace create {{ user_item.name }} || true
 
+      # Enable auth methods in the namespace
+      BAO_TOKEN={{ openbao_setup_root_token }} \
+        bao auth enable -namespace={{ user_item.name }} userpass || true
+      BAO_TOKEN={{ openbao_setup_root_token }} \
+        bao auth enable -namespace={{ user_item.name }} kubernetes || true
+
       # Create policy for user (full access within their namespace)
       BAO_TOKEN={{ openbao_setup_root_token }} \
         bao policy write -namespace={{ user_item.name }} user-policy - <<EOF
