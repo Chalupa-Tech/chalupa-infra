@@ -154,6 +154,9 @@
       changed_when: true
       no_log: true
 
+    - name: Setup Shared Namespace
+      ansible.builtin.include_tasks: shared_setup.yml
+
     - name: Setup Users, Namespaces and SAs
       ansible.builtin.include_tasks: user_setup.yml
       loop: "{{ managed_users }}"
