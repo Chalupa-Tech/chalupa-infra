@@ -19,3 +19,9 @@ ts_service_name: >-
   {{ lookup('env', 'TS_SERVICE_NAME') |
      default(lookup('ini', 'TS_SERVICE_NAME type=properties file=' ~ playbook_dir ~ '/../.env') |
      default('svc:chalupa-k3s', true), true) }}
+
+# Journald configuration
+journald_system_max_use: "2G"
+journald_system_keep_free: "10G"
+journald_max_file_sec: "1day"
+journald_max_retention_sec: "7day"
