@@ -29,7 +29,15 @@ jobs:
 
       - name: Run yamllint
         run: |
-          yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable, indentation: disable}}" .
+          yamllint -d "{
+            extends: default,
+            rules: {
+              line-length: disable,
+              document-start: disable,
+              truthy: disable,
+              indentation: disable
+            }
+          }" .
 
   shell-check:
     name: ShellCheck
