@@ -4,22 +4,23 @@ This repository contains the infrastructure-as-code (GitOps) for the `chalupa-in
 
 ## Architecture & Flow
 
-The infrastructure is managed in two stages:
+The infrastructure is managed in two primary stages:
 1.  **Ansible**: Bootstraps the Raspberry Pi nodes, installs K3s (HA), and initializes ArgoCD with core services.
 2.  **ArgoCD**: Manages the lifecycle of core platform services and end-user applications using the `ApplicationSet` pattern.
 
-### Node Ordering
-The cluster is provisioned in a specific order to establish the control plane:
-1.  **Primary Server (`tpi2`)**: The first control plane node. It generates the cluster token and initializes the database.
-2.  **HA Servers (`tpi1`, `tpi3`)**: Join the cluster as additional control plane nodes.
-3.  **Agents**: (Optional) Join as worker-only nodes.
+### Node & Service Orchestration
+The main playbook `playbooks/site.yml` is executed in four sequential stages:
+1.  **Primary Server (`tpi2`)**: Provisions the first control plane node, registers its Tailscale IP, and captures the cluster token.
+2.  **HA Servers (`tpi1`, `tpi3`)**: Join the cluster as additional control plane nodes using the discovered token and IP.
+3.  **Agents**: (Optional) Join worker-only nodes.
+4.  **Finalize**: Bootstraps ArgoCD and OpenBao on the control plane.
 
 ## Bootstrap Guide
 
 ### 1. Prerequisites
-- **SSH Access**: Ensure you have SSH access to the Raspberry Pis.
-- **Ansible**: Installed on your local machine.
-- **Tailscale Auth Key**: Required for node networking.
+- **Tailscale**: Nodes should be authenticated to your tailnet.
+- **SSH Access**: Ensure you have SSH access to the nodes (usually via Tailscale IP).
+- **Ansible**: Installed locally to run the playbooks.
 
 ### 2. Ansible Authentication
 Ansible looks for secrets in the following order:
@@ -41,14 +42,12 @@ ansible-playbook playbooks/site.yml
 ```
 
 This command will:
-- Set up Linux users and SSH keys.
-- Install K3s in an HA configuration.
-- Install Helm and ArgoCD on the primary node.
-- **Bootstrap Core Services**: Deploy the core `ApplicationSet` which includes:
-    - **cert-manager**: TLS certificate management via Let's Encrypt.
-    - **external-secrets**: Syncs secrets from OpenBao into Kubernetes Secrets.
-    - **observability**: Full stack (Prometheus, Grafana) for cluster monitoring.
-    - **openbao**: HA secret management (Vault fork).
+- Set up Linux users, SSH keys, and passwordless sudo.
+- Prepare nodes (cgroups memory enablement).
+- Install K3s in an HA configuration with Tailscale service exposing.
+- **Bootstrap GitOps**: Install Helm and ArgoCD on the primary node.
+- **Configure OpenBao**: Initialize, unseal, and configure auth methods (Userpass & Kubernetes) and user-specific namespaces.
+- **Deploy Core Services**: Deploy the core `ApplicationSet` which includes `cert-manager`, `external-secrets`, `observability`, and `openbao`.
 
 ### 4. Accessing Services
 
