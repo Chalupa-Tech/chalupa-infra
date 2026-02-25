@@ -1,2 +1,2 @@
 ---
-disable_wifi: false
+pi_prepare_disable_wifi: false

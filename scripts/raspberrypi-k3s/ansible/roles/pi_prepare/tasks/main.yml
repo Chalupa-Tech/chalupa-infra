@@ -81,14 +81,14 @@
   become: true
   when:
     - pi_prepare_config_file is defined
-    - disable_wifi | bool
+    - pi_prepare_disable_wifi | bool
   register: pi_prepare_wifi_config_updated
 
 - name: Disable WiFi immediately using rfkill
   ansible.builtin.command: rfkill block wifi
   become: true
   when:
-    - disable_wifi | bool
+    - pi_prepare_disable_wifi | bool
   changed_when: false  # rfkill block is idempotent but doesn't report change easily without parsing
 
 - name: Warn about reboot requirement for WiFi
