@@ -9,6 +9,9 @@ spec:
     privateKeySecretRef:
       name: letsencrypt-prod
     solvers:
-      - http01:
-          ingress:
-            class: traefik
+      - dns01:
+          cloudflare:
+            email: bigelowtayven+chalupatech@gmail.com
+            apiTokenSecretRef:
+              name: cloudflare-api-key-secret
+              key: api-key

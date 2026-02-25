@@ -20,6 +20,26 @@
   failed_when: false
   changed_when: "'created' in argocd_setup_ns_create.stdout"
 
+- name: Ensure cert-manager namespace exists
+  ansible.builtin.command: kubectl create namespace cert-manager
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: argocd_setup_cm_ns_create
+  failed_when: false
+  changed_when: "'created' in argocd_setup_cm_ns_create.stdout"
+
+- name: Create Cloudflare API Key secret for cert-manager
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl create secret generic cloudflare-api-key-secret \
+      --namespace cert-manager \
+      --from-literal=api-key={{ cloudflare_api_key }} \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  no_log: true
+  changed_when: true
+
 - name: Add ArgoCD Helm repository
   ansible.builtin.shell: |
     helm repo add argo https://argoproj.github.io/argo-helm
@@ -48,7 +68,8 @@
   ansible.builtin.shell: |
     set -o pipefail
     # Check if the password key exists in the secret data
-    if ! kubectl get secret argocd-secret -n argocd -o jsonpath='{.data}' | grep -q "accounts.{{ item.name }}.password"; then
+    if ! kubectl get secret argocd-secret -n argocd -o jsonpath='{.data}' | \
+       grep -q "accounts.{{ item.name }}.password"; then
       kubectl patch secret argocd-secret -n argocd -p \
         '{"stringData": {
           "accounts.{{ item.name }}.password": "{{ argocd_setup_initial_password_hash }}",
@@ -62,8 +83,8 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   loop: "{{ managed_users }}"
-  register: argocd_password_bootstrap
-  changed_when: "'bootstrapped' in argocd_password_bootstrap.stdout"
+  register: argocd_setup_password_bootstrap
+  changed_when: "'bootstrapped' in argocd_setup_password_bootstrap.stdout"
   notify: Restart ArgoCD Server
 
 - name: Set bootstrap directory fact

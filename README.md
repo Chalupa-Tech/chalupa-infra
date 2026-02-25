@@ -22,16 +22,23 @@ The main playbook `playbooks/site.yml` is executed in four sequential stages:
 - **SSH Access**: Ensure you have SSH access to the nodes (usually via Tailscale IP).
 - **Ansible**: Installed locally to run the playbooks.
 
-### 2. Ansible Authentication
-Ansible looks for secrets in the following order:
-1.  Environment variables: `TS_AUTHKEY`, `K3S_TOKEN`.
-2.  A `.env` file located at `scripts/raspberrypi-k3s/ansible/.env`.
+### 2. Ansible Authentication (Secrets)
+Secrets are managed using **Ansible Vault**. The encrypted secrets are stored in `scripts/raspberrypi-k3s/ansible/inventory/group_vars/all/vault.yml`.
 
-Example `.env`:
-```ini
-TS_AUTHKEY=tskey-auth-xxxxxx
-K3S_TOKEN=optional-custom-token
+#### Running Playbooks
+When running playbooks, you must provide the vault password:
+```bash
+ansible-playbook playbooks/site.yml --ask-vault-pass
 ```
+
+#### Promptless Execution (Recommended)
+For a smoother experience, you can store your vault password in a file (e.g., `~/.vault_pass.txt`) and set the `ANSIBLE_VAULT_PASSWORD_FILE` environment variable:
+
+1.  Create the password file: `echo "your_password" > ~/.vault_pass.txt`
+2.  Set the environment variable: `export ANSIBLE_VAULT_PASSWORD_FILE=~/.vault_pass.txt`
+3.  Run playbooks without flags: `ansible-playbook playbooks/site.yml`
+
+*Note: Never commit your vault password file to the repository.*
 
 ### 3. Provision the Cluster
 Run the main playbook from the `scripts/raspberrypi-k3s/ansible` directory:

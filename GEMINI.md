@@ -36,9 +36,9 @@ The cluster is provisioned in four distinct stages via Ansible:
 Command to execute:
 ```bash
 cd scripts/raspberrypi-k3s/ansible
-ansible-playbook playbooks/site.yml
+ansible-playbook playbooks/site.yml --ask-vault-pass
 ```
-*Note: Secrets should be provided via environment variables (`TS_AUTHKEY`, `K3S_TOKEN`) or a `.env` file.*
+*Note: Secrets (Tailscale AuthKey, Cloudflare API Key) are managed via Ansible Vault in `inventory/group_vars/all/vault.yml`. Ensure you have the vault password.*
 
 ### 2. Managing Applications (GitOps)
 New applications are added by:
@@ -59,6 +59,9 @@ New applications are added by:
 ## Development Conventions
 - **Workflow**: All changes must be merged via Pull Requests (PRs). Direct commits to the main branch are discouraged/restricted.
 - **Ansible**: Roles are modular and located in `scripts/raspberrypi-k3s/ansible/roles/`. Use `ansible-lint` to verify playbooks.
+- **Secrets Management**: Sensitive data (API keys, auth tokens) MUST be stored in `scripts/raspberrypi-k3s/ansible/inventory/group_vars/all/vault.yml` using Ansible Vault.
+    - **Promptless Running**: It is recommended to set the `ANSIBLE_VAULT_PASSWORD_FILE` environment variable to point to a local password file to avoid manual password entry.
+    - **Variable Naming**: Vaulted variables should be prefixed with `vault_` and mapped to plaintext variable names in `vars.yml`.
 - **Kubernetes**: Prefer `ApplicationSet` for grouping related applications. Namespace creation and server-side apply are standard sync options in `ApplicationSets`.
 - **Networking**: All node communication and Kubernetes API access are routed through Tailscale.
 
