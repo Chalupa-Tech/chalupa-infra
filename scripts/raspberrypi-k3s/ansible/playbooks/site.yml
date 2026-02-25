@@ -11,8 +11,6 @@
     - pi_prepare
     - k3s_install
     - tailscale_services
-    - argocd_setup
-    - openbao_setup
   post_tasks:
     - name: Register Primary Server Tailscale IP
       ansible.builtin.set_fact:
@@ -60,3 +58,10 @@
         k3s_install_token: >-
           {{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] |
              default(k3s_token) }}
+
+- name: Finalize Cluster Configuration (ArgoCD & OpenBao)
+  hosts: k3s_servers
+  become: true
+  roles:
+    - argocd_setup
+    - openbao_setup

@@ -10,26 +10,35 @@ The cluster nodes (`tpi1`, `tpi2`, `tpi3`) are interconnected using **Tailscale*
 ## Core Technologies
 - **Ansible**: Infrastructure orchestration and cluster bootstrapping.
 - **K3s**: Lightweight Kubernetes distribution in a High-Availability (HA) configuration.
-- **ArgoCD**: GitOps continuous delivery tool.
-- **Tailscale**: Peer-to-peer VPN for node connectivity.
+- **ArgoCD**: GitOps continuous delivery tool for application lifecycle.
+- **Tailscale**: Peer-to-peer VPN for secure node-to-node connectivity and service exposing.
+- **OpenBao**: HA secret management (Vault fork) with automated initialization, unsealing, and Kubernetes/Userpass auth configuration.
 - **Kubernetes (k8s)**: Platform services include `cert-manager`, `external-secrets`, and a full `observability` stack (Prometheus, Grafana, etc.).
 
 ## Directory Structure
-- `scripts/raspberrypi-k3s/ansible/`: Ansible roles, playbooks, and inventory for cluster setup.
-- `k8s/platform/`: ArgoCD `ApplicationSet` and manifests for core infrastructure services.
+- `scripts/raspberrypi-k3s/ansible/`: Ansible configuration, playbooks, and roles.
+  - `roles/`: Modular components (`argocd_setup`, `k3s_install`, `openbao_setup`, `pi_prepare`, `tailscale_services`, `user_setup`).
+  - `playbooks/site.yml`: Main multi-stage orchestration playbook.
+- `k8s/platform/`: ArgoCD `ApplicationSet` and manifests for core infrastructure services (`cert-manager`, `external-secrets`, `observability`, `openbao`).
 - `k8s/apps/`: Definitions for end-user applications.
 - `scripts/`: Utility scripts for deployment, local kubeconfig fetching, and troubleshooting.
-- `.github/workflows/`: CI/CD pipelines for infrastructure validation and Gemini-powered automation.
+- `.github/workflows/`: CI/CD pipelines for infrastructure validation (Ansible/YAML linting) and automation.
 
 ## Key Workflows
 
 ### 1. Bootstrapping the Cluster
-The cluster is provisioned from the Ansible directory:
+The cluster is provisioned in four distinct stages via Ansible:
+1.  **Primary Server**: Provisions the first control plane node, registers its Tailscale IP, and captures the K3s node token.
+2.  **HA Servers**: Joins additional control plane nodes to the primary using discovered facts.
+3.  **Agents**: (Optional) Joins worker nodes to the control plane.
+4.  **Finalize**: Bootstraps ArgoCD and OpenBao (including initialization and unsealing).
+
+Command to execute:
 ```bash
 cd scripts/raspberrypi-k3s/ansible
 ansible-playbook playbooks/site.yml
 ```
-*Note: Secrets should be provided via environment variables (`TS_AUTHKEY`, `K3S_TOKEN`) or a `.env` file in the ansible directory.*
+*Note: Secrets should be provided via environment variables (`TS_AUTHKEY`, `K3S_TOKEN`) or a `.env` file.*
 
 ### 2. Managing Applications (GitOps)
 New applications are added by:

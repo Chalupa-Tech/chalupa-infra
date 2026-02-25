@@ -9,7 +9,9 @@ on:
         required: false
 
 concurrency:
-  group: '${{ github.workflow }}-triage-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number }}'
+  group: >-
+    ${{ github.workflow }}-triage-${{ github.event_name }}-${{
+    github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: true
 
 defaults:
@@ -112,7 +114,8 @@ jobs:
         id: 'mint_identity_token'
         if: |-
           ${{ vars.APP_ID }}
-        uses: 'actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf' # ratchet:actions/create-github-app-token@v2
+        # ratchet:actions/create-github-app-token@v2
+        uses: 'actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf'
         with:
           app-id: '${{ vars.APP_ID }}'
           private-key: '${{ secrets.APP_PRIVATE_KEY }}'
@@ -154,5 +157,8 @@ jobs:
               });
               core.info(`Successfully set labels: ${selectedLabels.join(',')}`);
             } else {
-              core.info(`Failed to determine labels to set. There may not be enough information in the issue or pull request.`)
+              core.info(
+                `Failed to determine labels to set. ` +
+                `There may not be enough information in the issue or pull request.`
+              )
             }

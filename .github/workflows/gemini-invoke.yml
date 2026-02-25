@@ -9,7 +9,9 @@ on:
         required: false
 
 concurrency:
-  group: '${{ github.workflow }}-invoke-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number }}'
+  group: >-
+    ${{ github.workflow }}-invoke-${{ github.event_name }}-${{
+    github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: false
 
 defaults:
@@ -29,7 +31,8 @@ jobs:
         id: 'mint_identity_token'
         if: |-
           ${{ vars.APP_ID }}
-        uses: 'actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf' # ratchet:actions/create-github-app-token@v2
+        # ratchet:actions/create-github-app-token@v2
+        uses: 'actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf'
         with:
           app-id: '${{ vars.APP_ID }}'
           private-key: '${{ secrets.APP_PRIVATE_KEY }}'

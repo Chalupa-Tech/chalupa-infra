@@ -7,6 +7,14 @@
   failed_when: false
   changed_when: "'created' in openbao_setup_ns_create.stdout"
 
+- name: Ensure K8s test namespace exists for {{ user_item.name }}
+  ansible.builtin.command: kubectl create namespace {{ user_item.name }}_test
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: openbao_setup_test_ns_create
+  failed_when: false
+  changed_when: "'created' in openbao_setup_test_ns_create.stdout"
+
 - name: Ensure ServiceAccount exists for {{ user_item.name }}
   ansible.builtin.command: >
     kubectl create serviceaccount {{ user_item.name }}-sa -n {{ user_item.name }}
@@ -16,38 +24,67 @@
   failed_when: false
   changed_when: "'created' in openbao_setup_sa_create.stdout"
 
+- name: Ensure test ServiceAccount exists for {{ user_item.name }}
+  ansible.builtin.command: >
+    kubectl create serviceaccount {{ user_item.name }}-test-sa -n {{ user_item.name }}_test
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: openbao_setup_test_sa_create
+  failed_when: false
+  changed_when: "'created' in openbao_setup_test_sa_create.stdout"
+
 - name: Setup OpenBao for {{ user_item.name }}
   ansible.builtin.shell: |
     set -o pipefail
     kubectl exec -n openbao openbao-0 -- sh -c "
       BAO_TOKEN={{ openbao_setup_root_token }} bao namespace create {{ user_item.name }} || true
 
-      # Enable auth methods in the namespace
+      # Create ROOT level policy for the human user
       BAO_TOKEN={{ openbao_setup_root_token }} \
-        bao auth enable -namespace={{ user_item.name }} userpass || true
-      BAO_TOKEN={{ openbao_setup_root_token }} \
-        bao auth enable -namespace={{ user_item.name }} kubernetes || true
-
-      # Create policy for user (full access within their namespace)
-      BAO_TOKEN={{ openbao_setup_root_token }} \
-        bao policy write -namespace={{ user_item.name }} user-policy - <<EOF
-      path \"*\" {
+        bao policy write user-{{ user_item.name }}-policy - <<EOF
+      # Access to own namespace
+      path \"{{ user_item.name }}/*\" {
+        capabilities = [\"create\", \"read\", \"update\", \"delete\", \"list\", \"sudo\"]
+      }
+      # Access to shared namespace
+      path \"shared/*\" {
         capabilities = [\"create\", \"read\", \"update\", \"delete\", \"list\", \"sudo\"]
       }
     EOF
 
-      # Setup userpass user
+      # Create ROOT level policy for service accounts
       BAO_TOKEN={{ openbao_setup_root_token }} \
-        bao write -namespace={{ user_item.name }} auth/userpass/users/{{ user_item.name }} \
-        password=OpenBao123! \
-        policies=user-policy
+        bao policy write user-{{ user_item.name }}-sa-policy - <<EOF
+      # Read access to own namespace secrets
+      path \"{{ user_item.name }}/secret/*\" {
+        capabilities = [\"read\", \"list\"]
+      }
+      # Read access to shared namespace secrets
+      path \"shared/secret/*\" {
+        capabilities = [\"read\", \"list\"]
+      }
+    EOF
 
-      # Setup Kubernetes auth role
+      # Setup userpass user at ROOT
       BAO_TOKEN={{ openbao_setup_root_token }} \
-        bao write -namespace={{ user_item.name }} auth/kubernetes/role/{{ user_item.name }}-role \
+        bao write auth/userpass/users/{{ user_item.name }} \
+        password=OpenBao123! \
+        policies=user-{{ user_item.name }}-policy
+
+      # Setup Kubernetes auth role at ROOT
+      BAO_TOKEN={{ openbao_setup_root_token }} \
+        bao write auth/kubernetes/role/{{ user_item.name }}-role \
         bound_service_account_names={{ user_item.name }}-sa \
         bound_service_account_namespaces={{ user_item.name }} \
-        policies=user-policy \
+        policies=user-{{ user_item.name }}-sa-policy \
+        ttl=1h
+
+      # Setup Kubernetes auth role for test SA at ROOT
+      BAO_TOKEN={{ openbao_setup_root_token }} \
+        bao write auth/kubernetes/role/{{ user_item.name }}-test-role \
+        bound_service_account_names={{ user_item.name }}-test-sa \
+        bound_service_account_namespaces={{ user_item.name }}_test \
+        policies=user-{{ user_item.name }}-sa-policy \
         ttl=1h
     "
   environment:
@@ -61,7 +98,7 @@
     kubectl exec -n openbao openbao-0 -- sh -c "
       BAO_TOKEN={{ openbao_setup_root_token }} bao namespace list | grep -q '{{ user_item.name }}/' && \
       BAO_TOKEN={{ openbao_setup_root_token }} \
-        bao read -namespace={{ user_item.name }} auth/userpass/users/{{ user_item.name }}
+        bao read auth/userpass/users/{{ user_item.name }}
     "
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
