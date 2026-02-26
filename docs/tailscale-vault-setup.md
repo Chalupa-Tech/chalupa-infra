@@ -1,67 +1,36 @@
 # Tailscale Operator — Vault Setup
 
-One-time manual steps required before ArgoCD syncs the `tailscale-operator` app.
+The Vault policy and Kubernetes auth role for the Tailscale operator are **automatically created** by the Ansible `openbao_setup` role during cluster provisioning.
 
-## 1. Write secrets to OpenBao
+The only manual step required is injecting your actual Tailscale OAuth credentials into OpenBao.
 
-```bash
-vault kv put secret/platform/tailscale-operator \
-  client_id="<YOUR_OAUTH_CLIENT_ID>" \
-  client_secret="<YOUR_OAUTH_CLIENT_SECRET>"
-```
+## 1. Get OpenBao Credentials
 
-## 2. Create a Vault policy
-
-```hcl
-# tailscale-operator.hcl
-path "secret/data/platform/tailscale-operator" {
-  capabilities = ["read"]
-}
-```
+The root token is automatically generated during cluster bootstrapping. You can find it on your primary K3s server node:
 
 ```bash
-vault policy write tailscale-operator tailscale-operator.hcl
+# SSH into your primary K3s server node
+cat /var/lib/rancher/k3s/server/openbao_init_data.json | grep root_token
 ```
 
-## 3. Wire Kubernetes auth
+## 2. Write secrets to OpenBao
 
-The `vault-backend` ClusterSecretStore authenticates using Kubernetes auth. You need a role that authorises the `external-secrets` service account to read the secret above.
-
-**Option A — new dedicated role (recommended):**
+Using the `root_token` from step 1, execute into the OpenBao pod and write the credentials for the Tailscale operator:
 
 ```bash
-vault write auth/kubernetes/role/external-secrets-role \
-  bound_service_account_names=external-secrets \
-  bound_service_account_namespaces=external-secrets \
-  policies=tailscale-operator \
-  ttl=1h
+# On any machine with kubectl access to the cluster:
+export BAO_TOKEN="<root_token_here>"
+
+kubectl exec -n openbao openbao-0 -- sh -c "
+  BAO_TOKEN=$BAO_TOKEN bao kv put secret/platform/tailscale-operator \\
+    client_id=\"<YOUR_OAUTH_CLIENT_ID>\" \\
+    client_secret=\"<YOUR_OAUTH_CLIENT_SECRET>\"
+"
 ```
 
-Then update `k8s/platform/external-secrets/cluster-secret-store.yaml` to use `external-secrets-role` and the `external-secrets` namespace:
+## 3. Verify
 
-```yaml
-auth:
-  kubernetes:
-    mountPath: "kubernetes"
-    role: "external-secrets-role"
-    serviceAccountRef:
-      name: "external-secrets"
-      namespace: "external-secrets"
-```
-
-**Option B — extend the existing `go-notify-role`:**
-
-```bash
-vault write auth/kubernetes/role/go-notify-role \
-  policies="go-notify,tailscale-operator"
-  # (keep all other existing attributes)
-```
-
-> Option A is cleaner — it decouples ESO's Vault identity from any single app namespace.
-
-## 4. Verify
-
-Once ArgoCD syncs:
+Once ArgoCD syncs the `tailscale-operator` application:
 
 ```bash
 kubectl get externalsecret operator-oauth -n tailscale-operator
@@ -70,3 +39,13 @@ kubectl get pods -n tailscale-operator
 ```
 
 The operator pod should come up and a new device tagged `tag:k8s-operator` should appear in the Tailscale admin console.
+
+If ESO sync fails, check:
+
+```bash
+kubectl get externalsecret operator-oauth -n tailscale-operator \
+  -o jsonpath='{.status.conditions}'
+```
+
+> **Rollback note:** If a temporary manual secret is created as a fallback, revoke
+> it immediately once ESO sync is restored — do not leave it in place.
