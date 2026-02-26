@@ -1,7 +1,4 @@
 tailscale-operator:
-  oauth:
-    clientId: ""
-    clientSecret: ""
   operatorConfig:
     defaultTags:
       - tag:k8s
