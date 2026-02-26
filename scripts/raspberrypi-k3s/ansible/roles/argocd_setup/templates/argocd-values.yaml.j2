@@ -9,7 +9,7 @@ configs:
     reposerver.parallelism.limit: "2"
     controller.status.processors: "20"
     controller.operation.processors: "10"
-    server.insecure: true
+    server.insecure: false
 
   rbac:
     policy.default: "role:readonly"
@@ -25,10 +25,10 @@ server:
       cert-manager.io/cluster-issuer: letsencrypt-prod
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
       traefik.ingress.kubernetes.io/router.tls: "true"
-      traefik.ingress.kubernetes.io/service.serversscheme: http
+      traefik.ingress.kubernetes.io/service.serversscheme: https
     hosts:
-      - argocd.local
+      - argocd.chalupatech.com
     tls:
       - hosts:
-          - argocd.local
+          - argocd.chalupatech.com
         secretName: argocd-server-tls

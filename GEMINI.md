@@ -12,8 +12,15 @@ The cluster nodes (`tpi1`, `tpi2`, `tpi3`) are interconnected using **Tailscale*
 - **K3s**: Lightweight Kubernetes distribution in a High-Availability (HA) configuration.
 - **ArgoCD**: GitOps continuous delivery tool for application lifecycle.
 - **Tailscale**: Peer-to-peer VPN for secure node-to-node connectivity and service exposing.
+- **cert-manager**: Cluster-wide SSL/TLS certificate management using Let's Encrypt (DNS-01 solver).
 - **OpenBao**: HA secret management (Vault fork) with automated initialization, unsealing, and Kubernetes/Userpass auth configuration.
 - **Kubernetes (k8s)**: Platform services include `cert-manager`, `external-secrets`, and a full `observability` stack (Prometheus, Grafana, etc.).
+
+## Core Domains
+All services are exposed via the root domain `chalupatech.com`:
+- **ArgoCD**: `https://argocd.chalupatech.com`
+- **Grafana**: `https://grafana.chalupatech.com`
+- **OpenBao**: `https://openbao.chalupatech.com`
 
 ## Directory Structure
 - `scripts/raspberrypi-k3s/ansible/`: Ansible configuration, playbooks, and roles.
@@ -23,6 +30,7 @@ The cluster nodes (`tpi1`, `tpi2`, `tpi3`) are interconnected using **Tailscale*
 - `k8s/apps/`: Definitions for end-user applications.
 - `scripts/`: Utility scripts for deployment, local kubeconfig fetching, and troubleshooting.
 - `.github/workflows/`: CI/CD pipelines for infrastructure validation (Ansible/YAML linting) and automation.
+- `CONVENTIONS.md`: Architectural and operational standards (e.g., SSL policy).
 
 ## Key Workflows
 
@@ -55,9 +63,11 @@ New applications are added by:
   ```bash
   bash scripts/raspberrypi-k3s/local/observability/bootstrap_observability_crds.sh
   ```
+- **Accessing Services**: Core services are accessible over HTTPS via their `chalupatech.com` subdomains once DNS is configured correctly.
 
 ## Development Conventions
 - **Workflow**: All changes must be merged via Pull Requests (PRs). Direct commits to the main branch are discouraged/restricted.
+- **SSL/TLS**: Mandatory for all external endpoints. Certificates are managed by `cert-manager` using the `letsencrypt-prod` ClusterIssuer (see `CONVENTIONS.md`).
 - **Ansible**: Roles are modular and located in `scripts/raspberrypi-k3s/ansible/roles/`. Use `ansible-lint` to verify playbooks.
 - **Secrets Management**: Sensitive data (API keys, auth tokens) MUST be stored in `scripts/raspberrypi-k3s/ansible/inventory/group_vars/all/vault.yml` using Ansible Vault.
     - **Promptless Running**: It is recommended to set the `ANSIBLE_VAULT_PASSWORD_FILE` environment variable to point to a local password file to avoid manual password entry.
@@ -73,5 +83,5 @@ New applications are added by:
 5.  **Merging**: Once approved and checks are green, PRs are merged into `main`, which ArgoCD automatically tracks for deployment.
 
 ## Maintenance & Troubleshooting
-- **Logs**: Standard `kubectl logs` and ArgoCD UI (`https://argocd.local`).
+- **Logs**: Standard `kubectl logs` and ArgoCD UI (`https://argocd.chalupatech.com`).
 - **Linter**: `.ansible-lint` and `.yamllint` are configured for the project.

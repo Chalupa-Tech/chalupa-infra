@@ -4,10 +4,12 @@ metadata:
   name: grafana-ingress
   namespace: observability
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   rules:
-    - host: grafana.local
+    - host: grafana.chalupatech.com
       http:
         paths:
           - path: /
@@ -17,3 +19,7 @@ spec:
                 name: prometheus-grafana
                 port:
                   number: 80
+  tls:
+    - hosts:
+        - grafana.chalupatech.com
+      secretName: grafana-tls
