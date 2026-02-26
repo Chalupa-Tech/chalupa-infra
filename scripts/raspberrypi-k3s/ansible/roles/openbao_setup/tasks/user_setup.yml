@@ -30,18 +30,34 @@
       }
     EOF
 
+      # Create isolated policy for Tailscale Operator external-secrets synchronization
+      BAO_TOKEN={{ openbao_setup_root_token }} \
+        bao policy write -namespace={{ user_item.name }} tailscale-operator-policy - <<EOF
+      path \"secret/data/{{ user_item.name }}/tailscale-operator\" {
+        capabilities = [\"read\"]
+      }
+    EOF
+
       # Setup userpass user
       BAO_TOKEN={{ openbao_setup_root_token }} \
         bao write -namespace={{ user_item.name }} auth/userpass/users/{{ user_item.name }} \
         password=OpenBao123! \
         policies=user-policy
 
-      # Setup Kubernetes auth role
+      # Setup Kubernetes auth role for normal user access
       BAO_TOKEN={{ openbao_setup_root_token }} \
         bao write -namespace={{ user_item.name }} auth/kubernetes/role/{{ user_item.name }}-role \
         bound_service_account_names={{ user_item.name }}-sa \
         bound_service_account_namespaces={{ user_item.name }} \
         policies=user-policy \
+        ttl=1h
+
+      # Setup Kubernetes auth role for tenant's external-secrets SecretStore
+      BAO_TOKEN={{ openbao_setup_root_token }} \
+        bao write -namespace={{ user_item.name }} auth/kubernetes/role/external-secrets-role \
+        bound_service_account_names=external-secrets \
+        bound_service_account_namespaces={{ user_item.name }} \
+        policies=tailscale-operator-policy \
         ttl=1h
     "
   environment:
