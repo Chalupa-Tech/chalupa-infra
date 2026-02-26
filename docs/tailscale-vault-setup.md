@@ -1,6 +1,6 @@
 # Tailscale Operator — Vault Setup
 
-The Vault policy and Kubernetes auth role for the Tailscale operator are **automatically created** by the Ansible `openbao_setup` role during cluster provisioning.
+The Vault policies and Kubernetes auth roles for all Tailscale operators are **automatically created** by the Ansible `openbao_setup` role during cluster provisioning.
 
 The only manual step required is injecting your actual Tailscale OAuth credentials into OpenBao.
 
@@ -13,18 +13,26 @@ The root token is automatically generated during cluster bootstrapping. You can 
 cat /var/lib/rancher/k3s/server/openbao_init_data.json | grep root_token
 ```
 
-## 2. Write secrets to OpenBao
+## 2. Write Multi-Tenant Secrets to OpenBao
 
-Using the `root_token` from step 1, execute into the OpenBao pod and write the credentials for the Tailscale operator:
+Using the `root_token` from step 1, execute into the OpenBao pod and write the credentials for each Tailscale operator tenant:
 
 ```bash
 # On any machine with kubectl access to the cluster:
 export BAO_TOKEN="<root_token_here>"
 
+# Write credentials for ddowell
 kubectl exec -n openbao openbao-0 -- sh -c "
-  BAO_TOKEN=$BAO_TOKEN bao kv put secret/platform/tailscale-operator \\
-    client_id=\"<YOUR_OAUTH_CLIENT_ID>\" \\
-    client_secret=\"<YOUR_OAUTH_CLIENT_SECRET>\"
+  BAO_TOKEN=$BAO_TOKEN bao kv put secret/data/ddowell/tailscale-operator \\
+    client_id=\"<DDOWELL_TS_OAUTH_CLIENT_ID>\" \\
+    client_secret=\"<DDOWELL_TS_OAUTH_CLIENT_SECRET>\"
+"
+
+# Write credentials for tbigelow
+kubectl exec -n openbao openbao-0 -- sh -c "
+  BAO_TOKEN=$BAO_TOKEN bao kv put secret/data/tbigelow/tailscale-operator \\
+    client_id=\"<TBIGELOW_TS_OAUTH_CLIENT_ID>\" \\
+    client_secret=\"<TBIGELOW_TS_OAUTH_CLIENT_SECRET>\"
 "
 ```
 
