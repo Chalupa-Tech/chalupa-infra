@@ -20,6 +20,26 @@
   failed_when: false
   changed_when: "'created' in argocd_setup_ns_create.stdout"
 
+- name: Ensure cert-manager namespace exists
+  ansible.builtin.command: kubectl create namespace cert-manager
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: argocd_setup_cm_ns_create
+  failed_when: false
+  changed_when: "'created' in argocd_setup_cm_ns_create.stdout"
+
+- name: Create Cloudflare API Key secret for cert-manager
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl create secret generic cloudflare-api-key-secret \
+      --namespace cert-manager \
+      --from-literal=api-key={{ cloudflare_api_key }} \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  no_log: true
+  changed_when: true
+
 - name: Add ArgoCD Helm repository
   ansible.builtin.shell: |
     helm repo add argo https://argoproj.github.io/argo-helm
@@ -44,29 +64,28 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
 
-- name: Set initial passwords for managed users
+- name: Set initial passwords for managed users (Bootstrap Only)
   ansible.builtin.shell: |
-    kubectl patch secret argocd-secret -n argocd -p \
-      '{"stringData": {
-        "accounts.{{ item.name }}.password": "{{ argocd_setup_initial_password_hash }}",
-        "accounts.{{ item.name }}.passwordMtime": "{{ ansible_facts.date_time.iso8601 }}"
-      }}'
-    touch /var/lib/rancher/k3s/server/argocd_passwords_initialized_{{ item.name }}
+    set -o pipefail
+    # Check if the password key exists in the secret data
+    if ! kubectl get secret argocd-secret -n argocd -o jsonpath='{.data}' | \
+       grep -q "accounts.{{ item.name }}.password"; then
+      kubectl patch secret argocd-secret -n argocd -p \
+        '{"stringData": {
+          "accounts.{{ item.name }}.password": "{{ argocd_setup_initial_password_hash }}",
+          "accounts.{{ item.name }}.passwordMtime": "{{ ansible_facts.date_time.iso8601 }}"
+        }}'
+      echo "bootstrapped"
+    fi
   vars:
     # ArgoCD123! hashed
     argocd_setup_initial_password_hash: "$2a$12$WkgbDDM51Gb5Mk76L77b.un3xGE8XkBdn0Jdr78P0DXJFwaqHdZs6"
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   loop: "{{ managed_users }}"
-  changed_when: true
-  args:
-    creates: /var/lib/rancher/k3s/server/argocd_passwords_initialized_{{ item.name }}
-
-- name: Restart ArgoCD Server to pick up password changes
-  ansible.builtin.command: kubectl rollout restart deployment argocd-server -n argocd
-  environment:
-    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  changed_when: true
+  register: argocd_setup_password_bootstrap
+  changed_when: "'bootstrapped' in argocd_setup_password_bootstrap.stdout"
+  notify: Restart ArgoCD Server
 
 - name: Set bootstrap directory fact
   ansible.builtin.set_fact:
@@ -96,7 +115,7 @@
       mode: "0755"
 
 - name: Get repository URL
-  ansible.builtin.command: git remote get-url origin  # noqa: command-instead-of-module
+  ansible.builtin.command: git remote get-url origin # noqa: command-instead-of-module
   delegate_to: localhost
   register: argocd_setup_repo_url_cmd
   become: false

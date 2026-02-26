@@ -56,8 +56,12 @@ jobs:
       ) || (
         github.event.sender.type == 'User' &&
         startsWith(github.event.comment.body || github.event.review.body || github.event.issue.body, '@gemini-cli') &&
-        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association)
-      )
+        contains(
+          fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
+          github.event.comment.author_association ||
+          github.event.review.author_association ||
+          github.event.issue.author_association
+        )
     runs-on: 'ubuntu-latest'
     permissions:
       contents: 'read'
@@ -73,7 +77,8 @@ jobs:
         id: 'mint_identity_token'
         if: |-
           ${{ vars.APP_ID }}
-        uses: 'actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf' # ratchet:actions/create-github-app-token@v2
+        # ratchet:actions/create-github-app-token@v2
+        uses: 'actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf'
         with:
           app-id: '${{ vars.APP_ID }}'
           private-key: '${{ secrets.APP_PRIVATE_KEY }}'
@@ -116,7 +121,8 @@ jobs:
           GITHUB_TOKEN: '${{ steps.mint_identity_token.outputs.token || secrets.GITHUB_TOKEN || github.token }}'
           ISSUE_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
           MESSAGE: |-
-            🤖 Hi @${{ github.actor }}, I've received your request, and I'm working on it now! You can track my progress [in the logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for more details.
+            🤖 Hi @${{ github.actor }}, I've received your request!
+            Track progress: [logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           REPOSITORY: '${{ github.repository }}'
         run: |-
           gh issue comment "${ISSUE_NUMBER}" \
@@ -183,7 +189,8 @@ jobs:
         id: 'mint_identity_token'
         if: |-
           ${{ vars.APP_ID }}
-        uses: 'actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf' # ratchet:actions/create-github-app-token@v2
+        # ratchet:actions/create-github-app-token@v2
+        uses: 'actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf'
         with:
           app-id: '${{ vars.APP_ID }}'
           private-key: '${{ secrets.APP_PRIVATE_KEY }}'
@@ -196,7 +203,8 @@ jobs:
           GITHUB_TOKEN: '${{ steps.mint_identity_token.outputs.token || secrets.GITHUB_TOKEN || github.token }}'
           ISSUE_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
           MESSAGE: |-
-            🤖 I'm sorry @${{ github.actor }}, but I was unable to process your request. Please [see the logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for more details.
+            🤖 I'm sorry @${{ github.actor }}, I was unable to process your request.
+            Please [see the logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           REPOSITORY: '${{ github.repository }}'
         run: |-
           gh issue comment "${ISSUE_NUMBER}" \

@@ -1,5 +1,4 @@
 certs/
-ssh_keys/
 .env
 .gemini/
 gha-creds-*.json
