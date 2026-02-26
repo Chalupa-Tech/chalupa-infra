@@ -165,4 +165,3 @@
 
     - name: Setup Tailscale Operator policy and role
       ansible.builtin.include_tasks: tailscale_operator_setup.yml
-
