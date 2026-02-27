@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: management-proxy
+  namespace: management-proxy
+  annotations:
+    tailscale.com/hostname: pi-k3s
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: tailscale
+  tls:
+  - hosts:
+    - pi-k3s.chalupatech.com
+    secretName: pi-k3s-tls
+  rules:
+  - host: pi-k3s.chalupatech.com
+    http:
+      paths:
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 80
+      - path: /argocd
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd
+            port:
+              number: 80
+      - path: /openbao
+        pathType: Prefix
+        backend:
+          service:
+            name: openbao
+            port:
+              number: 8200
