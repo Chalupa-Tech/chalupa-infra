@@ -10,6 +10,7 @@ configs:
     controller.status.processors: "20"
     controller.operation.processors: "10"
     server.insecure: true
+    server.rootpath: /argocd
 
   rbac:
     policy.default: "role:readonly"
@@ -20,15 +21,4 @@ configs:
 
 server:
   ingress:
-    enabled: true
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-      traefik.ingress.kubernetes.io/router.entrypoints: websecure
-      traefik.ingress.kubernetes.io/router.tls: "true"
-      traefik.ingress.kubernetes.io/service.serversscheme: http
-    hosts:
-      - argocd.local
-    tls:
-      - hosts:
-          - argocd.local
-        secretName: argocd-server-tls
+    enabled: false
