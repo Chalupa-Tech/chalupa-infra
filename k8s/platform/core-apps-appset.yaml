@@ -26,7 +26,7 @@ spec:
       project: default
       source:
         repoURL: '{{REPO_URL}}'
-        targetRevision: HEAD
+        targetRevision: feat/fix-tailscale-ingress
         path: '{{path}}'
       destination:
         server: https://kubernetes.default.svc
