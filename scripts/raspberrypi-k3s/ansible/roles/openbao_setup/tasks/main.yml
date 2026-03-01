@@ -162,6 +162,3 @@
       loop: "{{ managed_users }}"
       loop_control:
         loop_var: user_item
-
-    - name: Setup Tailscale Operator policy and role
-      ansible.builtin.include_tasks: tailscale_operator_setup.yml

@@ -59,9 +59,10 @@ New applications are added by:
 ## Development Conventions
 - **Workflow**: All changes must be merged via Pull Requests (PRs). Direct commits to the main branch are discouraged/restricted.
 - **Ansible**: Roles are modular and located in `scripts/raspberrypi-k3s/ansible/roles/`. Use `ansible-lint` to verify playbooks.
-- **Secrets Management**: Sensitive data (API keys, auth tokens) MUST be stored in `scripts/raspberrypi-k3s/ansible/inventory/group_vars/all/vault.yml` using Ansible Vault.
-    - **Promptless Running**: It is recommended to set the `ANSIBLE_VAULT_PASSWORD_FILE` environment variable to point to a local password file to avoid manual password entry.
-    - **Variable Naming**: Vaulted variables should be prefixed with `vault_` and mapped to plaintext variable names in `vars.yml`.
+- **Secrets Management**: Sensitive data (API keys, auth tokens) MUST be managed according to the following rules:
+    - **Core Apps (`core-apps` ApplicationSet)**: Must NOT rely on external apps (like OpenBao) for their bootstrap. Their secrets MUST be stored in Ansible Vault and provisioned directly into Kubernetes secrets during the Ansible bootstrapping phase.
+    - **Other Apps**: All other applications and user workloads SHOULD utilize OpenBao for secret storage and retrieval via External-Secrets.
+    - **Vault Storage**: Vaulted variables in Ansible should be prefixed with `vault_` and mapped to plaintext variable names in `vars.yml`.
 - **Kubernetes**: Prefer `ApplicationSet` for grouping related applications. Namespace creation and server-side apply are standard sync options in `ApplicationSets`.
 - **Networking**: All node communication and Kubernetes API access are routed through Tailscale.
 

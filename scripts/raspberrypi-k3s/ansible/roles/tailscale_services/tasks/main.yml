@@ -12,3 +12,23 @@
   when: tailscale_services_list | length > 0
   changed_when: true
   become: true
+
+- name: Create tailscale-operator namespace
+  ansible.builtin.command: kubectl create namespace tailscale-operator
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: create_ns
+  failed_when: create_ns.rc != 0 and 'AlreadyExists' not in create_ns.stderr
+  changed_when: create_ns.rc == 0
+
+- name: Create tailscale-operator OAuth secret
+  ansible.builtin.shell: |
+    kubectl create secret generic operator-oauth \
+      -n tailscale-operator \
+      --from-literal=client_id={{ ts_operator_client_id }} \
+      --from-literal=client_secret={{ ts_operator_client_secret }} \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  no_log: true
+  changed_when: true
