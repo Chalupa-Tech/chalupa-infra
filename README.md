@@ -23,7 +23,11 @@ The main playbook `playbooks/site.yml` is executed in four sequential stages:
 - **Ansible**: Installed locally to run the playbooks.
 
 ### 2. Ansible Authentication (Secrets)
-Secrets are managed using **Ansible Vault**. The encrypted secrets are stored in `scripts/raspberrypi-k3s/ansible/inventory/group_vars/all/vault.yml`.
+Secrets are managed in two tiers to ensure cluster reliability and avoid circular dependencies:
+
+1.  **Ansible Vault (Bootstrap & Core Apps)**: Used for initial cluster setup (Tailscale, Cloudflare) and for secrets required by the `core-apps` ApplicationSet (e.g., `tailscale-operator` credentials). These secrets are provisioned directly into Kubernetes during the Ansible run.
+    - Encrypted variables are stored in `scripts/raspberrypi-k3s/ansible/inventory/group_vars/all/vault.yml`.
+2.  **OpenBao (Application Secrets)**: All other applications and end-user workloads MUST use OpenBao for secret management via External-Secrets.
 
 #### Running Playbooks
 When running playbooks, you must provide the vault password:

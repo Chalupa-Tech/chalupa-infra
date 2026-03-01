@@ -16,24 +16,10 @@ spec:
   - host: pi-k3s.chalupatech.com
     http:
       paths:
-      - path: /grafana
+      - path: /
         pathType: Prefix
         backend:
           service:
-            name: grafana
+            name: management-proxy
             port:
               number: 80
-      - path: /argocd
-        pathType: Prefix
-        backend:
-          service:
-            name: argocd
-            port:
-              number: 80
-      - path: /openbao
-        pathType: Prefix
-        backend:
-          service:
-            name: openbao
-            port:
-              number: 8200
