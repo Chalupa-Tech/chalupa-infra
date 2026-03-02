@@ -22,3 +22,11 @@ configs:
 server:
   ingress:
     enabled: false
+    hosts:
+      - argocd.local
+      - pi-k3s.chalupatech.com
+    tls:
+      - hosts:
+          - argocd.local
+          - pi-k3s.chalupatech.com
+        secretName: argocd-server-tls
