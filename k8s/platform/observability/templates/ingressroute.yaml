@@ -11,5 +11,5 @@ spec:
     - match: Host(`pi-k3s.chalupatech.com`) && PathPrefix(`/grafana`)
       kind: Rule
       services:
-        - name: prometheus-grafana
+        - name: observability-grafana
           port: 80
