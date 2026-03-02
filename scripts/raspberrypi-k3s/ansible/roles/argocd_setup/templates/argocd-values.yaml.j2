@@ -28,7 +28,9 @@ server:
       traefik.ingress.kubernetes.io/service.serversscheme: http
     hosts:
       - argocd.local
+      - pi-k3s.chalupatech.com
     tls:
       - hosts:
           - argocd.local
+          - pi-k3s.chalupatech.com
         secretName: argocd-server-tls

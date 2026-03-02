@@ -33,5 +33,15 @@ openbao:
       size: 1Gi
     ui:
       enabled: true
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      hosts:
+        - host: openbao.local
+          paths:
+            - /
+        - host: pi-k3s.chalupatech.com
+          paths:
+            - /openbao
     image:
       tag: "2.3.1"
