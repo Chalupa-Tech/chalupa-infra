@@ -4,13 +4,9 @@ metadata:
   name: grafana-ingress
   namespace: observability
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   ingressClassName: traefik
-  tls:
-    - hosts:
-        - pi-k3s.chalupatech.com
   rules:
     - host: grafana.local
       http:
