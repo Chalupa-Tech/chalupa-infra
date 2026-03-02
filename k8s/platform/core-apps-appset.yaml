@@ -9,22 +9,16 @@ spec:
         elements:
           - name: cert-manager
             path: k8s/platform/cert-manager
-            namespace: cert-manager
           - name: external-secrets
             path: k8s/platform/external-secrets
-            namespace: external-secrets
           - name: observability
             path: k8s/platform/observability
-            namespace: observability
           - name: openbao
             path: k8s/platform/openbao
-            namespace: openbao
           - name: management-proxy
             path: k8s/platform/management-proxy
-            namespace: management-proxy
           - name: tailscale-operator
             path: k8s/platform/tailscale-operator
-            namespace: tailscale-operator
   template:
     metadata:
       name: '{{name}}'
@@ -36,7 +30,7 @@ spec:
         path: '{{path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{namespace}}'
+        namespace: '{{name}}'
       syncPolicy:
         automated:
           prune: true

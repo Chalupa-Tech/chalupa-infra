@@ -1,7 +1,4 @@
 ---
-# Traefik Middleware: strip /openbao prefix before forwarding to OpenBao.
-# OpenBao (Vault) does not support sub-path serving — it expects requests at /.
-# This is applied by the IngressRoute below.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -12,10 +9,6 @@ spec:
     prefixes:
       - /openbao
 ---
-# Traefik IngressRoute for OpenBao
-# Routes pi-k3s.chalupatech.com/openbao → openbao-active:8200
-# The StripPrefix middleware removes /openbao before the request hits Vault.
-# /ui/ and /v1/ are also routed directly (OpenBao asset paths used post-strip).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:

@@ -1,8 +1,4 @@
 ---
-# Traefik IngressRoute for Grafana
-# Routes pi-k3s.chalupatech.com/grafana → prometheus-grafana service
-# Grafana is configured with GF_SERVER_ROOT_URL=/grafana so it handles
-# the sub-path natively — no prefix stripping needed.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:

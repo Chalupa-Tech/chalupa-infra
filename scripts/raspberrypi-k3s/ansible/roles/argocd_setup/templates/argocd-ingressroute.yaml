@@ -1,8 +1,4 @@
 ---
-# Traefik IngressRoute for ArgoCD
-# Routes pi-k3s.chalupatech.com/argocd → argocd-server service
-# ArgoCD is configured with server.rootpath=/argocd and server.insecure=true
-# so it handles the sub-path natively — no prefix stripping needed.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
