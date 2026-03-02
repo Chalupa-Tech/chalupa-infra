@@ -33,5 +33,20 @@ openbao:
       size: 1Gi
     ui:
       enabled: true
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: web
+        traefik.ingress.kubernetes.io/router.middlewares: openbao-openbao-strip-prefix@kubernetescrd
+      hosts:
+        - host: openbao.local
+          paths:
+            - path: /
+              pathType: Prefix
+        - host: pi-k3s.chalupatech.com
+          paths:
+            - path: /openbao
+              pathType: Prefix
     image:
       tag: "2.3.1"

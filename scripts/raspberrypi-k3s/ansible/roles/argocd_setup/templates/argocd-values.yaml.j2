@@ -21,4 +21,8 @@ configs:
 
 server:
   ingress:
-    enabled: false
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - argocd.local
+      - pi-k3s.chalupatech.com
