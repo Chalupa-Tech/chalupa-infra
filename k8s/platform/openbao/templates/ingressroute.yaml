@@ -40,7 +40,7 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`pi-k3s.chalupatech.com`) && PathPrefix(`/openbao`)
+    - match: Host(`pi-k3s.chalupatech.com`) && (PathPrefix(`/openbao`) || PathPrefix(`/ui`) || PathPrefix(`/v1`))
       kind: Rule
       middlewares:
         - name: redirect-to-https
@@ -61,6 +61,11 @@ spec:
       kind: Rule
       middlewares:
         - name: openbao-strip-prefix
+      services:
+        - name: openbao-active
+          port: 8200
+    - match: Host(`pi-k3s.chalupatech.com`) && (PathPrefix(`/ui`) || PathPrefix(`/v1`))
+      kind: Rule
       services:
         - name: openbao-active
           port: 8200
