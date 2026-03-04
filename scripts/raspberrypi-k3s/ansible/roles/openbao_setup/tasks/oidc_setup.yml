@@ -101,15 +101,15 @@
     "
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  register: oidc_setup_result
+  register: openbao_setup_oidc_setup_result
   changed_when: true
   no_log: true
 
 - name: Create Kubernetes Secrets for OIDC
   ansible.builtin.shell: |
-    set -e
+    set -eo pipefail
     # Extract values from the last line of output to avoid "Success!" messages or other noise
-    OIDC_DATA=$(echo "{{ oidc_setup_result.stdout }}" | tail -n 1)
+    OIDC_DATA=$(echo "{{ openbao_setup_oidc_setup_result.stdout }}" | tail -n 1)
 
     GRAFANA_CLIENT_ID=$(echo "$OIDC_DATA" | awk '{print $1}')
     GRAFANA_CLIENT_SECRET=$(echo "$OIDC_DATA" | awk '{print $2}')
