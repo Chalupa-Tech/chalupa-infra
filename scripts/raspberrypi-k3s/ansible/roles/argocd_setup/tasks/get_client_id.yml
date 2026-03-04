@@ -10,4 +10,4 @@
 
 - name: Set ArgoCD OIDC client ID fact
   ansible.builtin.set_fact:
-    argocd_setup_oidc_client_id: "{{ argocd_setup_oidc_client_id_result.stdout | default('placeholder', true) }}"
+    argocd_oidc_client_id: "{{ argocd_setup_oidc_client_id_result.stdout | default('placeholder', true) }}"

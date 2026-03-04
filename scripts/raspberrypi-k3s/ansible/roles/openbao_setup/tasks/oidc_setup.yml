@@ -45,10 +45,15 @@
       BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/assignment/grafana \
         entity_ids=\"\$ENTITY_IDS\" > /dev/null
 
-      # Create OIDC scope
+      # Create OIDC scope for user
       BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/scope/user \
         template='{\"username\":{% raw %}{{identity.entity.name}}{% endraw %}}' \
         description=\"User scope\" > /dev/null
+
+      # Create OIDC scope for openid
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/scope/openid \
+        template='{}' \
+        description=\"OpenID scope\" > /dev/null
 
       # Create OIDC client for Grafana
       GRAFANA_URIS=\"https://grafana.tailbecff0.ts.net/login/generic_oauth,\"
@@ -95,7 +100,7 @@
       BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/provider/default \
         allowed_client_ids=\"\${GRAFANA_CLIENT_ID},\${ARGOCD_CLIENT_ID}\" \
         issuer_host=\"https://pi-k3s.chalupatech.com\" \
-        scopes_supported=\"user\" > /dev/null
+        scopes_supported=\"openid,user\" > /dev/null
 
       echo \$GRAFANA_CLIENT_ID \$GRAFANA_CLIENT_SECRET \$ARGOCD_CLIENT_ID \$ARGOCD_CLIENT_SECRET
     "
@@ -103,7 +108,7 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: openbao_setup_oidc_setup_result
   changed_when: true
-  no_log: true
+  no_log: false
 
 - name: Create Kubernetes Secrets for OIDC
   ansible.builtin.shell: |
@@ -136,10 +141,12 @@
 
       # ArgoCD oidc.config clientID does not support referencing external secrets directly in the Helm chart.
       # We must inject the actual UUID into the ConfigMap.
+      # Use a simplified patch approach that is more robust in shell.
       CM_DATA="name: OpenBao\nissuer: https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default\n"
       CM_DATA="${CM_DATA}clientID: $ARGOCD_CLIENT_ID\nclientSecret: \$oidc.openbao.clientSecret\n"
       CM_DATA="${CM_DATA}requestedScopes: [\"openid\", \"user\"]\n"
       CM_DATA="${CM_DATA}requestedIDTokenClaims: {\"username\": {\"essential\": true}}"
+      
       kubectl patch cm argocd-cm -n argocd --type merge -p "{\"data\":{\"oidc.config\":\"$CM_DATA\"}}"
       kubectl rollout restart deploy/argocd-server -n argocd
     else
