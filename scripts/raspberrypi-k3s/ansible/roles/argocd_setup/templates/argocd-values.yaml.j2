@@ -1,9 +1,14 @@
 configs:
   cm:
+    url: https://pi-k3s.chalupatech.com/argocd
     admin.enabled: true
-{% for user in managed_users %}
-    accounts.{{ user.name }}: login,apiKey
-{% endfor %}
+    oidc.config: |
+      name: OpenBao
+      issuer: https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default
+      clientID: argocd
+      clientSecret: $argocd-oidc-secret:oidc.openbao.clientSecret
+      requestedScopes: ["user"]
+      requestedIDTokenClaims: {"username": {"essential": true}}
 
   params:
     reposerver.parallelism.limit: "2"
