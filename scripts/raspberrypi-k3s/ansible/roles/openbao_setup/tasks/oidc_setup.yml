@@ -47,7 +47,7 @@
 
       # Create OIDC scope for user
       BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/scope/user \
-        template='{\"username\":{% raw %}{{identity.entity.name}}{% endraw %}}' \
+        template='{\"username\":\"{% raw %}{{identity.entity.name}}{% endraw %}\"}' \
         description=\"User scope\" > /dev/null
 
       # Create OIDC client for Grafana
