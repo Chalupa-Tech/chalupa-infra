@@ -8,7 +8,7 @@ kube-prometheus-stack:
     envFromSecret: "grafana-oidc-secret"
     grafana.ini:
       server:
-        root_url: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+        root_url: "https://pi-k3s.chalupatech.com/grafana/"
         serve_from_sub_path: true
       auth:
         signout_redirect_url: "https://pi-k3s.chalupatech.com/ui"
@@ -16,8 +16,8 @@ kube-prometheus-stack:
         enabled: true
         name: OpenBao
         allow_sign_up: true
-        scopes: user
-        auth_url: "https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default/authorize"
+        scopes: openid user
+        auth_url: "https://pi-k3s.chalupatech.com/ui/vault/identity/oidc/provider/default/authorize"
         token_url: "http://openbao-active.openbao.svc.cluster.local:8200/v1/identity/oidc/provider/default/token"
         api_url: "http://openbao-active.openbao.svc.cluster.local:8200/v1/identity/oidc/provider/default/userinfo"
         login_attribute_path: username

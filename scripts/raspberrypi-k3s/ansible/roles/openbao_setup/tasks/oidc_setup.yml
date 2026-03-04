@@ -81,12 +81,6 @@
         id_token_ttl=\"24h\" \
         access_token_ttl=\"24h\" > /dev/null
 
-      # Configure OIDC provider
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/provider/default \
-        allowed_client_ids=\"*\" \
-        issuer_host=\"https://pi-k3s.chalupatech.com\" \
-        scopes_supported=\"user\" > /dev/null
-
       # Extract client ID and secret
       GRAFANA_CLIENT_ID=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
         -field=client_id identity/oidc/client/grafana)
@@ -96,6 +90,12 @@
         -field=client_id identity/oidc/client/argocd)
       ARGOCD_CLIENT_SECRET=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
         -field=client_secret identity/oidc/client/argocd)
+
+      # Configure OIDC provider
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/provider/default \
+        allowed_client_ids=\"\${GRAFANA_CLIENT_ID},\${ARGOCD_CLIENT_ID}\" \
+        issuer_host=\"https://pi-k3s.chalupatech.com\" \
+        scopes_supported=\"user\" > /dev/null
 
       echo \$GRAFANA_CLIENT_ID \$GRAFANA_CLIENT_SECRET \$ARGOCD_CLIENT_ID \$ARGOCD_CLIENT_SECRET
     "
@@ -128,10 +128,20 @@
     fi
 
     if [ -n "$ARGOCD_CLIENT_ID" ] && [ -n "$ARGOCD_CLIENT_SECRET" ] && [ "$ARGOCD_CLIENT_ID" != "Success!" ]; then
-      kubectl create secret generic argocd-oidc-secret \
-        -n argocd \
-        --from-literal=oidc.openbao.clientSecret="$ARGOCD_CLIENT_SECRET" \
-        --dry-run=client -o yaml | kubectl apply -f -
+      # Patch the main argocd-secret with the OIDC credentials
+      CLIENT_ID_B64=$(echo -n "$ARGOCD_CLIENT_ID" | base64)
+      CLIENT_SEC_B64=$(echo -n "$ARGOCD_CLIENT_SECRET" | base64)
+      PATCH_JSON="{\"data\":{\"oidc.openbao.clientID\":\"$CLIENT_ID_B64\",\"oidc.openbao.clientSecret\":\"$CLIENT_SEC_B64\"}}"
+      kubectl patch secret argocd-secret -n argocd --type merge -p="$PATCH_JSON"
+
+      # ArgoCD oidc.config clientID does not support referencing external secrets directly in the Helm chart.
+      # We must inject the actual UUID into the ConfigMap.
+      CM_DATA="name: OpenBao\nissuer: https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default\n"
+      CM_DATA="${CM_DATA}clientID: $ARGOCD_CLIENT_ID\nclientSecret: \$oidc.openbao.clientSecret\n"
+      CM_DATA="${CM_DATA}requestedScopes: [\"openid\", \"user\"]\n"
+      CM_DATA="${CM_DATA}requestedIDTokenClaims: {\"username\": {\"essential\": true}}"
+      kubectl patch cm argocd-cm -n argocd --type merge -p "{\"data\":{\"oidc.config\":\"$CM_DATA\"}}"
+      kubectl rollout restart deploy/argocd-server -n argocd
     else
       echo "Failed to extract ARGOCD_CLIENT_ID or ARGOCD_CLIENT_SECRET. Data: $OIDC_DATA"
       exit 1
