@@ -1,0 +1,78 @@
+---
+- name: Ensure observability namespace exists
+  ansible.builtin.command: kubectl create namespace observability
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: openbao_setup_obs_ns_create
+  failed_when: false
+  changed_when: "'created' in openbao_setup_obs_ns_create.stdout"
+
+- name: Setup Grafana OIDC Provider
+  ansible.builtin.shell: |
+    set -o pipefail
+
+    # Run all bao commands in the openbao pod
+    kubectl exec -n openbao openbao-0 -- sh -c "
+      # Get userpass accessor
+      USERPASS_ACCESSOR=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read -field=accessor sys/auth/userpass)
+
+      ENTITY_IDS=""
+
+      # For each user, create entity and alias, and collect entity IDs
+      for USER in {{ managed_users | map(attribute='name') | join(' ') }}; do
+        # Create entity (if exists, we might need to get its ID)
+        ENTITY_ID=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read -field=id identity/entity/name/\$USER 2>/dev/null || BAO_TOKEN={{ openbao_setup_root_token }} bao write -field=id identity/entity name=\$USER)
+
+        # Create alias
+        BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/entity-alias name=\$USER canonical_id=\$ENTITY_ID mount_accessor=\$USERPASS_ACCESSOR 2>/dev/null || true
+
+        if [ -z "\$ENTITY_IDS" ]; then
+          ENTITY_IDS="\$ENTITY_ID"
+        else
+          ENTITY_IDS="\$ENTITY_IDS,\$ENTITY_ID"
+        fi
+      done
+
+      # Create OIDC key
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/key/grafana allowed_client_ids="*" rotation_period="24h" verification_ttl="24h"
+
+      # Create OIDC assignment
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/assignment/grafana entity_ids="\$ENTITY_IDS"
+
+      # Create OIDC scope
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/scope/user template='{"username":{{identity.entity.name}}}' description="Grafana user scope"
+
+      # Create OIDC client
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/client/grafana key="grafana" redirect_uris="https://grafana.tailbecff0.ts.net/login/generic_oauth,https://pi-k3s.chalupatech.com/grafana/login/generic_oauth,http://grafana.local/grafana/login/generic_oauth" assignments="grafana" id_token_ttl="24h" access_token_ttl="24h"
+
+      # Configure OIDC provider
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/provider/default allowed_client_ids="*" issuer_host="https://pi-k3s.chalupatech.com" scopes_supported="user"
+
+      # Extract client ID and secret
+      echo \$(BAO_TOKEN={{ openbao_setup_root_token }} bao read -field=client_id identity/oidc/client/grafana) \$(BAO_TOKEN={{ openbao_setup_root_token }} bao read -field=client_secret identity/oidc/client/grafana)
+    "
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: oidc_setup_result
+  changed_when: true
+  no_log: true
+
+- name: Create Kubernetes Secret for Grafana OIDC
+  ansible.builtin.shell: |
+    CLIENT_ID=$(echo "{{ oidc_setup_result.stdout }}" | awk '{print $1}')
+    CLIENT_SECRET=$(echo "{{ oidc_setup_result.stdout }}" | awk '{print $2}')
+
+    if [ -n "$CLIENT_ID" ] && [ -n "$CLIENT_SECRET" ]; then
+      kubectl create secret generic grafana-oidc-secret 
+        -n observability 
+        --from-literal=GF_AUTH_GENERIC_OAUTH_CLIENT_ID=$CLIENT_ID 
+        --from-literal=GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=$CLIENT_SECRET 
+        --dry-run=client -o yaml | kubectl apply -f -
+    else
+      echo "Failed to extract CLIENT_ID or CLIENT_SECRET"
+      exit 1
+    fi
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+  no_log: true
