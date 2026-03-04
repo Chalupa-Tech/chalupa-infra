@@ -76,29 +76,6 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
 
-- name: Set initial passwords for managed users (Bootstrap Only)
-  ansible.builtin.shell: |
-    set -o pipefail
-    # Check if the password key exists in the secret data
-    if ! kubectl get secret argocd-secret -n argocd -o jsonpath='{.data}' | \
-       grep -q "accounts.{{ item.name }}.password"; then
-      kubectl patch secret argocd-secret -n argocd -p \
-        '{"stringData": {
-          "accounts.{{ item.name }}.password": "{{ argocd_setup_initial_password_hash }}",
-          "accounts.{{ item.name }}.passwordMtime": "{{ ansible_facts.date_time.iso8601 }}"
-        }}'
-      echo "bootstrapped"
-    fi
-  vars:
-    # ArgoCD123! hashed
-    argocd_setup_initial_password_hash: "$2a$12$WkgbDDM51Gb5Mk76L77b.un3xGE8XkBdn0Jdr78P0DXJFwaqHdZs6"
-  environment:
-    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  loop: "{{ managed_users }}"
-  register: argocd_setup_password_bootstrap
-  changed_when: "'bootstrapped' in argocd_setup_password_bootstrap.stdout"
-  notify: Restart ArgoCD Server
-
 - name: Set bootstrap directory fact
   ansible.builtin.set_fact:
     argocd_setup_bootstrap_dir: /tmp/argocd-bootstrap

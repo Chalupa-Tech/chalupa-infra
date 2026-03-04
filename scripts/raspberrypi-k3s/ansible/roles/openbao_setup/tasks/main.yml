@@ -162,3 +162,6 @@
       loop: "{{ managed_users }}"
       loop_control:
         loop_var: user_item
+
+    - name: Setup Grafana OIDC
+      ansible.builtin.include_tasks: oidc_setup.yml
