@@ -8,7 +8,7 @@ kube-prometheus-stack:
     envFromSecret: "grafana-oidc-secret"
     grafana.ini:
       server:
-        root_url: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+        root_url: "https://pi-k3s.chalupatech.com/grafana/"
         serve_from_sub_path: true
       auth:
         signout_redirect_url: "https://pi-k3s.chalupatech.com/ui"

@@ -1,7 +1,7 @@
 ---
 - name: Get existing ArgoCD OIDC client ID
   ansible.builtin.shell: |
-    kubectl get secret argocd-oidc-secret -n argocd -o jsonpath="{.data['oidc\.openbao\.clientID']}" | base64 -d
+    kubectl get secret argocd-secret -n argocd -o jsonpath="{.data['oidc\.openbao\.clientID']}" | base64 -d
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: argocd_oidc_client_id_result
