@@ -50,11 +50,6 @@
         template='{\"username\":{% raw %}{{identity.entity.name}}{% endraw %}}' \
         description=\"User scope\" > /dev/null
 
-      # Create OIDC scope for openid
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/scope/openid \
-        template='{}' \
-        description=\"OpenID scope\" > /dev/null
-
       # Create OIDC client for Grafana
       GRAFANA_URIS=\"https://grafana.tailbecff0.ts.net/login/generic_oauth,\"
       GRAFANA_URIS=\"\${GRAFANA_URIS}https://pi-k3s.chalupatech.com/grafana/login/generic_oauth,\"
