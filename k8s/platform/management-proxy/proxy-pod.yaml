@@ -39,7 +39,7 @@ data:
                 proxy_set_header X-Real-IP $remote_addr;
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto $scheme;
-                
+
                 # WebSocket support for ArgoCD
                 proxy_http_version 1.1;
                 proxy_set_header Upgrade $http_upgrade;
@@ -54,7 +54,9 @@ data:
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto $scheme;
             }
+
             
+
             # OpenBao UI assets and API (needed because OpenBao UI doesn't support subpaths)
             location /ui/ {
                 proxy_pass http://openbao.openbao.svc.cluster.local:8200/ui/;
@@ -63,7 +65,9 @@ data:
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto $scheme;
             }
+
             
+
             location /v1/ {
                 proxy_pass http://openbao.openbao.svc.cluster.local:8200/v1/;
                 proxy_set_header Host $host;
@@ -71,7 +75,9 @@ data:
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto $scheme;
             }
+
             
+
             # Simple redirect for /openbao to /openbao/
             location = /openbao {
                 return 301 /openbao/;
@@ -95,18 +101,18 @@ spec:
         app: management-proxy
     spec:
       containers:
-      - name: nginx
-        image: nginx:alpine
-        ports:
-        - containerPort: 80
-        volumeMounts:
-        - name: config
-          mountPath: /etc/nginx/nginx.conf
-          subPath: nginx.conf
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
       volumes:
-      - name: config
-        configMap:
-          name: management-proxy-config
+        - name: config
+          configMap:
+            name: management-proxy-config
 ---
 apiVersion: v1
 kind: Service
@@ -117,5 +123,5 @@ spec:
   selector:
     app: management-proxy
   ports:
-  - port: 80
-    targetPort: 80
+    - port: 80
+      targetPort: 80
