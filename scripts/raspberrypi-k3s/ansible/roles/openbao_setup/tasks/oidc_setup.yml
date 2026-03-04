@@ -133,6 +133,11 @@
         --from-literal=oidc.openbao.clientID="$ARGOCD_CLIENT_ID" \
         --from-literal=oidc.openbao.clientSecret="$ARGOCD_CLIENT_SECRET" \
         --dry-run=client -o yaml | kubectl apply -f -
+        
+      # ArgoCD oidc.config clientID does not support referencing external secrets directly in the Helm chart.
+      # We must inject the actual UUID into the ConfigMap.
+      kubectl patch cm argocd-cm -n argocd --type merge -p '{"data":{"oidc.config":"name: OpenBao\nissuer: https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default\nclientID: '$ARGOCD_CLIENT_ID'\nclientSecret: $argocd-oidc-secret:oidc.openbao.clientSecret\nrequestedScopes: [\"user\"]\nrequestedIDTokenClaims: {\"username\": {\"essential\": true}}"}}'
+      kubectl rollout restart deploy/argocd-server -n argocd
     else
       echo "Failed to extract ARGOCD_CLIENT_ID or ARGOCD_CLIENT_SECRET. Data: $OIDC_DATA"
       exit 1

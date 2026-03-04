@@ -48,6 +48,9 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
 
+- name: Retrieve existing ArgoCD OIDC client ID
+  ansible.builtin.include_tasks: get_client_id.yml
+
 - name: Template ArgoCD values
   ansible.builtin.template:
     src: argocd-values.yaml.j2
