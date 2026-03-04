@@ -4,10 +4,10 @@
     kubectl get secret argocd-secret -n argocd -o jsonpath="{.data['oidc\.openbao\.clientID']}" | base64 -d
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  register: argocd_oidc_client_id_result
+  register: argocd_setup_oidc_client_id_result
   ignore_errors: true
   changed_when: false
 
 - name: Set ArgoCD OIDC client ID fact
   ansible.builtin.set_fact:
-    argocd_oidc_client_id: "{{ argocd_oidc_client_id_result.stdout | default('placeholder', true) }}"
+    argocd_setup_oidc_client_id: "{{ argocd_setup_oidc_client_id_result.stdout | default('placeholder', true) }}"

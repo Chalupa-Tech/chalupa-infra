@@ -88,14 +88,14 @@
     path: "{{ argocd_setup_bootstrap_dir }}"
     state: directory
     mode: "0755"
-  check_mode: no
+  check_mode: false
 
 - name: Copy core apps bootstrap files
   ansible.builtin.copy:
     src: "{{ item.src }}"
     dest: "{{ argocd_setup_bootstrap_dir }}/{{ item.dest | basename }}"
     mode: "{{ item.mode | default('0644') }}"
-  check_mode: no
+  check_mode: false
   loop:
     - src: "../../../../scripts/deploy-core-apps.sh"
       dest: "deploy-core-apps.sh"

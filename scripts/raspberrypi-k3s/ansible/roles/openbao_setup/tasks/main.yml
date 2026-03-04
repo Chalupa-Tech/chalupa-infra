@@ -8,7 +8,7 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: false
-  check_mode: no
+  check_mode: false
 
 - name: Wait for OpenBao pods to be running
   ansible.builtin.command: >
@@ -21,7 +21,7 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: false
-  check_mode: no
+  check_mode: false
 
 - name: Check if OpenBao is initialized
   ansible.builtin.command: kubectl exec -n openbao openbao-0 -- bao status -format=json
@@ -33,7 +33,7 @@
   delay: 10
   failed_when: false
   changed_when: false
-  check_mode: no
+  check_mode: false
 
 - name: Initialize OpenBao if needed
   when:

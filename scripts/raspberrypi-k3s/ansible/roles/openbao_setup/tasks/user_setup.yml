@@ -74,10 +74,17 @@
     EOF
 
       # Setup userpass user at ROOT
-      BAO_TOKEN={{ openbao_setup_root_token }} \
-        bao write auth/userpass/users/{{ user_item.name }} \
-        password=OpenBao123! \
-        policies=user-{{ user_item.name }}-policy
+      if ! BAO_TOKEN={{ openbao_setup_root_token }} \
+        bao read auth/userpass/users/{{ user_item.name }} >/dev/null 2>&1; then
+        BAO_TOKEN={{ openbao_setup_root_token }} \
+          bao write auth/userpass/users/{{ user_item.name }} \
+          password=OpenBao123! \
+          policies=user-{{ user_item.name }}-policy
+      else
+        BAO_TOKEN={{ openbao_setup_root_token }} \
+          bao write auth/userpass/users/{{ user_item.name }} \
+          policies=user-{{ user_item.name }}-policy
+      fi
 
       # Setup Kubernetes auth role at ROOT
       BAO_TOKEN={{ openbao_setup_root_token }} \
