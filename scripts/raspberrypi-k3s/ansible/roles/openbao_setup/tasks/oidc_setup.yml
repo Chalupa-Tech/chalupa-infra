@@ -45,10 +45,12 @@
       BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/assignment/grafana \
         entity_ids=\"\$ENTITY_IDS\" > /dev/null
 
-      # Create OIDC scope
+      # Create OIDC scope using a temp file with base64 to avoid quoting issues
+      echo 'eyJ1c2VybmFtZSI6Int7aWRlbnRpdHkuZW50aXR5Lm5hbWV9fSJ9' | base64 -d > /tmp/user-scope.json
       BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/scope/user \
-        template='{\"username\":{% raw %}{{identity.entity.name}}{% endraw %}}' \
+        template=@/tmp/user-scope.json \
         description=\"User scope\" > /dev/null
+      rm /tmp/user-scope.json
 
       # Create OIDC client for Grafana
       GRAFANA_URIS=\"https://grafana.tailbecff0.ts.net/login/generic_oauth,\"
@@ -84,8 +86,8 @@
       # Configure OIDC provider
       BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/provider/default \
         allowed_client_ids=\"*\" \
-        issuer=\"https://pi-k3s.chalupatech.com\" \
-        scopes_supported=\"user\" > /dev/null
+        issuer=\"https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default\" \
+        scopes_supported=\"user,openid\" > /dev/null
 
       # Extract client ID and secret
       GRAFANA_CLIENT_ID=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
@@ -103,12 +105,11 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: openbao_setup_oidc_setup_result
   changed_when: true
-  no_log: true
 
 - name: Create Kubernetes Secrets for OIDC
   ansible.builtin.shell: |
     set -eo pipefail
-    # Extract values from the last line of output to avoid "Success!" messages or other noise
+    # Extract values from the last line of output to avoid \"Success!\" messages or other noise
     OIDC_DATA=$(echo "{{ openbao_setup_oidc_setup_result.stdout }}" | tail -n 1)
 
     GRAFANA_CLIENT_ID=$(echo "$OIDC_DATA" | awk '{print $1}')
@@ -130,8 +131,8 @@
     if [ -n "$ARGOCD_CLIENT_ID" ] && [ -n "$ARGOCD_CLIENT_SECRET" ] && [ "$ARGOCD_CLIENT_ID" != "Success!" ]; then
       kubectl create secret generic argocd-oidc-secret \
         -n argocd \
-        --from-literal=oidc.openbao.clientId="$ARGOCD_CLIENT_ID" \
-        --from-literal=oidc.openbao.clientSecret="$ARGOCD_CLIENT_SECRET" \
+        --from-literal=clientId="$ARGOCD_CLIENT_ID" \
+        --from-literal=clientSecret="$ARGOCD_CLIENT_SECRET" \
         --dry-run=client -o yaml | kubectl apply -f -
     else
       echo "Failed to extract ARGOCD_CLIENT_ID or ARGOCD_CLIENT_SECRET. Data: $OIDC_DATA"
@@ -140,4 +141,3 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
-  no_log: true

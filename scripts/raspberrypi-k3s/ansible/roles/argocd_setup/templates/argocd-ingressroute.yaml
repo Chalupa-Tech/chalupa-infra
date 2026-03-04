@@ -10,6 +10,26 @@ spec:
   routes:
     - match: Host(`pi-k3s.chalupatech.com`) && PathPrefix(`/argocd`)
       kind: Rule
+      middlewares:
+        - name: redirect-to-https
+          namespace: kube-system
       services:
         - name: argocd-server
           port: 80
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-tls
+  namespace: argocd
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`pi-k3s.chalupatech.com`) && PathPrefix(`/argocd`)
+      kind: Rule
+      services:
+        - name: argocd-server
+          port: 80
+  tls:
+    secretName: pi-k3s-tls
