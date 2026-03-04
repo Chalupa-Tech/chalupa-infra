@@ -5,7 +5,7 @@ configs:
     oidc.config: |
       name: OpenBao
       issuer: https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default
-      clientID: argocd
+      clientID: $argocd-oidc-secret:oidc.openbao.clientID
       clientSecret: $argocd-oidc-secret:oidc.openbao.clientSecret
       requestedScopes: ["user"]
       requestedIDTokenClaims: {"username": {"essential": true}}
