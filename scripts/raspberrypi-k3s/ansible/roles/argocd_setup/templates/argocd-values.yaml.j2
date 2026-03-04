@@ -1,5 +1,6 @@
 configs:
   cm:
+    url: https://pi-k3s.chalupatech.com/argocd
     admin.enabled: true
 <<<<<<< Updated upstream
 {% for user in managed_users %}
@@ -25,10 +26,14 @@ configs:
   rbac:
     policy.default: "role:readonly"
     policy.csv: |
-{% for user in managed_users if user.argocd_admin | default(false) %}
+      {% for user in managed_users if user.argocd_admin | default(false) %}
       g, {{ user.name }}, role:admin
-{% endfor %}
+      {% endfor %}
 
 server:
   ingress:
-    enabled: false
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - argocd.local
+      - pi-k3s.chalupatech.com

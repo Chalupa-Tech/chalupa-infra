@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-tailscale
+  namespace: observability
+spec:
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - grafana.tailbecff0.ts.net
+  rules:
+    - host: grafana.tailbecff0.ts.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prometheus-grafana
+                port:
+                  number: 80
