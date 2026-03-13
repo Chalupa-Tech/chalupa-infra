@@ -1,0 +1,44 @@
+server {
+    listen 80;
+    server_name {{ tailscale_hostname }};
+    return 301 https://$host$request_uri;
+}
+
+upstream artifactory-backend {
+    server 127.0.0.1:8082;
+    keepalive 32;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name {{ tailscale_hostname }};
+
+    ssl_certificate /etc/nginx/ssl/artifactory.crt;
+    ssl_certificate_key /etc/nginx/ssl/artifactory.key;
+
+    # Artifactory proxy settings
+    proxy_read_timeout  2400s;
+    proxy_pass_header   Server;
+    proxy_cookie_path   ~*^/.* /;
+
+    client_max_body_size 0;
+
+    # Buffer fixes
+    proxy_buffer_size   128k;
+    proxy_buffers   4 256k;
+    proxy_busy_buffers_size   256k;
+
+    location / {
+        proxy_pass http://artifactory-backend;
+        
+        proxy_http_version 1.1;
+        proxy_set_header Connection "Keep-Alive";
+        proxy_set_header Proxy-Connection "Keep-Alive";
+        
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Port $server_port;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
