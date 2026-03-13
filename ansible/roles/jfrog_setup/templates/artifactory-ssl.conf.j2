@@ -16,6 +16,9 @@ server {
     ssl_certificate /etc/nginx/ssl/artifactory.crt;
     ssl_certificate_key /etc/nginx/ssl/artifactory.key;
 
+    # Fix for Tailscale MTU fragmentation! Fit TLS records in one packet.
+    ssl_buffer_size 1200;
+
     # Artifactory proxy settings
     proxy_read_timeout  2400s;
     proxy_pass_header   Server;
