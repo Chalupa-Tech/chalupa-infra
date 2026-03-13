@@ -54,7 +54,7 @@
 - name: Deploy JFrog Docker Container
   docker_container:
     name: jfrog-artifactory
-    image: releases-docker.jfrog.io/jfrog/artifactory-oss:latest
+    image: releases-docker.jfrog.io/jfrog/artifactory-oss:7.117.19
     state: started
     restart_policy: unless-stopped
     ports:
