@@ -1,0 +1,167 @@
+---
+- name: Wait for OpenBao namespace to exist
+  ansible.builtin.command: kubectl get namespace openbao
+  register: openbao_setup_ns_check
+  until: openbao_setup_ns_check.rc == 0
+  retries: 30
+  delay: 10
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+  check_mode: false
+
+- name: Wait for OpenBao pods to be running
+  ansible.builtin.command: >
+    kubectl get pod/openbao-{{ item }} -n openbao -o jsonpath='{.status.phase}'
+  register: openbao_setup_pod_phase
+  until: openbao_setup_pod_phase.stdout == "Running"
+  retries: 60
+  delay: 10
+  loop: [0, 1, 2]
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+  check_mode: false
+
+- name: Check if OpenBao is initialized
+  ansible.builtin.command: kubectl exec -n openbao openbao-0 -- bao status -format=json
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: openbao_setup_status
+  until: openbao_setup_status.rc == 0 or openbao_setup_status.stdout | regex_search('(?i)sealed')
+  retries: 30
+  delay: 10
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: Initialize OpenBao if needed
+  when:
+    - not ansible_check_mode
+    - openbao_setup_status.stdout is defined
+    - openbao_setup_status.stdout | length > 0
+    - not (openbao_setup_status.stdout | from_json).initialized
+  block:
+    - name: Run OpenBao init
+      ansible.builtin.command: >
+        kubectl exec -n openbao openbao-0 --
+        bao operator init -key-shares=1 -key-threshold=1 -format=json
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: openbao_setup_init_raw
+      changed_when: true
+
+    - name: Save initialization data to node
+      ansible.builtin.copy:
+        content: "{{ openbao_setup_init_raw.stdout }}"
+        dest: /var/lib/rancher/k3s/server/openbao_init_data.json
+        mode: "0600"
+      changed_when: true
+
+    - name: OUTPUT OPENBAO SECRETS (FIRST RUN ONLY)
+      ansible.builtin.debug:
+        msg: "OpenBao Initialized! Secrets: {{ openbao_setup_init_raw.stdout }}"
+
+- name: Check for initialization data
+  ansible.builtin.stat:
+    path: /var/lib/rancher/k3s/server/openbao_init_data.json
+  register: openbao_setup_init_stat
+
+- name: Process unsealing and auth
+  when:
+    - not ansible_check_mode
+    - openbao_setup_init_stat.stat.exists
+  block:
+    - name: Read initialization data
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/openbao_init_data.json
+      register: openbao_setup_init_slurp
+      no_log: true
+
+    - name: Set facts from initialization data
+      ansible.builtin.set_fact:
+        openbao_setup_unseal_key: "{{ (openbao_setup_init_slurp.content | b64decode | from_json).unseal_keys_b64[0] }}"
+        openbao_setup_root_token: "{{ (openbao_setup_init_slurp.content | b64decode | from_json).root_token }}"
+      no_log: true
+
+    - name: Unseal OpenBao leader (openbao-0)
+      ansible.builtin.command: >
+        kubectl exec -n openbao openbao-0 --
+        bao operator unseal {{ openbao_setup_unseal_key }}
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: openbao_setup_unseal_leader
+      until: openbao_setup_unseal_leader.rc == 0
+      retries: 30
+      delay: 30
+      changed_when: "'Sealed               false' in openbao_setup_unseal_leader.stdout"
+      no_log: true
+
+    - name: Join OpenBao followers to Raft cluster
+      ansible.builtin.command: >
+        kubectl exec -n openbao openbao-{{ item }} --
+        bao operator raft join http://openbao-0.openbao-internal:8200
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      loop: [1, 2]
+      register: openbao_setup_raft_join
+      until: openbao_setup_raft_join.rc == 0
+      retries: 20
+      delay: 10
+      changed_when: true
+      failed_when: false
+
+    - name: Wait for Raft join to stabilize
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Unseal OpenBao followers (openbao-1, openbao-2)
+      ansible.builtin.command: >
+        kubectl exec -n openbao openbao-{{ item }} --
+        bao operator unseal {{ openbao_setup_unseal_key }}
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      loop: [1, 2]
+      register: openbao_setup_unseal_followers
+      until: openbao_setup_unseal_followers.rc == 0
+      retries: 60
+      delay: 30
+      changed_when: "'Sealed               false' in openbao_setup_unseal_followers.stdout"
+      no_log: true
+
+    - name: Enable auth methods
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl exec -n openbao openbao-0 -- sh -c "
+          BAO_TOKEN={{ openbao_setup_root_token }} bao auth enable userpass || true
+          BAO_TOKEN={{ openbao_setup_root_token }} bao auth enable kubernetes || true
+        "
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      changed_when: true
+      no_log: true
+
+    - name: Configure Kubernetes auth
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl exec -n openbao openbao-0 -- sh -c "
+          BAO_TOKEN={{ openbao_setup_root_token }} bao write auth/kubernetes/config \
+            kubernetes_host=https://kubernetes.default.svc \
+            kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        "
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      changed_when: true
+      no_log: true
+
+    - name: Setup Shared Namespace
+      ansible.builtin.include_tasks: shared_setup.yml
+
+    - name: Setup Users, Namespaces and SAs
+      ansible.builtin.include_tasks: user_setup.yml
+      loop: "{{ managed_users }}"
+      loop_control:
+        loop_var: user_item
+
+    - name: Setup Grafana OIDC
+      ansible.builtin.include_tasks: oidc_setup.yml
