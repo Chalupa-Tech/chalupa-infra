@@ -1,0 +1,97 @@
+---
+- name: Ensure Journald is configured for persistent logging and limits
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/journald.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  become: true
+  loop:
+    - {regexp: "^#?Storage=", line: "Storage=persistent"}
+    - {regexp: "^#?SystemMaxUse=", line: "SystemMaxUse={{ journald_system_max_use }}"}
+    - {regexp: "^#?SystemKeepFree=", line: "SystemKeepFree={{ journald_system_keep_free }}"}
+    - {regexp: "^#?MaxFileSec=", line: "MaxFileSec={{ journald_max_file_sec }}"}
+    - {regexp: "^#?MaxRetentionSec=", line: "MaxRetentionSec={{ journald_max_retention_sec }}"}
+  notify:
+    - Restart systemd-journald service
+
+- name: Delete /usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf
+  ansible.builtin.file:
+    path: /usr/lib/systemd/journald.conf.d/40-rpi-volatile-storage.conf
+    state: absent
+  become: true
+  notify:
+    - Restart systemd-journald service
+
+- name: Check cmdline.txt locations
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: pi_prepare_cmdline_check
+  loop:
+    - /boot/firmware/cmdline.txt
+    - /boot/cmdline.txt
+
+- name: Set cmdline file path
+  ansible.builtin.set_fact:
+    pi_prepare_cmdline_file: "{{ item.stat.path }}"
+  when: item.stat.exists
+  loop: "{{ pi_prepare_cmdline_check.results }}"
+
+- name: Check for cgroup settings
+  ansible.builtin.slurp:
+    src: "{{ pi_prepare_cmdline_file }}"
+  register: pi_prepare_cmdline_content
+  when: pi_prepare_cmdline_file is defined
+
+- name: Add cgroup settings if missing
+  ansible.builtin.lineinfile:
+    path: "{{ pi_prepare_cmdline_file }}"
+    backrefs: true
+    regexp: "^(.*)$"
+    line: '\1 cgroup_enable=memory cgroup_memory=1'
+  when:
+    - pi_prepare_cmdline_file is defined
+    - "'cgroup_enable=memory' not in (pi_prepare_cmdline_content.content | b64decode)"
+    - "'cgroup_memory=1' not in (pi_prepare_cmdline_content.content | b64decode)"
+  register: pi_prepare_cgroup_updated
+
+- name: Warn about reboot requirement
+  ansible.builtin.debug:
+    msg: "REBOOT REQUIRED: cgroups were configured. Please reboot and re-run the playbook."
+  when: pi_prepare_cgroup_updated.changed | default(false)  # noqa: no-handler
+
+- name: Check config.txt locations
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: pi_prepare_config_check
+  loop:
+    - /boot/firmware/config.txt
+    - /boot/config.txt
+
+- name: Set config file path
+  ansible.builtin.set_fact:
+    pi_prepare_config_file: "{{ item.stat.path }}"
+  when: item.stat.exists
+  loop: "{{ pi_prepare_config_check.results }}"
+
+- name: Disable WiFi in config.txt (post-reboot)
+  ansible.builtin.lineinfile:
+    path: "{{ pi_prepare_config_file }}"
+    line: "dtoverlay=disable-wifi"
+    state: present
+  become: true
+  when:
+    - pi_prepare_config_file is defined
+    - pi_prepare_disable_wifi | bool
+  register: pi_prepare_wifi_config_updated
+
+- name: Disable WiFi immediately using rfkill
+  ansible.builtin.command: rfkill block wifi
+  become: true
+  when:
+    - pi_prepare_disable_wifi | bool
+  changed_when: false  # rfkill block is idempotent but doesn't report change easily without parsing
+
+- name: Warn about reboot requirement for WiFi
+  ansible.builtin.debug:
+    msg: "REBOOT REQUIRED: WiFi was disabled in config.txt. Please reboot for hardware-level disablement."
+  when: pi_prepare_wifi_config_updated.changed | default(false)  # noqa: no-handler

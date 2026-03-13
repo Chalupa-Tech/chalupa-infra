@@ -1,0 +1,6 @@
+---
+- name: Restart ArgoCD Server
+  ansible.builtin.command: kubectl rollout restart deployment argocd-server -n argocd
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true

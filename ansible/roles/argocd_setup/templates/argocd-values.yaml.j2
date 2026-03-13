@@ -1,0 +1,33 @@
+configs:
+  cm:
+    url: https://pi-k3s.chalupatech.com/argocd
+    admin.enabled: true
+    oidc.config: |
+      name: OpenBao
+      issuer: https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default
+      clientID: {{ argocd_oidc_client_id | default('placeholder', true) }}
+      clientSecret: $oidc.openbao.clientSecret
+      requestedScopes: ["openid", "user"]
+      requestedIDTokenClaims: {"username": {"essential": true}}
+
+  params:
+    reposerver.parallelism.limit: "2"
+    controller.status.processors: "20"
+    controller.operation.processors: "10"
+    server.insecure: true
+    server.rootpath: /argocd
+
+  rbac:
+    policy.default: "role:readonly"
+    policy.csv: |
+      {% for user in managed_users if user.argocd_admin | default(false) %}
+      g, {{ user.name }}, role:admin
+      {% endfor %}
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - argocd.local
+      - pi-k3s.chalupatech.com

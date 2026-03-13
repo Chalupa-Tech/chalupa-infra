@@ -1,0 +1,38 @@
+---
+- name: Determine if Tailscale is installed
+  ansible.builtin.command: tailscale version
+  register: ts_check
+  failed_when: false
+  changed_when: false
+
+- name: Download and install Tailscale
+  ansible.builtin.shell: curl -fsSL https://tailscale.com/install.sh | sh
+  when: ts_check.rc != 0
+  changed_when: ts_check.rc != 0
+
+- name: Ensure Tailscale service is running
+  ansible.builtin.systemd:
+    name: tailscaled
+    state: started
+    enabled: true
+
+- name: Determine if Tailscale is authenticated
+  ansible.builtin.command: tailscale status
+  register: ts_status
+  failed_when: false
+  changed_when: false
+
+- name: Authenticate Tailscale with Auth Key
+  ansible.builtin.command: >
+    tailscale up --authkey={{ tailscale_auth_key }} --accept-dns=true --accept-routes=true --hostname={{ tailscale_hostname | default(inventory_hostname) }}
+    {% if tailscale_advertise_routes is defined %}--advertise-routes={{ tailscale_advertise_routes }}{% endif %}
+  when: ts_status.rc != 0
+  changed_when: ts_status.rc != 0
+  no_log: true # Mask authkey in logs
+
+- name: Enforce Tailscale hostname (if already authenticated)
+  ansible.builtin.command: >
+    tailscale set --hostname={{ tailscale_hostname | default(inventory_hostname) }} --accept-dns=true --accept-routes=true
+    {% if tailscale_advertise_routes is defined %}--advertise-routes={{ tailscale_advertise_routes }}{% endif %}
+  when: ts_status.rc == 0
+  changed_when: false

@@ -1,0 +1,6 @@
+---
+- name: OpenBao Setup Only
+  hosts: k3s_servers
+  become: true
+  roles:
+    - openbao_setup

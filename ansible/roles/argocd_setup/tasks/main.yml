@@ -1,0 +1,132 @@
+---
+- name: Check if Helm is installed
+  ansible.builtin.command: helm version
+  register: argocd_setup_helm_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Install Helm if missing
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  when: argocd_setup_helm_check.rc != 0
+  changed_when: true
+
+- name: Ensure argocd namespace exists
+  ansible.builtin.command: kubectl create namespace argocd
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: argocd_setup_ns_create
+  failed_when: false
+  changed_when: "'created' in argocd_setup_ns_create.stdout"
+
+- name: Ensure cert-manager namespace exists
+  ansible.builtin.command: kubectl create namespace cert-manager
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: argocd_setup_cm_ns_create
+  failed_when: false
+  changed_when: "'created' in argocd_setup_cm_ns_create.stdout"
+
+- name: Create Cloudflare API Key secret for cert-manager
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl create secret generic cloudflare-api-key-secret \
+      --namespace cert-manager \
+      --from-literal=api-key={{ cloudflare_api_key }} \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  no_log: true
+  changed_when: true
+
+- name: Add ArgoCD Helm repository
+  ansible.builtin.shell: |
+    helm repo add argo https://argoproj.github.io/argo-helm
+    helm repo update
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+
+- name: Retrieve existing ArgoCD OIDC client ID
+  ansible.builtin.include_tasks: get_client_id.yml
+
+- name: Template ArgoCD values
+  ansible.builtin.template:
+    src: argocd-values.yaml.j2
+    dest: /tmp/argocd-values.yaml
+    mode: "0644"
+
+- name: Install ArgoCD via Helm
+  ansible.builtin.command: >
+    helm upgrade --install argocd argo/argo-cd
+    --namespace argocd
+    -f /tmp/argocd-values.yaml
+    --wait
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+
+- name: Template ArgoCD Traefik IngressRoute
+  ansible.builtin.template:
+    src: argocd-ingressroute.yaml
+    dest: /tmp/argocd-ingressroute.yaml
+    mode: "0644"
+
+- name: Apply ArgoCD Traefik IngressRoute
+  ansible.builtin.command: kubectl apply -f /tmp/argocd-ingressroute.yaml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+
+- name: Set bootstrap directory fact
+  ansible.builtin.set_fact:
+    argocd_setup_bootstrap_dir: /tmp/argocd-bootstrap
+
+- name: Create temporary directory for core apps bootstrap
+  ansible.builtin.file:
+    path: "{{ argocd_setup_bootstrap_dir }}"
+    state: directory
+    mode: "0755"
+  check_mode: false
+
+- name: Copy core apps bootstrap files
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ argocd_setup_bootstrap_dir }}/{{ item.dest | basename }}"
+    mode: "{{ item.mode | default('0644') }}"
+  check_mode: false
+  loop:
+    - src: "../../../../scripts/deploy-core-apps.sh"
+      dest: "deploy-core-apps.sh"
+      mode: "0755"
+    - src: "../../../../k8s/platform/core-apps-appset.yaml"
+      dest: "core-apps-appset.yaml"
+    - src: "../../local/observability/bootstrap_observability_crds.sh"
+      dest: "bootstrap_observability_crds.sh"
+      mode: "0755"
+
+- name: Get repository URL
+  ansible.builtin.command: git remote get-url origin # noqa: command-instead-of-module
+  delegate_to: localhost
+  register: argocd_setup_repo_url_cmd
+  become: false
+  changed_when: false
+
+- name: Deploy core applications via ArgoCD
+  ansible.builtin.command: ./deploy-core-apps.sh
+  args:
+    chdir: "{{ argocd_setup_bootstrap_dir }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    REPO_URL: "{{ argocd_setup_repo_url_cmd.stdout | default('https://github.com/example/repo') }}"
+    APPSET_FILE: "{{ argocd_setup_bootstrap_dir }}/core-apps-appset.yaml"
+    CRD_BOOTSTRAP_SCRIPT: >-
+      {{ argocd_setup_bootstrap_dir }}/bootstrap_observability_crds.sh
+  changed_when: true
+
+- name: Cleanup bootstrap files
+  ansible.builtin.file:
+    path: "{{ argocd_setup_bootstrap_dir }}"
+    state: absent
+  when: not ansible_check_mode

@@ -1,0 +1,25 @@
+---
+- name: Verify OS is Debian-based (Ubuntu/Raspbian)
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == "Debian"
+    fail_msg: "This playbook only supports Debian-based systems."
+  when: enforce_debian | default(true) | bool
+
+- name: Verify architecture is 64-bit ARM
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['architecture'] == "aarch64"
+    fail_msg: "K3s setup in this project targets 64-bit ARM (aarch64)."
+  when: enforce_arm64 | default(true) | bool
+
+- name: Check if Tailscale is installed
+  ansible.builtin.command: tailscale version
+  register: preflight_ts_version
+  ignore_errors: true
+  changed_when: false
+
+- name: Warn if Tailscale is missing
+  ansible.builtin.debug:
+    msg: "Tailscale is not installed. The k3s_install role will attempt to install it."
+  when: preflight_ts_version.rc != 0

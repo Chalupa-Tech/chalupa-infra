@@ -1,0 +1,36 @@
+---
+- name: Validate remote user is allowed
+  ansible.builtin.assert:
+    that:
+      - ansible_user in allowed_bootstrap_users | default(['ddowell', 'tbigelow', 'fedora', 'root'])
+    fail_msg: "Running as remote user '{{ ansible_user }}' which is not in the allowed list"
+    success_msg: "Running as allowed remote user: {{ ansible_user }}"
+  run_once: true
+
+- name: Create managed users
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    state: present
+    shell: /bin/bash
+    create_home: true
+    groups: "{{ 'wheel' if ansible_facts['os_family'] == 'RedHat' else 'sudo' }}"
+    append: true
+  loop: "{{ managed_users }}"
+
+- name: Deploy authorized_keys for users
+  ansible.posix.authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ lookup('file', item.pubkey_file) }}"
+    path: "/home/{{ item.name }}/.ssh/authorized_keys"
+    state: present
+    exclusive: false
+  loop: "{{ managed_users }}"
+
+- name: Configure passwordless sudo for managed users
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/{{ item.name }}
+    line: "{{ item.name }} ALL=(ALL) NOPASSWD: ALL"
+    create: true
+    mode: "0440"
+    validate: "visudo -cf %s"
+  loop: "{{ managed_users }}"
