@@ -28,6 +28,12 @@ server {
     proxy_buffers   4 256k;
     proxy_busy_buffers_size   256k;
 
+    # Intercept missing Pro/Enterprise SPA Javascript files for JFrog OSS
+    location ~ ^/ui/api/v1/(xray|mc|insight|distribution|pipelines|xsc|workers|apptrust|onemodel|pfed|evidence|worker|catalog|grid|runtime|pipe|ml|unifiedpolicy|event|wingman|ui/webapp/rtui)/.*\.(js|mjs)$ {
+        default_type application/javascript;
+        return 200 "export default {};";
+    }
+
     location / {
         proxy_pass http://artifactory-backend;
         

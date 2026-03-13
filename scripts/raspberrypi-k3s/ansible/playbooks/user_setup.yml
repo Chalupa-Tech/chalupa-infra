@@ -1,7 +1,0 @@
----
-- name: Setup Users on K3s Nodes
-  hosts: all
-  become: true
-
-  roles:
-    - role: user_setup
