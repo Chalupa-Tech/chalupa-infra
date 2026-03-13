@@ -34,7 +34,7 @@ server {
     # Intercept missing Pro/Enterprise SPA Javascript files for JFrog OSS
     location ~ ^/ui/api/v1/(xray|mc|insight|distribution|pipelines|xsc|workers|apptrust|onemodel|pfed|evidence|worker|catalog|grid|runtime|pipe|ml|unifiedpolicy|event|wingman|ui/webapp/rtui)/.*\.(js|mjs)$ {
         default_type application/javascript;
-        return 200 "export default {};";
+        return 200 "export const bootstrap = () => Promise.resolve(); export const mount = () => Promise.resolve(); export const unmount = () => Promise.resolve();";
     }
 
     location / {
