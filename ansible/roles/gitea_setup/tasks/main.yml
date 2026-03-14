@@ -74,6 +74,11 @@
     env:
       # Skip web install wizard and force initial configuration
       GITEA__security__INSTALL_LOCK: "true"
+      # Ensure session cookies are sent on HTTPS callbacks (OIDC state token fix)
+      # Gitea runs HTTP internally; Tailscale terminates TLS externally.
+      # Without COOKIE_SECURE, browsers drop the session cookie on the OIDC
+      # callback redirect, causing "state token mismatch" errors.
+      GITEA__security__COOKIE_SECURE: "true"
       # Application name
       GITEA__server__APP_NAME: "{{ gitea_app_name }}"
       # Server URLs
@@ -84,6 +89,10 @@
       GITEA__server__SSH_PORT: "{{ gitea_ssh_port | string }}"
       GITEA__server__SSH_LISTEN_PORT: "{{ gitea_ssh_port | string }}"
       GITEA__server__START_SSH_SERVER: "true"
+      # Tell Gitea it's behind a reverse proxy (Tailscale) serving HTTPS
+      GITEA__server__PROTOCOL: http
+      GITEA__server__USE_PROXY_HEADERS: "true"
+      GITEA__server__TRUSTED_PROXIES: "*"
       # Database
       GITEA__database__DB_TYPE: postgres
       GITEA__database__HOST: "gitea-postgres:5432"
