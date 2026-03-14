@@ -81,6 +81,24 @@
         id_token_ttl=\"24h\" \
         access_token_ttl=\"24h\" > /dev/null
 
+      # Create OIDC key for Gitea
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/key/gitea \
+        allowed_client_ids=\"*\" rotation_period=\"24h\" verification_ttl=\"24h\" > /dev/null
+
+      # Create OIDC assignment for Gitea (same users as Grafana/ArgoCD)
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/assignment/gitea \
+        entity_ids=\"\$ENTITY_IDS\" > /dev/null
+
+      # Create OIDC client for Gitea
+      GITEA_URIS=\"https://gitea.tailbecff0.ts.net/user/oauth2/OpenBao/callback\"
+
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/client/gitea \
+        key=\"gitea\" \
+        redirect_uris=\"\$GITEA_URIS\" \
+        assignments=\"gitea\" \
+        id_token_ttl=\"24h\" \
+        access_token_ttl=\"24h\" > /dev/null
+
       # Extract client ID and secret
       GRAFANA_CLIENT_ID=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
         -field=client_id identity/oidc/client/grafana)
@@ -90,14 +108,18 @@
         -field=client_id identity/oidc/client/argocd)
       ARGOCD_CLIENT_SECRET=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
         -field=client_secret identity/oidc/client/argocd)
+      GITEA_CLIENT_ID=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
+        -field=client_id identity/oidc/client/gitea)
+      GITEA_CLIENT_SECRET=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
+        -field=client_secret identity/oidc/client/gitea)
 
-      # Configure OIDC provider
+      # Configure OIDC provider (allow all three clients)
       BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/provider/default \
-        allowed_client_ids=\"\${GRAFANA_CLIENT_ID},\${ARGOCD_CLIENT_ID}\" \
+        allowed_client_ids=\"\${GRAFANA_CLIENT_ID},\${ARGOCD_CLIENT_ID},\${GITEA_CLIENT_ID}\" \
         issuer_host=\"https://pi-k3s.chalupatech.com\" \
         scopes_supported=\"user\" > /dev/null
 
-      echo \$GRAFANA_CLIENT_ID \$GRAFANA_CLIENT_SECRET \$ARGOCD_CLIENT_ID \$ARGOCD_CLIENT_SECRET
+      echo \$GRAFANA_CLIENT_ID \$GRAFANA_CLIENT_SECRET \$ARGOCD_CLIENT_ID \$ARGOCD_CLIENT_SECRET \$GITEA_CLIENT_ID \$GITEA_CLIENT_SECRET
     "
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -115,6 +137,8 @@
     GRAFANA_CLIENT_SECRET=$(echo "$OIDC_DATA" | awk '{print $2}')
     ARGOCD_CLIENT_ID=$(echo "$OIDC_DATA" | awk '{print $3}')
     ARGOCD_CLIENT_SECRET=$(echo "$OIDC_DATA" | awk '{print $4}')
+    GITEA_CLIENT_ID=$(echo "$OIDC_DATA" | awk '{print $5}')
+    GITEA_CLIENT_SECRET=$(echo "$OIDC_DATA" | awk '{print $6}')
 
     if [ -n "$GRAFANA_CLIENT_ID" ] && [ -n "$GRAFANA_CLIENT_SECRET" ] && [ "$GRAFANA_CLIENT_ID" != "Success!" ]; then
       kubectl create secret generic grafana-oidc-secret \
@@ -146,7 +170,19 @@
       echo "Failed to extract ARGOCD_CLIENT_ID or ARGOCD_CLIENT_SECRET. Data: $OIDC_DATA"
       exit 1
     fi
+
+    if [ -n "$GITEA_CLIENT_ID" ] && [ -n "$GITEA_CLIENT_SECRET" ] && [ "$GITEA_CLIENT_ID" != "Success!" ]; then
+      kubectl create secret generic gitea-oidc-secret \
+        -n openbao \
+        --from-literal=client_id="$GITEA_CLIENT_ID" \
+        --from-literal=client_secret="$GITEA_CLIENT_SECRET" \
+        --dry-run=client -o yaml | kubectl apply -f -
+    else
+      echo "Failed to extract GITEA_CLIENT_ID or GITEA_CLIENT_SECRET. Data: $OIDC_DATA"
+      exit 1
+    fi
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
   no_log: true
+

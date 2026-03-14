@@ -92,6 +92,8 @@
       GITEA__database__PASSWD: "{{ gitea_db_password }}"
       # Packages (artifact registry) — enabled by default, make explicit
       GITEA__packages__ENABLED: "true"
+      # Lock down self-registration — identity comes from OpenBao OIDC
+      GITEA__service__DISABLE_REGISTRATION: "true"
       # Disable mailer (no SMTP configured)
       GITEA__mailer__ENABLED: "false"
       # Log level

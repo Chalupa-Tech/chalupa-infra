@@ -77,38 +77,6 @@
   delegate_to: "{{ k3s_control_node }}"
   no_log: true
 
-# ── Seed gitea/admin ─────────────────────────────────────────────────────────
-- name: Check if gitea/admin secret already exists
-  ansible.builtin.uri:
-    url: "{{ openbao_url }}/v1/secret/data/gitea/admin"
-    method: GET
-    headers:
-      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
-    status_code: [200, 404]
-    validate_certs: false
-  register: gitea_setup_bao_admin_check
-  delegate_to: "{{ k3s_control_node }}"
-  no_log: true
-
-- name: Seed gitea/admin password (first-time only)
-  ansible.builtin.uri:
-    url: "{{ openbao_url }}/v1/secret/data/gitea/admin"
-    method: POST
-    headers:
-      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
-    body_format: json
-    body:
-      data:
-        password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
-    status_code: [200, 204]
-    validate_certs: false
-  when: >
-    gitea_setup_bao_admin_check.status == 404 or
-    (gitea_setup_bao_admin_check.status == 200 and
-     gitea_setup_bao_admin_check.json.data.data.get('password', '') == '')
-  delegate_to: "{{ k3s_control_node }}"
-  no_log: true
-
 # ── Seed gitea/ci-deploy ─────────────────────────────────────────────────────
 - name: Check if gitea/ci-deploy secret already exists
   ansible.builtin.uri:

@@ -1,18 +1,6 @@
 server {
     listen 80;
     server_name {{ tailscale_hostname }};
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name {{ tailscale_hostname }};
-
-    ssl_certificate /etc/nginx/ssl/gitea.crt;
-    ssl_certificate_key /etc/nginx/ssl/gitea.key;
-
-    # Fit TLS records in one packet to avoid Tailscale PMTUD fragmentation.
-    ssl_buffer_size 1200;
 
     client_max_body_size 0;
 
