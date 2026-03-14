@@ -1,0 +1,247 @@
+---
+# Runs on the k3s control node (delegated from docker1).
+# Seeds gitea secret paths in OpenBao KV and creates an AppRole so
+# docker1 can authenticate without a long-lived root token.
+
+- name: Check for OpenBao init data file on k3s control node
+  ansible.builtin.stat:
+    path: /var/lib/rancher/k3s/server/openbao_init_data.json
+  register: gitea_setup_bao_init_stat
+  delegate_to: "{{ k3s_control_node }}"
+  become: true
+
+- name: Read OpenBao init data from k3s control node (first boot)
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/openbao_init_data.json
+  register: gitea_setup_bao_init_raw
+  delegate_to: "{{ k3s_control_node }}"
+  become: true
+  no_log: true
+  when: gitea_setup_bao_init_stat.stat.exists
+
+- name: Set OpenBao root token fact from init file (first boot)
+  ansible.builtin.set_fact:
+    gitea_setup_bao_root_token: >-
+      {{ (gitea_setup_bao_init_raw.content | b64decode | from_json).root_token }}
+  no_log: true
+  when: gitea_setup_bao_init_stat.stat.exists
+
+- name: Set OpenBao root token fact from Ansible Vault (subsequent runs)
+  ansible.builtin.set_fact:
+    gitea_setup_bao_root_token: "{{ openbao_root_token }}"
+  no_log: true
+  when: not gitea_setup_bao_init_stat.stat.exists
+
+- name: Enable KV v2 secrets engine (idempotent)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/mounts/secret"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    body_format: json
+    body:
+      type: kv
+      options:
+        version: "2"
+    status_code: [200, 204, 400]  # 400 = already mounted
+    validate_certs: false
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+# ── Seed gitea/db ────────────────────────────────────────────────────────────
+- name: Check if gitea/db secret already exists
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/db"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: gitea_setup_bao_db_check
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Seed gitea/db password (first-time only)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/db"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    body_format: json
+    body:
+      data:
+        password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: gitea_setup_bao_db_check.status == 404
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+# ── Seed gitea/admin ─────────────────────────────────────────────────────────
+- name: Check if gitea/admin secret already exists
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/admin"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: gitea_setup_bao_admin_check
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Seed gitea/admin password (first-time only)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/admin"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    body_format: json
+    body:
+      data:
+        password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: >
+    gitea_setup_bao_admin_check.status == 404 or
+    (gitea_setup_bao_admin_check.status == 200 and
+     gitea_setup_bao_admin_check.json.data.data.get('password', '') == '')
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+# ── Seed gitea/ci-deploy ─────────────────────────────────────────────────────
+- name: Check if gitea/ci-deploy secret already exists
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-deploy"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: gitea_setup_bao_deploy_check
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Seed gitea/ci-deploy password (first-time only)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-deploy"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    body_format: json
+    body:
+      data:
+        password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: gitea_setup_bao_deploy_check.status == 404
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+# ── Seed gitea/ci-read ───────────────────────────────────────────────────────
+- name: Check if gitea/ci-read secret already exists
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-read"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: gitea_setup_bao_read_check
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Seed gitea/ci-read password (first-time only)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-read"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    body_format: json
+    body:
+      data:
+        password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: gitea_setup_bao_read_check.status == 404
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+# ── AppRole: gitea-provisioner ───────────────────────────────────────────────
+- name: Enable AppRole auth method (idempotent)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/auth/approle"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    body_format: json
+    body:
+      type: approle
+    status_code: [200, 204, 400]
+    validate_certs: false
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Write gitea-provisioner policy
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/policies/acl/gitea-provisioner"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    body_format: json
+    body:
+      policy: |
+        path "secret/data/gitea/*" {
+          capabilities = ["read", "create", "update"]
+        }
+    status_code: [200, 204]
+    validate_certs: false
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Create gitea-provisioner AppRole
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/auth/approle/role/gitea-provisioner"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    body_format: json
+    body:
+      policies: ["gitea-provisioner"]
+      token_ttl: "1h"
+      secret_id_ttl: "0"   # never expire (rotated by playbook)
+      secret_id_num_uses: 0
+    status_code: [200, 204]
+    validate_certs: false
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Fetch AppRole role-id
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/auth/approle/role/gitea-provisioner/role-id"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    validate_certs: false
+  register: gitea_setup_bao_role_id_resp
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Generate AppRole secret-id
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/auth/approle/role/gitea-provisioner/secret-id"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_root_token }}"
+    body_format: json
+    body: {}
+    validate_certs: false
+  register: gitea_setup_bao_secret_id_resp
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Set AppRole credentials as facts (available to docker1)
+  ansible.builtin.set_fact:
+    gitea_setup_bao_role_id: "{{ gitea_setup_bao_role_id_resp.json.data.role_id }}"
+    gitea_setup_bao_secret_id: "{{ gitea_setup_bao_secret_id_resp.json.data.secret_id }}"
+  no_log: true
