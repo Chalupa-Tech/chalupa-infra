@@ -1,0 +1,9 @@
+---
+# Targeted playbook to run only the openbao_setup role for OIDC changes.
+# This avoids needing the full Ansible Galaxy dependencies (preflight, pi_prepare, etc.)
+# which only run on the full site.yml bootstrap.
+- name: Configure OpenBao (OIDC + secrets)
+  hosts: k3s_servers
+  become: true
+  roles:
+    - openbao_setup

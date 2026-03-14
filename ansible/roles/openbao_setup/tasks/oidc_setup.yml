@@ -1,4 +1,15 @@
 ---
+# Sets up OIDC clients in OpenBao for Grafana, ArgoCD, and Gitea.
+# Each operation is a discrete, idempotent Ansible task — no shell script pipelines,
+# no stdout parsing. If a run fails mid-way, re-running picks up cleanly.
+#
+# Structure:
+#   1. Create OIDC key + assignment + client for each service (idempotent writes)
+#   2. Read back client_id / client_secret via URI tasks
+#   3. Update the OIDC provider's allowed_client_ids
+#   4. Write K8s Secrets / patch ArgoCD config as separate clean tasks
+
+# ── Ensure observability namespace exists ─────────────────────────────────────
 - name: Ensure observability namespace exists
   ansible.builtin.command: kubectl create namespace observability
   environment:
@@ -7,182 +18,275 @@
   failed_when: false
   changed_when: "'created' in openbao_setup_obs_ns_create.stdout"
 
-- name: Setup OIDC Providers
-  ansible.builtin.shell: |
-    set -o pipefail
-
-    # Run all bao commands in the openbao pod
-    kubectl exec -n openbao openbao-0 -- sh -c "
-      set -e
-      # Get userpass accessor
-      USERPASS_ACCESSOR=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read -field=accessor sys/auth/userpass)
-
-      ENTITY_IDS=\"\"
-
-      # For each user, create entity and alias, and collect entity IDs
-      for USER in {{ managed_users | map(attribute='name') | join(' ') }}; do
-        # Create entity (if exists, we might need to get its ID)
-        ENTITY_ID=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
-          -field=id identity/entity/name/\$USER 2>/dev/null || \
-          BAO_TOKEN={{ openbao_setup_root_token }} bao write -field=id identity/entity name=\$USER)
-
-        # Create alias
-        BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/entity-alias name=\$USER \
-          canonical_id=\$ENTITY_ID mount_accessor=\$USERPASS_ACCESSOR 2>/dev/null || true
-
-        if [ -z \"\$ENTITY_IDS\" ]; then
-          ENTITY_IDS=\"\$ENTITY_ID\"
-        else
-          ENTITY_IDS=\"\$ENTITY_IDS,\$ENTITY_ID\"
-        fi
-      done
-
-      # Create OIDC key for Grafana
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/key/grafana \
-        allowed_client_ids=\"*\" rotation_period=\"24h\" verification_ttl=\"24h\" > /dev/null
-
-      # Create OIDC assignment for Grafana
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/assignment/grafana \
-        entity_ids=\"\$ENTITY_IDS\" > /dev/null
-
-      # Create OIDC scope
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/scope/user \
-        template='{\"username\":{% raw %}{{identity.entity.name}}{% endraw %}}' \
-        description=\"User scope\" > /dev/null
-
-      # Create OIDC client for Grafana
-      GRAFANA_URIS=\"https://grafana.tailbecff0.ts.net/login/generic_oauth,\"
-      GRAFANA_URIS=\"\${GRAFANA_URIS}https://pi-k3s.chalupatech.com/grafana/login/generic_oauth,\"
-      GRAFANA_URIS=\"\${GRAFANA_URIS}http://grafana.local/grafana/login/generic_oauth\"
-
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/client/grafana \
-        key=\"grafana\" \
-        redirect_uris=\"\$GRAFANA_URIS\" \
-        assignments=\"grafana\" \
-        id_token_ttl=\"24h\" \
-        access_token_ttl=\"24h\" > /dev/null
-
-      # Create OIDC key for ArgoCD
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/key/argocd \
-        allowed_client_ids=\"*\" rotation_period=\"24h\" verification_ttl=\"24h\" > /dev/null
-
-      # Create OIDC assignment for ArgoCD
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/assignment/argocd \
-        entity_ids=\"\$ENTITY_IDS\" > /dev/null
-
-      # Create OIDC client for ArgoCD
-      ARGOCD_URIS=\"https://pi-k3s.chalupatech.com/argocd/auth/callback,\"
-      ARGOCD_URIS=\"\${ARGOCD_URIS}http://localhost:8085/auth/callback\"
-
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/client/argocd \
-        key=\"argocd\" \
-        redirect_uris=\"\$ARGOCD_URIS\" \
-        assignments=\"argocd\" \
-        id_token_ttl=\"24h\" \
-        access_token_ttl=\"24h\" > /dev/null
-
-      # Create OIDC key for Gitea
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/key/gitea \
-        allowed_client_ids=\"*\" rotation_period=\"24h\" verification_ttl=\"24h\" > /dev/null
-
-      # Create OIDC assignment for Gitea (same users as Grafana/ArgoCD)
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/assignment/gitea \
-        entity_ids=\"\$ENTITY_IDS\" > /dev/null
-
-      # Create OIDC client for Gitea
-      GITEA_URIS=\"https://gitea.tailbecff0.ts.net/user/oauth2/OpenBao/callback\"
-
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/client/gitea \
-        key=\"gitea\" \
-        redirect_uris=\"\$GITEA_URIS\" \
-        assignments=\"gitea\" \
-        id_token_ttl=\"24h\" \
-        access_token_ttl=\"24h\" > /dev/null
-
-      # Extract client ID and secret
-      GRAFANA_CLIENT_ID=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
-        -field=client_id identity/oidc/client/grafana)
-      GRAFANA_CLIENT_SECRET=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
-        -field=client_secret identity/oidc/client/grafana)
-      ARGOCD_CLIENT_ID=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
-        -field=client_id identity/oidc/client/argocd)
-      ARGOCD_CLIENT_SECRET=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
-        -field=client_secret identity/oidc/client/argocd)
-      GITEA_CLIENT_ID=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
-        -field=client_id identity/oidc/client/gitea)
-      GITEA_CLIENT_SECRET=\$(BAO_TOKEN={{ openbao_setup_root_token }} bao read \
-        -field=client_secret identity/oidc/client/gitea)
-
-      # Configure OIDC provider (allow all three clients)
-      BAO_TOKEN={{ openbao_setup_root_token }} bao write identity/oidc/provider/default \
-        allowed_client_ids=\"\${GRAFANA_CLIENT_ID},\${ARGOCD_CLIENT_ID},\${GITEA_CLIENT_ID}\" \
-        issuer_host=\"https://pi-k3s.chalupatech.com\" \
-        scopes_supported=\"user\" > /dev/null
-
-      echo \$GRAFANA_CLIENT_ID \$GRAFANA_CLIENT_SECRET \$ARGOCD_CLIENT_ID \$ARGOCD_CLIENT_SECRET \$GITEA_CLIENT_ID \$GITEA_CLIENT_SECRET
-    "
-  environment:
-    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  register: openbao_setup_oidc_setup_result
-  changed_when: true
+# ── Get userpass accessor (needed for entity aliases) ─────────────────────────
+- name: Get userpass auth accessor
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/auth/userpass"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    validate_certs: false
+  register: openbao_setup_userpass_auth
   no_log: true
 
-- name: Create Kubernetes Secrets for OIDC
-  ansible.builtin.shell: |
-    set -eo pipefail
-    # Extract values from the last line of output to avoid "Success!" messages or other noise
-    OIDC_DATA=$(echo "{{ openbao_setup_oidc_setup_result.stdout }}" | tail -n 1)
+- name: Set userpass accessor fact
+  ansible.builtin.set_fact:
+    openbao_setup_userpass_accessor: "{{ openbao_setup_userpass_auth.json.accessor }}"
+  no_log: true
 
-    GRAFANA_CLIENT_ID=$(echo "$OIDC_DATA" | awk '{print $1}')
-    GRAFANA_CLIENT_SECRET=$(echo "$OIDC_DATA" | awk '{print $2}')
-    ARGOCD_CLIENT_ID=$(echo "$OIDC_DATA" | awk '{print $3}')
-    ARGOCD_CLIENT_SECRET=$(echo "$OIDC_DATA" | awk '{print $4}')
-    GITEA_CLIENT_ID=$(echo "$OIDC_DATA" | awk '{print $5}')
-    GITEA_CLIENT_SECRET=$(echo "$OIDC_DATA" | awk '{print $6}')
+# ── Create OIDC scope (shared) ────────────────────────────────────────────────
+- name: Create OIDC user scope
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/identity/oidc/scope/user"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      template: "{{ openbao_oidc_user_scope_template }}"
+      description: "User scope — exposes username and groups claims"
+    status_code: [200, 204]
+    validate_certs: false
+  no_log: true
+  failed_when: false  # Idempotent: scope already exists returns 400/204
 
-    if [ -n "$GRAFANA_CLIENT_ID" ] && [ -n "$GRAFANA_CLIENT_SECRET" ] && [ "$GRAFANA_CLIENT_ID" != "Success!" ]; then
-      kubectl create secret generic grafana-oidc-secret \
-        -n observability \
-        --from-literal=GF_AUTH_GENERIC_OAUTH_CLIENT_ID="$GRAFANA_CLIENT_ID" \
-        --from-literal=GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET="$GRAFANA_CLIENT_SECRET" \
-        --dry-run=client -o yaml | kubectl apply -f -
-    else
-      echo "Failed to extract GRAFANA_CLIENT_ID or GRAFANA_CLIENT_SECRET. Data: $OIDC_DATA"
-      exit 1
-    fi
+# ── Create entities and aliases for managed users ─────────────────────────────
+- name: Create identity entity for each managed user
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/identity/entity/name/{{ item.name }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      name: "{{ item.name }}"
+    status_code: [200, 204]
+    validate_certs: false
+  loop: "{{ managed_users }}"
+  register: openbao_setup_entities
+  no_log: true
 
-    if [ -n "$ARGOCD_CLIENT_ID" ] && [ -n "$ARGOCD_CLIENT_SECRET" ] && [ "$ARGOCD_CLIENT_ID" != "Success!" ]; then
-      # Patch the main argocd-secret with the OIDC credentials
-      CLIENT_ID_B64=$(echo -n "$ARGOCD_CLIENT_ID" | base64)
-      CLIENT_SEC_B64=$(echo -n "$ARGOCD_CLIENT_SECRET" | base64)
-      PATCH_JSON="{\"data\":{\"oidc.openbao.clientID\":\"$CLIENT_ID_B64\",\"oidc.openbao.clientSecret\":\"$CLIENT_SEC_B64\"}}"
-      kubectl patch secret argocd-secret -n argocd --type merge -p="$PATCH_JSON"
+- name: Read entity IDs for managed users
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/identity/entity/name/{{ item.name }}"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    status_code: 200
+    validate_certs: false
+  loop: "{{ managed_users }}"
+  register: openbao_setup_entity_reads
+  no_log: true
 
-      # ArgoCD oidc.config clientID does not support referencing external secrets directly in the Helm chart.
-      # We must inject the actual UUID into the ConfigMap.
-      CM_DATA="name: OpenBao\nissuer: https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default\n"
-      CM_DATA="${CM_DATA}clientID: $ARGOCD_CLIENT_ID\nclientSecret: \$oidc.openbao.clientSecret\n"
-      CM_DATA="${CM_DATA}requestedScopes: [\"openid\", \"user\"]\n"
-      CM_DATA="${CM_DATA}requestedIDTokenClaims: {\"username\": {\"essential\": true}}"
-      kubectl patch cm argocd-cm -n argocd --type merge -p "{\"data\":{\"oidc.config\":\"$CM_DATA\"}}"
-      kubectl rollout restart deploy/argocd-server -n argocd
-    else
-      echo "Failed to extract ARGOCD_CLIENT_ID or ARGOCD_CLIENT_SECRET. Data: $OIDC_DATA"
-      exit 1
-    fi
+- name: Create entity aliases (userpass → entity)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/identity/entity-alias"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      name: "{{ item.item.name }}"
+      canonical_id: "{{ item.json.data.id }}"
+      mount_accessor: "{{ openbao_setup_userpass_accessor }}"
+    status_code: [200, 204]
+    validate_certs: false
+  loop: "{{ openbao_setup_entity_reads.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  no_log: true
+  failed_when: false  # Alias may already exist
 
-    if [ -n "$GITEA_CLIENT_ID" ] && [ -n "$GITEA_CLIENT_SECRET" ] && [ "$GITEA_CLIENT_ID" != "Success!" ]; then
-      kubectl create secret generic gitea-oidc-secret \
-        -n openbao \
-        --from-literal=client_id="$GITEA_CLIENT_ID" \
-        --from-literal=client_secret="$GITEA_CLIENT_SECRET" \
-        --dry-run=client -o yaml | kubectl apply -f -
-    else
-      echo "Failed to extract GITEA_CLIENT_ID or GITEA_CLIENT_SECRET. Data: $OIDC_DATA"
-      exit 1
-    fi
+- name: Set entity IDs fact (for assignments)
+  ansible.builtin.set_fact:
+    openbao_setup_entity_ids: >-
+      {{ openbao_setup_entity_reads.results | map(attribute='json.data.id') | list | join(',') }}
+  no_log: true
+
+# ── Helper macro: create OIDC key, assignment, and client ─────────────────────
+# We loop over each service definition
+- name: Create OIDC keys
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/identity/oidc/key/{{ item.name }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      allowed_client_ids: ["*"]
+      rotation_period: "24h"
+      verification_ttl: "24h"
+    status_code: [200, 204]
+    validate_certs: false
+  loop: "{{ openbao_oidc_clients }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+- name: Create OIDC assignments
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/identity/oidc/assignment/{{ item.name }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      entity_ids: "{{ openbao_setup_entity_ids.split(',') }}"
+    status_code: [200, 204]
+    validate_certs: false
+  loop: "{{ openbao_oidc_clients }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+- name: Create OIDC clients
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/identity/oidc/client/{{ item.name }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      key: "{{ item.name }}"
+      redirect_uris: "{{ item.redirect_uris }}"
+      assignments: ["{{ item.name }}"]
+      id_token_ttl: "24h"
+      access_token_ttl: "24h"
+    status_code: [200, 204]
+    validate_certs: false
+  loop: "{{ openbao_oidc_clients }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+# ── Read back client IDs and secrets ─────────────────────────────────────────
+- name: Read OIDC client credentials
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/identity/oidc/client/{{ item.name }}"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    status_code: 200
+    validate_certs: false
+  loop: "{{ openbao_oidc_clients }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: openbao_setup_client_reads
+  no_log: true
+
+- name: Set OIDC client credential facts
+  ansible.builtin.set_fact:
+    openbao_oidc_creds: >-
+      {{
+        openbao_oidc_creds | default({}) | combine({
+          item.item.name: {
+            'client_id': item.json.data.client_id,
+            'client_secret': item.json.data.client_secret
+          }
+        })
+      }}
+  loop: "{{ openbao_setup_client_reads.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  no_log: true
+
+# ── Update OIDC provider allowed_client_ids ───────────────────────────────────
+- name: Update OIDC provider with all client IDs
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/identity/oidc/provider/default"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      allowed_client_ids: >-
+        {{ openbao_oidc_creds.values() | map(attribute='client_id') | list }}
+      issuer_host: "https://pi-k3s.chalupatech.com"
+      scopes_supported: ["user"]
+    status_code: [200, 204]
+    validate_certs: false
+  no_log: true
+
+# ── Write K8s Secret for Grafana ──────────────────────────────────────────────
+- name: Write Grafana OIDC K8s Secret
+  ansible.builtin.command: >
+    kubectl create secret generic grafana-oidc-secret
+    -n observability
+    --from-literal=GF_AUTH_GENERIC_OAUTH_CLIENT_ID={{ openbao_oidc_creds.grafana.client_id }}
+    --from-literal=GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET={{ openbao_oidc_creds.grafana.client_secret }}
+    --dry-run=client -o yaml
+  register: openbao_setup_grafana_secret_yaml
+  changed_when: false
+  no_log: true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Apply Grafana OIDC K8s Secret
+  ansible.builtin.command: kubectl apply -f -
+  args:
+    stdin: "{{ openbao_setup_grafana_secret_yaml.stdout }}"
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
-  no_log: true
 
+# ── Patch ArgoCD secret and ConfigMap ─────────────────────────────────────────
+- name: Patch ArgoCD secret with OIDC credentials
+  ansible.builtin.command: >
+    kubectl patch secret argocd-secret -n argocd --type merge
+    -p={{ argocd_oidc_patch | to_json | quote }}
+  vars:
+    argocd_oidc_patch:
+      data:
+        oidc.openbao.clientID: "{{ openbao_oidc_creds.argocd.client_id | b64encode }}"
+        oidc.openbao.clientSecret: "{{ openbao_oidc_creds.argocd.client_secret | b64encode }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  no_log: true
+  changed_when: true
+
+- name: Patch ArgoCD ConfigMap with OIDC config
+  ansible.builtin.command: >
+    kubectl patch cm argocd-cm -n argocd --type merge
+    -p={{ argocd_cm_patch | to_json | quote }}
+  vars:
+    argocd_cm_patch:
+      data:
+        oidc.config: |
+          name: OpenBao
+          issuer: https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default
+          clientID: {{ openbao_oidc_creds.argocd.client_id }}
+          clientSecret: $oidc.openbao.clientSecret
+          requestedScopes: ["openid", "user"]
+          requestedIDTokenClaims: {"username": {"essential": true}}
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  no_log: true
+  changed_when: true
+
+- name: Restart ArgoCD server to pick up OIDC config
+  ansible.builtin.command: kubectl rollout restart deploy/argocd-server -n argocd
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+
+# ── Write K8s Secret for Gitea ────────────────────────────────────────────────
+- name: Write Gitea OIDC K8s Secret
+  ansible.builtin.command: >
+    kubectl create secret generic gitea-oidc-secret
+    -n openbao
+    --from-literal=client_id={{ openbao_oidc_creds.gitea.client_id }}
+    --from-literal=client_secret={{ openbao_oidc_creds.gitea.client_secret }}
+    --dry-run=client -o yaml
+  register: openbao_setup_gitea_secret_yaml
+  changed_when: false
+  no_log: true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Apply Gitea OIDC K8s Secret
+  ansible.builtin.command: kubectl apply -f -
+  args:
+    stdin: "{{ openbao_setup_gitea_secret_yaml.stdout }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true

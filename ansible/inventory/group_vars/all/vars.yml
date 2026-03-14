@@ -40,3 +40,23 @@ k3s_control_node: tpi2
 # Gitea admin break-glass credential (Ansible Vault — NOT OpenBao, to preserve
 # independence from the secrets backend this account protects)
 gitea_admin_password: "{{ vault_gitea_admin_password }}"
+
+# OpenBao OIDC clients provisioned by openbao_setup/oidc_setup.yml
+# Each entry creates: OIDC key, assignment, client, and K8s Secret
+openbao_oidc_clients:
+  - name: grafana
+    redirect_uris:
+      - "https://grafana.tailbecff0.ts.net/login/generic_oauth"
+      - "https://pi-k3s.chalupatech.com/grafana/login/generic_oauth"
+      - "http://grafana.local/grafana/login/generic_oauth"
+  - name: argocd
+    redirect_uris:
+      - "https://pi-k3s.chalupatech.com/argocd/auth/callback"
+      - "http://localhost:8085/auth/callback"
+  - name: gitea
+    redirect_uris:
+      - "https://gitea.tailbecff0.ts.net/user/oauth2/OpenBao/callback"
+
+# Go-template string for the OpenBao OIDC 'user' scope.
+# Defined here to prevent Ansible/Jinja2 from interpreting the {{ }} delimiters.
+openbao_oidc_user_scope_template: !unsafe '{"username":"{{identity.entity.name}}","groups":{{identity.entity.groups.names}}}'

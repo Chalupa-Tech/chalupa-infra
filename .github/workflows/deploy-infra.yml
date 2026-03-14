@@ -72,7 +72,6 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.run_site == 'true'
     runs-on: ubuntu-latest
-    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -111,7 +110,6 @@ jobs:
       needs.detect-changes.outputs.run_docker == 'true' &&
       (needs.deploy-cluster.result == 'success' || needs.deploy-cluster.result == 'skipped')
     runs-on: ubuntu-latest
-    environment: production
     steps:
       - uses: actions/checkout@v4
 

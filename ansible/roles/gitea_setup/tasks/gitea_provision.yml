@@ -36,107 +36,73 @@
   when: "'gitea-admin' not in gitea_admin_list.stdout"
   no_log: true
 
+- name: Sync gitea-admin password with Ansible Vault value (idempotent)
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin user change-password
+    --username gitea-admin
+    --password {{ gitea_admin_password }}
+  no_log: true
+  changed_when: true
+
 # ── ci-deploy user ────────────────────────────────────────────────────────────
-- name: Create ci-deploy service account via Gitea REST API
-  ansible.builtin.uri:
-    url: "http://localhost:{{ gitea_http_port }}/api/v1/admin/users"
-    method: POST
-    force_basic_auth: true
-    user: gitea-admin
-    password: "{{ gitea_admin_password }}"
-    body_format: json
-    body:
-      email: "ci-deploy@gitea.local"
-      full_name: "CI Deploy"
-      login_name: "ci-deploy"
-      must_change_password: false
-      password: "{{ gitea_ci_deploy_password }}"
-      send_notify: false
-      source_id: 0
-      username: "ci-deploy"
-      visibility: "private"
-    status_code: [201, 422]  # 422 = user already exists
-    validate_certs: false
+# REST API user creation is blocked by DISABLE_REGISTRATION even with admin auth.
+# Use the Gitea CLI inside the container instead (bypasses the setting).
+- name: Check if ci-deploy user exists
+  ansible.builtin.command: docker exec -u git gitea gitea admin user list
+  register: gitea_all_users
+  changed_when: false
+
+- name: Create ci-deploy service account via CLI
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin user create
+    --username ci-deploy
+    --email ci-deploy@gitea.local
+    --password {{ gitea_ci_deploy_password }}
+    --must-change-password=false
+  when: "'ci-deploy' not in gitea_all_users.stdout"
   no_log: true
 
 # ── ci-read user ──────────────────────────────────────────────────────────────
-- name: Create ci-read service account via Gitea REST API
-  ansible.builtin.uri:
-    url: "http://localhost:{{ gitea_http_port }}/api/v1/admin/users"
-    method: POST
-    force_basic_auth: true
-    user: gitea-admin
-    password: "{{ gitea_admin_password }}"
-    body_format: json
-    body:
-      email: "ci-read@gitea.local"
-      full_name: "CI Read"
-      login_name: "ci-read"
-      must_change_password: false
-      password: "{{ gitea_ci_read_password }}"
-      send_notify: false
-      source_id: 0
-      username: "ci-read"
-      visibility: "private"
-    status_code: [201, 422]
-    validate_certs: false
+- name: Create ci-read service account via CLI
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin user create
+    --username ci-read
+    --email ci-read@gitea.local
+    --password {{ gitea_ci_read_password }}
+    --must-change-password=false
+  when: "'ci-read' not in gitea_all_users.stdout"
   no_log: true
 
 # ── API tokens ────────────────────────────────────────────────────────────────
-- name: Check if ci-deploy API token exists
-  ansible.builtin.uri:
-    url: "http://localhost:{{ gitea_http_port }}/api/v1/users/ci-deploy/tokens"
-    method: GET
-    force_basic_auth: true
-    user: gitea-admin
-    password: "{{ gitea_admin_password }}"
-    headers:
-      Sudo: "ci-deploy"
-    status_code: 200
-  register: existing_ci_deploy_tokens
-  no_log: true
-
-- name: Check if ci-read API token exists
-  ansible.builtin.uri:
-    url: "http://localhost:{{ gitea_http_port }}/api/v1/users/ci-read/tokens"
-    method: GET
-    force_basic_auth: true
-    user: gitea-admin
-    password: "{{ gitea_admin_password }}"
-    headers:
-      Sudo: "ci-read"
-    status_code: 200
-  register: existing_ci_read_tokens
-  no_log: true
-
-- name: Generate API token for ci-deploy via CLI
-  ansible.builtin.shell: >
+# REST token API is blocked by DISABLE_REGISTRATION — use CLI exclusively.
+- name: List ci-deploy existing tokens via CLI
+  ansible.builtin.command: >
     docker exec -u git gitea gitea admin user generate-access-token
-    --username ci-deploy --token-name ci-deploy-token
+    --username ci-deploy --token-name ci-deploy-token --raw
   register: cli_deploy_token_raw
-  when: >
-    "ci-deploy-token" not in (existing_ci_deploy_tokens.json | map(attribute='name') | list)
+  failed_when: false
+  changed_when: cli_deploy_token_raw.rc == 0
   no_log: true
 
 - name: Extract ci-deploy token
   ansible.builtin.set_fact:
-    gitea_ci_deploy_token_val: "{{ cli_deploy_token_raw.stdout | regex_search('.*: (.*)', '\\1') | first | default('') }}"
-  when: cli_deploy_token_raw is not skipped
+    gitea_ci_deploy_token_val: "{{ cli_deploy_token_raw.stdout | trim }}"
+  when: cli_deploy_token_raw.rc == 0 and cli_deploy_token_raw.stdout | trim | length > 0
   no_log: true
 
-- name: Generate API token for ci-read via CLI
-  ansible.builtin.shell: >
+- name: List ci-read existing tokens via CLI
+  ansible.builtin.command: >
     docker exec -u git gitea gitea admin user generate-access-token
-    --username ci-read --token-name ci-read-token
+    --username ci-read --token-name ci-read-token --raw
   register: cli_read_token_raw
-  when: >
-    "ci-read-token" not in (existing_ci_read_tokens.json | map(attribute='name') | list)
+  failed_when: false
+  changed_when: cli_read_token_raw.rc == 0
   no_log: true
 
 - name: Extract ci-read token
   ansible.builtin.set_fact:
-    gitea_ci_read_token_val: "{{ cli_read_token_raw.stdout | regex_search('.*: (.*)', '\\1') | first | default('') }}"
-  when: cli_read_token_raw is not skipped
+    gitea_ci_read_token_val: "{{ cli_read_token_raw.stdout | trim }}"
+  when: cli_read_token_raw.rc == 0 and cli_read_token_raw.stdout | trim | length > 0
   no_log: true
 
 # Store tokens only when freshly created
