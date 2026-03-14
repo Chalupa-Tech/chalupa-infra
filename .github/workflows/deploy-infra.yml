@@ -1,0 +1,142 @@
+name: Deploy Infrastructure
+
+# Triggers on merge to main for any Ansible changes.
+# Uses Tailscale GitHub Action to ephemerally join the private network,
+# then runs the appropriate Ansible playbook(s) based on what changed.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ansible/**'
+
+  # Allow manual trigger for any playbook
+  workflow_dispatch:
+    inputs:
+      playbook:
+        description: 'Playbook to run (site | docker-node | all)'
+        required: false
+        default: all
+
+env:
+  ANSIBLE_FORCE_COLOR: "1"
+  ANSIBLE_HOST_KEY_CHECKING: "False"
+
+jobs:
+  detect-changes:
+    name: Detect Changed Roles
+    runs-on: ubuntu-latest
+    outputs:
+      run_site: ${{ steps.filter.outputs.site }}
+      run_docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect which playbooks need to run
+        id: filter
+        run: |
+          # On workflow_dispatch, respect the input
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            INPUT="${{ github.event.inputs.playbook }}"
+            echo "site=$( [ "$INPUT" = "site" ] || [ "$INPUT" = "all" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            echo "docker=$( [ "$INPUT" = "docker-node" ] || [ "$INPUT" = "all" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # For push, check which files changed
+          CHANGED=$(git diff --name-only HEAD~1 HEAD)
+          echo "Changed files: $CHANGED"
+
+          SITE=false
+          DOCKER=false
+
+          if echo "$CHANGED" | grep -qE '^ansible/roles/(openbao_setup|argocd_setup|k3s_install)/'; then
+            SITE=true
+          fi
+          if echo "$CHANGED" | grep -qE '^ansible/roles/gitea_setup/|^ansible/playbooks/docker-node\.yml'; then
+            DOCKER=true
+          fi
+          # Always run both if shared inventory/group_vars changed
+          if echo "$CHANGED" | grep -qE '^ansible/(inventory|playbooks)/'; then
+            SITE=true
+            DOCKER=true
+          fi
+
+          echo "site=$SITE" >> "$GITHUB_OUTPUT"
+          echo "docker=$DOCKER" >> "$GITHUB_OUTPUT"
+
+  deploy-cluster:
+    name: Deploy K3s Cluster (openbao_setup / site.yml)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.run_site == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Join Tailscale network
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Write vault password
+        run: echo "${{ secrets.ANSIBLE_VAULT_PASS }}" > /tmp/vault-pass.txt && chmod 600 /tmp/vault-pass.txt
+
+      - name: Run site.yml (openbao_setup / cluster config)
+        run: |
+          ansible-playbook \
+            -i ansible/inventory/hosts.yml \
+            --vault-password-file /tmp/vault-pass.txt \
+            ansible/playbooks/site.yml
+        working-directory: ${{ github.workspace }}
+
+      - name: Cleanup vault password
+        if: always()
+        run: rm -f /tmp/vault-pass.txt
+
+  deploy-docker:
+    name: Deploy Docker Node (Gitea)
+    needs: [detect-changes, deploy-cluster]
+    # Run if docker changes detected, regardless of whether cluster job ran
+    # (deploy-cluster may have been skipped if only docker files changed)
+    if: |
+      always() &&
+      needs.detect-changes.outputs.run_docker == 'true' &&
+      (needs.deploy-cluster.result == 'success' || needs.deploy-cluster.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Join Tailscale network
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Write vault password
+        run: echo "${{ secrets.ANSIBLE_VAULT_PASS }}" > /tmp/vault-pass.txt && chmod 600 /tmp/vault-pass.txt
+
+      - name: Run docker-node.yml (Gitea + OIDC)
+        run: |
+          ansible-playbook \
+            -i ansible/inventory/hosts.yml \
+            --vault-password-file /tmp/vault-pass.txt \
+            -l docker_nodes \
+            ansible/playbooks/docker-node.yml
+        working-directory: ${{ github.workspace }}
+
+      - name: Cleanup vault password
+        if: always()
+        run: rm -f /tmp/vault-pass.txt
