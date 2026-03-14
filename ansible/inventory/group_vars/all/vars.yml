@@ -27,8 +27,8 @@ openbao_root_token: "{{ vault_openbao_root_token }}"
 openbao_unseal_key: "{{ vault_openbao_unseal_key }}"
 
 # Journald configuration
-journald_system_max_use: "2G"
-journald_system_keep_free: "10G"
+journald_system_max_use: "1G"
+journald_system_keep_free: "2G"
 journald_max_file_sec: "1day"
 journald_max_retention_sec: "7day"
 
