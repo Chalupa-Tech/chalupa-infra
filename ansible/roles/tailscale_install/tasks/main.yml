@@ -1,0 +1,74 @@
+---
+- name: Determine if Tailscale is installed
+  ansible.builtin.command: tailscale version
+  register: ts_check
+  failed_when: false
+  changed_when: false
+
+- name: Download and install Tailscale
+  ansible.builtin.shell: curl -fsSL https://tailscale.com/install.sh | sh
+  when: ts_check.rc != 0
+  changed_when: ts_check.rc != 0
+
+- name: Ensure Tailscale service is running
+  ansible.builtin.systemd:
+    name: tailscaled
+    state: started
+    enabled: true
+
+- name: Determine if Tailscale is authenticated
+  ansible.builtin.command: tailscale status
+  register: ts_status
+  failed_when: false
+  changed_when: false
+
+- name: Authenticate Tailscale with Auth Key
+  ansible.builtin.command: >
+    tailscale up --authkey={{ tailscale_auth_key }} --accept-dns=true --accept-routes=true
+    --hostname={{ tailscale_short_hostname | default(inventory_hostname) }}
+    {% if tailscale_advertise_routes is defined %}--advertise-routes={{ tailscale_advertise_routes }}{% endif %}
+    {% if tailscale_tags is defined %}--advertise-tags={{ tailscale_tags }}{% endif %}
+  when: ts_status.rc != 0
+  changed_when: ts_status.rc != 0
+  no_log: true # Mask authkey in logs
+
+- name: Enforce Tailscale settings (if already authenticated)
+  ansible.builtin.command: >
+    tailscale up --accept-dns=true --accept-routes=true
+    --hostname={{ tailscale_short_hostname | default(inventory_hostname) }}
+    {% if tailscale_advertise_routes is defined %}--advertise-routes={{ tailscale_advertise_routes }}{% endif %}
+    {% if tailscale_tags is defined %}--advertise-tags={{ tailscale_tags }}{% endif %}
+  when: ts_status.rc == 0
+  changed_when: false
+
+- name: Get Tailscale node ID (for API calls)
+  ansible.builtin.command: tailscale status --json
+  register: ts_status_json
+  changed_when: false
+  failed_when: false
+
+- name: Get Tailscale operator OAuth token (for key expiry API)
+  ansible.builtin.uri:
+    url: "https://api.tailscale.com/api/v2/oauth/token"
+    method: POST
+    body: "client_id={{ ts_operator_client_id }}&client_secret={{ ts_operator_client_secret }}"
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
+    status_code: [200]
+  register: ts_oauth_resp
+  when: ts_status_json.rc == 0
+  no_log: true
+
+- name: Disable Tailscale key expiry via API
+  ansible.builtin.uri:
+    url: "https://api.tailscale.com/api/v2/device/{{ (ts_status_json.stdout | from_json).Self.ID }}/key"
+    method: POST
+    body_format: json
+    body:
+      keyExpiryDisabled: true
+    headers:
+      Authorization: "Bearer {{ ts_oauth_resp.json.access_token }}"
+    status_code: [200, 204]
+  when: ts_status_json.rc == 0
+  changed_when: false
+  no_log: true

@@ -7,6 +7,16 @@
 #   - Purge stale nexus/* secret paths from OpenBao
 
 # ── Admin user ────────────────────────────────────────────────────────────────
+- name: Wait for Gitea to finish initialization
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/version"
+    status_code: 200
+    validate_certs: false
+  register: gitea_init_ready
+  retries: 30
+  delay: 5
+  until: gitea_init_ready.status == 200
+
 - name: Check if gitea-admin user already exists
   ansible.builtin.command: >
     docker exec -u git gitea
@@ -73,37 +83,63 @@
   no_log: true
 
 # ── API tokens ────────────────────────────────────────────────────────────────
-- name: Generate API token for ci-deploy
+- name: Check if ci-deploy API token exists
   ansible.builtin.uri:
     url: "http://localhost:{{ gitea_http_port }}/api/v1/users/ci-deploy/tokens"
-    method: POST
+    method: GET
     force_basic_auth: true
-    user: ci-deploy
-    password: "{{ gitea_ci_deploy_password }}"
-    body_format: json
-    body:
-      name: "ci-deploy-token"
-    status_code: [201, 422]  # 422 = token name already exists
-    validate_certs: false
-  register: gitea_ci_deploy_token_resp
+    user: gitea-admin
+    password: "{{ gitea_admin_password }}"
+    headers:
+      Sudo: "ci-deploy"
+    status_code: 200
+  register: existing_ci_deploy_tokens
   no_log: true
 
-- name: Generate API token for ci-read
+- name: Check if ci-read API token exists
   ansible.builtin.uri:
     url: "http://localhost:{{ gitea_http_port }}/api/v1/users/ci-read/tokens"
-    method: POST
+    method: GET
     force_basic_auth: true
-    user: ci-read
-    password: "{{ gitea_ci_read_password }}"
-    body_format: json
-    body:
-      name: "ci-read-token"
-    status_code: [201, 422]
-    validate_certs: false
-  register: gitea_ci_read_token_resp
+    user: gitea-admin
+    password: "{{ gitea_admin_password }}"
+    headers:
+      Sudo: "ci-read"
+    status_code: 200
+  register: existing_ci_read_tokens
   no_log: true
 
-# Store tokens only when freshly created (status 201)
+- name: Generate API token for ci-deploy via CLI
+  ansible.builtin.shell: >
+    docker exec -u git gitea gitea admin user generate-access-token
+    --username ci-deploy --token-name ci-deploy-token
+  register: cli_deploy_token_raw
+  when: >
+    "ci-deploy-token" not in (existing_ci_deploy_tokens.json | map(attribute='name') | list)
+  no_log: true
+
+- name: Extract ci-deploy token
+  ansible.builtin.set_fact:
+    gitea_ci_deploy_token_val: "{{ cli_deploy_token_raw.stdout | regex_search('.*: (.*)', '\\1') | first | default('') }}"
+  when: cli_deploy_token_raw is not skipped
+  no_log: true
+
+- name: Generate API token for ci-read via CLI
+  ansible.builtin.shell: >
+    docker exec -u git gitea gitea admin user generate-access-token
+    --username ci-read --token-name ci-read-token
+  register: cli_read_token_raw
+  when: >
+    "ci-read-token" not in (existing_ci_read_tokens.json | map(attribute='name') | list)
+  no_log: true
+
+- name: Extract ci-read token
+  ansible.builtin.set_fact:
+    gitea_ci_read_token_val: "{{ cli_read_token_raw.stdout | regex_search('.*: (.*)', '\\1') | first | default('') }}"
+  when: cli_read_token_raw is not skipped
+  no_log: true
+
+# Store tokens only when freshly created
 - name: Store ci-deploy API token to OpenBao
   ansible.builtin.uri:
     url: "{{ openbao_url }}/v1/secret/data/gitea/ci-deploy-token"
@@ -113,10 +149,10 @@
     body_format: json
     body:
       data:
-        token: "{{ gitea_ci_deploy_token_resp.json.sha1 }}"
+        token: "{{ gitea_ci_deploy_token_val }}"
     status_code: [200, 204]
     validate_certs: false
-  when: gitea_ci_deploy_token_resp.status == 201
+  when: cli_deploy_token_raw is not skipped and cli_deploy_token_raw.rc == 0
   no_log: true
 
 - name: Store ci-read API token to OpenBao
@@ -128,49 +164,10 @@
     body_format: json
     body:
       data:
-        token: "{{ gitea_ci_read_token_resp.json.sha1 }}"
+        token: "{{ gitea_ci_read_token_val }}"
     status_code: [200, 204]
     validate_certs: false
-  when: gitea_ci_read_token_resp.status == 201
+  when: cli_read_token_raw is not skipped and cli_read_token_raw.rc == 0
   no_log: true
 
-# ── Purge stale Nexus secrets from OpenBao ───────────────────────────────────
-- name: Delete stale nexus/db secret from OpenBao
-  ansible.builtin.uri:
-    url: "{{ openbao_url }}/v1/secret/metadata/nexus/db"
-    method: DELETE
-    headers:
-      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
-    status_code: [200, 204, 404]
-    validate_certs: false
-  no_log: true
 
-- name: Delete stale nexus/admin secret from OpenBao
-  ansible.builtin.uri:
-    url: "{{ openbao_url }}/v1/secret/metadata/nexus/admin"
-    method: DELETE
-    headers:
-      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
-    status_code: [200, 204, 404]
-    validate_certs: false
-  no_log: true
-
-- name: Delete stale nexus/ci-deploy secret from OpenBao
-  ansible.builtin.uri:
-    url: "{{ openbao_url }}/v1/secret/metadata/nexus/ci-deploy"
-    method: DELETE
-    headers:
-      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
-    status_code: [200, 204, 404]
-    validate_certs: false
-  no_log: true
-
-- name: Delete stale nexus/ci-read secret from OpenBao
-  ansible.builtin.uri:
-    url: "{{ openbao_url }}/v1/secret/metadata/nexus/ci-read"
-    method: DELETE
-    headers:
-      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
-    status_code: [200, 204, 404]
-    validate_certs: false
-  no_log: true
