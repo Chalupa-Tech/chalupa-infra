@@ -28,7 +28,7 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: openbao_setup_status
-  until: openbao_setup_status.rc == 0 or "Sealed" in openbao_setup_status.stdout
+  until: openbao_setup_status.rc == 0 or openbao_setup_status.stdout | regex_search('(?i)sealed')
   retries: 30
   delay: 10
   failed_when: false
