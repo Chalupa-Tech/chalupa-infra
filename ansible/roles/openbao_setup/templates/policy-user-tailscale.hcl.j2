@@ -1,0 +1,6 @@
+# Tailscale operator policy for {{ user_item.name }}
+
+# Read access to Tailscale operator secret for external-secrets sync
+path "secret/data/{{ user_item.name }}/tailscale-operator" {
+  capabilities = ["read"]
+}
