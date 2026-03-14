@@ -29,7 +29,7 @@
 - name: Push updated ACL policy to Tailscale
   ansible.builtin.uri:
     url: "https://api.tailscale.com/api/v2/tailnet/-/acl"
-    method: PUT
+    method: POST
     headers:
       Authorization: "Bearer {{ vault_tailscale_api_key }}"
       Content-Type: "application/json"
