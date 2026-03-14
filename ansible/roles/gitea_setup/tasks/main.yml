@@ -5,6 +5,23 @@
 - name: Fetch Gitea credentials from OpenBao
   ansible.builtin.include_tasks: openbao_fetch.yml
 
+# ── Clean up legacy Nexus ─────────────────────────────────────────────────────
+- name: Stop and remove legacy Nexus containers
+  docker_container:
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - nexus
+    - nexus-postgres
+    - nexus-nginx-proxy
+  ignore_errors: true
+
+- name: Remove legacy Nexus data directory
+  ansible.builtin.file:
+    path: /opt/nexus
+    state: absent
+  ignore_errors: true
+
 # ── Docker network ────────────────────────────────────────────────────────────
 - name: Create Docker network with Tailscale-compatible MTU
   docker_network:
