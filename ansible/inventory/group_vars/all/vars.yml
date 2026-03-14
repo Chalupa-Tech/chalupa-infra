@@ -2,21 +2,37 @@
 # Users to configure on all nodes
 managed_users:
   - name: ddowell
-    pubkey_file: "{{ playbook_dir }}/../../ssh_keys/ddowell.pub"
+    pubkey_file: "{{ playbook_dir }}/../ssh_keys/ddowell.pub"
     argocd_admin: true
   - name: tbigelow
-    pubkey_file: "{{ playbook_dir }}/../../ssh_keys/tbigelow.pub"
+    pubkey_file: "{{ playbook_dir }}/../ssh_keys/tbigelow.pub"
     argocd_admin: true
 
 # Secrets (Now managed via Ansible Vault: vault.yml)
 ts_authkey: "{{ vault_ts_authkey }}"
+ts_docker_authkey: "{{ vault_ts_docker_authkey }}"
 ts_operator_client_id: "{{ vault_ts_operator_client_id }}"
 ts_operator_client_secret: "{{ vault_ts_operator_client_secret }}"
 cloudflare_api_key: "{{ vault_cloudflare_api_key }}"
 ts_service_name: "{{ vault_ts_service_name | default('svc:chalupa-k3s') }}"
+tailscale_api_key: "{{ vault_tailscale_api_key }}"
+
+# Tags to ensure exist in the Tailscale ACL tagOwners
+tailscale_required_tag_owners:
+  tag:k3-node: []
+  tag:docker: []
+
+# OpenBao bootstrap credentials (sourced from Ansible Vault)
+openbao_root_token: "{{ vault_openbao_root_token }}"
+openbao_unseal_key: "{{ vault_openbao_unseal_key }}"
 
 # Journald configuration
-journald_system_max_use: "2G"
-journald_system_keep_free: "10G"
+journald_system_max_use: "1G"
+journald_system_keep_free: "2G"
 journald_max_file_sec: "1day"
 journald_max_retention_sec: "7day"
+
+# OpenBao / Gitea integration
+openbao_url: "https://pi-k3s.chalupatech.com"
+gitea_url: "https://gitea.tailbecff0.ts.net"
+k3s_control_node: tpi2

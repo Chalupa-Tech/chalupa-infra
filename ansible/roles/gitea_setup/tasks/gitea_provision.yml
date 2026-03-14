@@ -1,0 +1,176 @@
+---
+# Runs after Gitea is booted. Uses Gitea CLI and REST API to:
+#   - Create the gitea-admin user (idempotent)
+#   - Create ci-deploy and ci-read service accounts
+#   - Generate API tokens for each CI account
+#   - Store tokens back to OpenBao
+#   - Purge stale nexus/* secret paths from OpenBao
+
+# ── Admin user ────────────────────────────────────────────────────────────────
+- name: Check if gitea-admin user already exists
+  ansible.builtin.command: >
+    docker exec -u git gitea
+    gitea admin user list --admin
+  register: gitea_admin_list
+  changed_when: false
+  no_log: false
+
+- name: Create Gitea admin user (first-time only)
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin user create
+    --username gitea-admin
+    --email admin@gitea.local
+    --password {{ gitea_admin_password }}
+    --admin
+    --must-change-password=false
+  when: "'gitea-admin' not in gitea_admin_list.stdout"
+  no_log: true
+
+# ── ci-deploy user ────────────────────────────────────────────────────────────
+- name: Create ci-deploy service account via Gitea REST API
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/admin/users"
+    method: POST
+    force_basic_auth: true
+    user: gitea-admin
+    password: "{{ gitea_admin_password }}"
+    body_format: json
+    body:
+      email: "ci-deploy@gitea.local"
+      full_name: "CI Deploy"
+      login_name: "ci-deploy"
+      must_change_password: false
+      password: "{{ gitea_ci_deploy_password }}"
+      send_notify: false
+      source_id: 0
+      username: "ci-deploy"
+      visibility: "private"
+    status_code: [201, 422]  # 422 = user already exists
+    validate_certs: false
+  no_log: true
+
+# ── ci-read user ──────────────────────────────────────────────────────────────
+- name: Create ci-read service account via Gitea REST API
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/admin/users"
+    method: POST
+    force_basic_auth: true
+    user: gitea-admin
+    password: "{{ gitea_admin_password }}"
+    body_format: json
+    body:
+      email: "ci-read@gitea.local"
+      full_name: "CI Read"
+      login_name: "ci-read"
+      must_change_password: false
+      password: "{{ gitea_ci_read_password }}"
+      send_notify: false
+      source_id: 0
+      username: "ci-read"
+      visibility: "private"
+    status_code: [201, 422]
+    validate_certs: false
+  no_log: true
+
+# ── API tokens ────────────────────────────────────────────────────────────────
+- name: Generate API token for ci-deploy
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/users/ci-deploy/tokens"
+    method: POST
+    force_basic_auth: true
+    user: ci-deploy
+    password: "{{ gitea_ci_deploy_password }}"
+    body_format: json
+    body:
+      name: "ci-deploy-token"
+    status_code: [201, 422]  # 422 = token name already exists
+    validate_certs: false
+  register: gitea_ci_deploy_token_resp
+  no_log: true
+
+- name: Generate API token for ci-read
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/users/ci-read/tokens"
+    method: POST
+    force_basic_auth: true
+    user: ci-read
+    password: "{{ gitea_ci_read_password }}"
+    body_format: json
+    body:
+      name: "ci-read-token"
+    status_code: [201, 422]
+    validate_certs: false
+  register: gitea_ci_read_token_resp
+  no_log: true
+
+# Store tokens only when freshly created (status 201)
+- name: Store ci-deploy API token to OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-deploy-token"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    body_format: json
+    body:
+      data:
+        token: "{{ gitea_ci_deploy_token_resp.json.sha1 }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: gitea_ci_deploy_token_resp.status == 201
+  no_log: true
+
+- name: Store ci-read API token to OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-read-token"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    body_format: json
+    body:
+      data:
+        token: "{{ gitea_ci_read_token_resp.json.sha1 }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: gitea_ci_read_token_resp.status == 201
+  no_log: true
+
+# ── Purge stale Nexus secrets from OpenBao ───────────────────────────────────
+- name: Delete stale nexus/db secret from OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/metadata/nexus/db"
+    method: DELETE
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  no_log: true
+
+- name: Delete stale nexus/admin secret from OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/metadata/nexus/admin"
+    method: DELETE
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  no_log: true
+
+- name: Delete stale nexus/ci-deploy secret from OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/metadata/nexus/ci-deploy"
+    method: DELETE
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  no_log: true
+
+- name: Delete stale nexus/ci-read secret from OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/metadata/nexus/ci-read"
+    method: DELETE
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  no_log: true

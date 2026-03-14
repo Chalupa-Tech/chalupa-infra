@@ -1,0 +1,162 @@
+---
+- name: Seed Gitea credentials into OpenBao and create AppRole
+  ansible.builtin.include_tasks: openbao_seed.yml
+
+- name: Fetch Gitea credentials from OpenBao
+  ansible.builtin.include_tasks: openbao_fetch.yml
+
+# ── Docker network ────────────────────────────────────────────────────────────
+- name: Create Docker network with Tailscale-compatible MTU
+  docker_network:
+    name: "{{ gitea_docker_network }}"
+    driver: bridge
+    driver_options:
+      com.docker.network.driver.mtu: "1280"
+
+# ── Data directories ─────────────────────────────────────────────────────────
+- name: Create Gitea data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ gitea_data_dir }}/data"
+    - "{{ gitea_data_dir }}/postgres"
+    - "{{ gitea_data_dir }}/nginx/conf"
+    - "{{ gitea_data_dir }}/nginx/ssl"
+
+# ── PostgreSQL ────────────────────────────────────────────────────────────────
+- name: Deploy Postgres Docker container for Gitea
+  docker_container:
+    name: gitea-postgres
+    image: postgres:16-alpine
+    state: started
+    restart_policy: unless-stopped
+    env:
+      POSTGRES_DB: gitea
+      POSTGRES_USER: gitea
+      POSTGRES_PASSWORD: "{{ gitea_db_password }}"
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - "{{ gitea_data_dir }}/postgres:/var/lib/postgresql/data:Z"
+    networks:
+      - name: "{{ gitea_docker_network }}"
+
+- name: Wait for Postgres to accept connections
+  ansible.builtin.command: >
+    docker exec gitea-postgres
+    pg_isready -U gitea -d gitea
+  register: pg_ready
+  retries: 12
+  delay: 5
+  until: pg_ready.rc == 0
+  changed_when: false
+
+- name: Sync Postgres gitea user password with OpenBao-managed value
+  ansible.builtin.shell: >
+    docker exec gitea-postgres psql -U gitea -d gitea
+    -c "ALTER USER gitea WITH PASSWORD '{{ gitea_db_password }}';"
+  become: true
+  changed_when: true
+  no_log: true
+
+# ── Gitea ─────────────────────────────────────────────────────────────────────
+- name: Deploy Gitea container
+  docker_container:
+    name: gitea
+    image: gitea/gitea:latest
+    state: started
+    restart_policy: unless-stopped
+    env:
+      # Skip web install wizard
+      GITEA__security__INSTALL_LOCK: "true"
+      GITEA__server__APP_NAME: "{{ gitea_app_name }}"
+      # Server URLs
+      GITEA__server__DOMAIN: "{{ tailscale_hostname }}"
+      GITEA__server__HTTP_PORT: "{{ gitea_http_port | string }}"
+      GITEA__server__ROOT_URL: "https://{{ tailscale_hostname }}/"
+      GITEA__server__SSH_DOMAIN: "{{ tailscale_hostname }}"
+      GITEA__server__SSH_PORT: "{{ gitea_ssh_port | string }}"
+      GITEA__server__START_SSH_SERVER: "true"
+      # Database
+      GITEA__database__DB_TYPE: postgres
+      GITEA__database__HOST: "gitea-postgres:5432"
+      GITEA__database__NAME: gitea
+      GITEA__database__USER: gitea
+      GITEA__database__PASSWD: "{{ gitea_db_password }}"
+      # Packages (artifact registry) — enabled by default, make explicit
+      GITEA__packages__ENABLED: "true"
+      # Disable mailer (no SMTP configured)
+      GITEA__mailer__ENABLED: "false"
+      # Log level
+      GITEA__log__LEVEL: Info
+    ports:
+      - "{{ gitea_http_port }}:{{ gitea_http_port }}"
+      - "{{ gitea_ssh_port }}:22"
+    volumes:
+      - "{{ gitea_data_dir }}/data:/data:Z"
+    networks:
+      - name: "{{ gitea_docker_network }}"
+  no_log: true
+
+- name: Wait for Gitea HTTP API to become ready
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/version"
+    status_code: 200
+    validate_certs: false
+  register: gitea_ready
+  retries: 24
+  delay: 5
+  until: gitea_ready.status == 200
+
+# ── Nginx reverse proxy ───────────────────────────────────────────────────────
+- name: Template Nginx proxy configuration
+  template:
+    src: gitea-ssl.conf.j2
+    dest: "{{ gitea_data_dir }}/nginx/conf/gitea-ssl.conf"
+    mode: '0644'
+  notify: Restart Nginx
+
+- name: Clear existing Tailscale Serve configs
+  ansible.builtin.shell: tailscale serve --https=443 off
+  ignore_errors: true
+  changed_when: false
+
+- name: Discover Tailscale cert domain
+  ansible.builtin.shell: |
+    tailscale cert 2>&1 | grep -oP '(?<=")[^"]+tailbecff0[^"]+(?=")' | head -1
+  register: ts_cert_domain
+  changed_when: false
+
+- name: Generate Tailscale TLS Certificate for Nginx
+  ansible.builtin.shell: >
+    tailscale cert
+    --cert-file {{ gitea_data_dir }}/nginx/ssl/gitea.crt
+    --key-file {{ gitea_data_dir }}/nginx/ssl/gitea.key
+    {{ ts_cert_domain.stdout | trim }}
+  args:
+    creates: "{{ gitea_data_dir }}/nginx/ssl/gitea.crt"
+
+- name: Deploy Gitea Nginx Proxy
+  docker_container:
+    name: gitea-nginx-proxy
+    image: nginx:alpine
+    state: started
+    restart_policy: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "{{ gitea_data_dir }}/nginx/conf/gitea-ssl.conf:/etc/nginx/conf.d/default.conf:ro"
+      - "{{ gitea_data_dir }}/nginx/ssl:/etc/nginx/ssl:ro"
+    networks:
+      - name: "{{ gitea_docker_network }}"
+
+- name: Expose Nginx via Tailscale TCP proxy
+  ansible.builtin.shell: tailscale serve --bg --tcp 443 tcp://localhost:443
+  changed_when: false
+
+# ── Provision users and clean up legacy secrets ───────────────────────────────
+- name: Provision Gitea users, tokens, and clean up legacy Nexus secrets
+  ansible.builtin.include_tasks: gitea_provision.yml
