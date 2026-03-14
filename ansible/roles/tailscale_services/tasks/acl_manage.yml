@@ -36,6 +36,6 @@
     body_format: json
     body: "{{ ts_acl_updated }}"
     status_code: [200, 204]
-  when: ts_acl_updated.tagOwners != ts_acl_current.json.get('tagOwners', {})
+  when: ts_acl_updated.tagOwners != (ts_acl_current.json.tagOwners | default({}))
   delegate_to: localhost
   run_once: true

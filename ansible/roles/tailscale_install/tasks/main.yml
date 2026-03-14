@@ -47,6 +47,20 @@
   changed_when: false
   failed_when: false
 
+- name: Get Tailscale operator OAuth token (for key expiry API)
+  ansible.builtin.uri:
+    url: "https://api.tailscale.com/api/v2/oauth/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      client_id: "{{ ts_operator_client_id }}"
+      client_secret: "{{ ts_operator_client_secret }}"
+    status_code: [200]
+  register: ts_oauth_resp
+  when: ts_status_json.rc == 0
+  no_log: true
+  delegate_to: localhost
+
 - name: Disable Tailscale key expiry via API
   ansible.builtin.uri:
     url: "https://api.tailscale.com/api/v2/device/{{ (ts_status_json.stdout | from_json).Self.ID }}/key"
@@ -55,10 +69,8 @@
     body:
       keyExpiryDisabled: true
     headers:
-      Authorization: "Bearer {{ ts_operator_oauth_token }}"
+      Authorization: "Bearer {{ ts_oauth_resp.json.access_token }}"
     status_code: [200, 204]
-  vars:
-    ts_operator_oauth_token: "{{ lookup('pipe', 'curl -s -d \"client_id=' + ts_operator_client_id + '&client_secret=' + ts_operator_client_secret + '\" https://api.tailscale.com/api/v2/oauth/token | python3 -c \"import json,sys; print(json.load(sys.stdin)[\\\"access_token\\\"])\"') }}"
   when: ts_status_json.rc == 0
   changed_when: false
   no_log: true

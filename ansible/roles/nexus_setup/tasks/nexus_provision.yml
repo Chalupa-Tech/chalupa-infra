@@ -1,9 +1,11 @@
 ---
-# Runs after Nexus is booted. Uses the Nexus REST API to:
-#   - Bootstrap the admin password from OpenBao (change from the random first-boot password)
+# Runs after Nexus is booted. Uses the Nexus REST API and direct Postgres access to:
+#   - Set the admin password using Apache Shiro SHA-512/1024 format (Nexus 3.90 legacy password service)
+#     via psycopg2 parameterized query (avoids $ expansion in bash/psql)
 #   - Disable anonymous access
 #   - Create ci-deploy and ci-read service accounts
-#   - Create pypi-hosted and go-hosted repositories
+#   - Create pypi-hosted repository
+#   NOTE: Go repos not supported in Nexus Community Edition
 
 - name: Check for first-boot admin.password file
   ansible.builtin.stat:
@@ -99,7 +101,7 @@
   changed_when: true
   no_log: true
 
-- name: Restart Nexus to apply new admin PHC password hash
+- name: Restart Nexus to apply new Shiro SHA-512 admin password
   ansible.builtin.shell: docker restart nexus
   become: true
   changed_when: true
