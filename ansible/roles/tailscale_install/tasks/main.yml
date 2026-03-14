@@ -58,7 +58,6 @@
   register: ts_oauth_resp
   when: ts_status_json.rc == 0
   no_log: true
-  delegate_to: localhost
 
 - name: Disable Tailscale key expiry via API
   ansible.builtin.uri:
