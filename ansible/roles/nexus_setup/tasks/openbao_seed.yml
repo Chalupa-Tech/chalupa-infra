@@ -3,19 +3,34 @@
 # Seeds nexus secret paths in OpenBao KV and creates an AppRole so
 # docker1 can authenticate without a long-lived root token.
 
-- name: Read OpenBao init data from k3s control node
+- name: Check for OpenBao init data file on k3s control node
+  ansible.builtin.stat:
+    path: /var/lib/rancher/k3s/server/openbao_init_data.json
+  register: nexus_setup_bao_init_stat
+  delegate_to: "{{ k3s_control_node }}"
+  become: true
+
+- name: Read OpenBao init data from k3s control node (first boot)
   ansible.builtin.slurp:
     src: /var/lib/rancher/k3s/server/openbao_init_data.json
   register: nexus_setup_bao_init_raw
   delegate_to: "{{ k3s_control_node }}"
   become: true
   no_log: true
+  when: nexus_setup_bao_init_stat.stat.exists
 
-- name: Set OpenBao root token fact
+- name: Set OpenBao root token fact from init file (first boot)
   ansible.builtin.set_fact:
     nexus_setup_bao_root_token: >-
       {{ (nexus_setup_bao_init_raw.content | b64decode | from_json).root_token }}
   no_log: true
+  when: nexus_setup_bao_init_stat.stat.exists
+
+- name: Set OpenBao root token fact from Ansible Vault (subsequent runs)
+  ansible.builtin.set_fact:
+    nexus_setup_bao_root_token: "{{ openbao_root_token }}"
+  no_log: true
+  when: not nexus_setup_bao_init_stat.stat.exists
 
 - name: Enable KV v2 secrets engine (idempotent)
   ansible.builtin.uri:
@@ -129,7 +144,7 @@
   delegate_to: "{{ k3s_control_node }}"
   no_log: true
 
-- name: Seed nexus/admin password (first-time only)
+- name: Seed nexus/admin password (first-time or if data is missing)
   ansible.builtin.uri:
     url: "{{ openbao_url }}/v1/secret/data/nexus/admin"
     method: POST
@@ -141,7 +156,10 @@
         password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
     status_code: [200, 204]
     validate_certs: false
-  when: nexus_setup_bao_admin_check.status == 404
+  when: >-
+    nexus_setup_bao_admin_check.status == 404 or
+    (nexus_setup_bao_admin_check.status == 200 and
+     nexus_setup_bao_admin_check.json.data.data.get('password', '') == '')
   delegate_to: "{{ k3s_control_node }}"
   no_log: true
 

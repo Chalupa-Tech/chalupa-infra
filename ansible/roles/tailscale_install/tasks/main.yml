@@ -51,10 +51,9 @@
   ansible.builtin.uri:
     url: "https://api.tailscale.com/api/v2/oauth/token"
     method: POST
-    body_format: form-urlencoded
-    body:
-      client_id: "{{ ts_operator_client_id }}"
-      client_secret: "{{ ts_operator_client_secret }}"
+    body: "client_id={{ ts_operator_client_id }}&client_secret={{ ts_operator_client_secret }}"
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
     status_code: [200]
   register: ts_oauth_resp
   when: ts_status_json.rc == 0
