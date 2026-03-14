@@ -64,5 +64,4 @@ jobs:
 
       - name: Run ansible-lint
         run: |
-          ansible-lint --profile production ansible/ || true
-          ansible-lint --profile production scripts/raspberrypi-k3s/ansible/ || true
+          ansible-lint --profile production ansible/
