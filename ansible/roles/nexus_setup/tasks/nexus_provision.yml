@@ -195,5 +195,68 @@
     status_code: [201, 400]  # 400 = already exists
     validate_certs: false
 
-# NOTE: Nexus Community Edition does not support Go repository format.
-# go-hosted repository creation is intentionally omitted.
+- name: Create go-proxy repository (for proxy.golang.org)
+  ansible.builtin.uri:
+    url: "http://localhost:8081/service/rest/v1/repositories/go/proxy"
+    method: POST
+    force_basic_auth: true
+    user: admin
+    password: "{{ nexus_admin_password }}"
+    body_format: json
+    body:
+      name: "go-proxy"
+      online: true
+      storage:
+        blobStoreName: "default"
+        strictContentTypeValidation: true
+      proxy:
+        remoteUrl: "https://proxy.golang.org"
+        contentMaxAge: 1440
+        metadataMaxAge: 1440
+      negativeCache:
+        enabled: true
+        timeToLive: 144
+      httpClient:
+        blocked: false
+        autoBlock: true
+        connection:
+          retries: 0
+          userAgentSuffix: ""
+          timeout: 60
+          enableCircularRedirects: false
+          enableCookies: false
+    status_code: [201, 400]  # 400 = already exists
+    validate_certs: false
+
+- name: Create go-sum-proxy repository (Raw proxy for sum.golang.org)
+  ansible.builtin.uri:
+    url: "http://localhost:8081/service/rest/v1/repositories/raw/proxy"
+    method: POST
+    force_basic_auth: true
+    user: admin
+    password: "{{ nexus_admin_password }}"
+    body_format: json
+    body:
+      name: "go-sum-proxy"
+      online: true
+      storage:
+        blobStoreName: "default"
+        strictContentTypeValidation: false  # Critical for checksum requests
+      proxy:
+        remoteUrl: "https://sum.golang.org"
+        contentMaxAge: 1440
+        metadataMaxAge: 1440
+      negativeCache:
+        enabled: true
+        timeToLive: 144
+      httpClient:
+        blocked: false
+        autoBlock: true
+        connection:
+          retries: 0
+          userAgentSuffix: ""
+          timeout: 60
+          enableCircularRedirects: false
+          enableCookies: false
+    status_code: [201, 400]  # 400 = already exists
+    validate_certs: false
