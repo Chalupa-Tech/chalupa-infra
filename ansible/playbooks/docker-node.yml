@@ -1,5 +1,5 @@
 ---
-- name: Provision Docker and JFrog Servers
+- name: Provision Docker and Nexus Servers
   hosts: docker_nodes
   become: yes
   vars:
@@ -9,15 +9,15 @@
   roles:
     # Basic server hardening and util install
     - role: preflight
-    
+
     # Configure users from vault
     - role: user_setup
-    
+
     # Authenticate to Tailscale tailnet and set up magicDNS
     - role: tailscale_install
-    
+
     # Install Docker and set up docker-compose plugin
     - role: docker_install
-    
-    # Provision JFrog Artifactory container
-    - role: jfrog_setup
+
+    # Provision Sonatype Nexus Repository OSS container
+    - role: nexus_setup

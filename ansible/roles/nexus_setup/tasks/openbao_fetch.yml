@@ -1,0 +1,50 @@
+---
+# Runs on docker1. Authenticates to OpenBao via AppRole (role-id/secret-id
+# seeded by openbao_seed.yml) and sets nexus password facts for use in
+# nexus-store.properties and the Nexus REST provisioning tasks.
+
+- name: Authenticate to OpenBao via AppRole
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/auth/approle/login"
+    method: POST
+    body_format: json
+    body:
+      role_id: "{{ nexus_setup_bao_role_id }}"
+      secret_id: "{{ nexus_setup_bao_secret_id }}"
+    validate_certs: false
+  register: nexus_setup_bao_login
+  no_log: true
+
+- name: Fetch nexus/db password from OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/nexus/db"
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_login.json.auth.client_token }}"
+    validate_certs: false
+  register: nexus_setup_bao_db_resp
+  no_log: true
+
+- name: Fetch nexus/ci-deploy password from OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/nexus/ci-deploy"
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_login.json.auth.client_token }}"
+    validate_certs: false
+  register: nexus_setup_bao_deploy_resp
+  no_log: true
+
+- name: Fetch nexus/ci-read password from OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/nexus/ci-read"
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_login.json.auth.client_token }}"
+    validate_certs: false
+  register: nexus_setup_bao_read_resp
+  no_log: true
+
+- name: Set Nexus password facts from OpenBao
+  ansible.builtin.set_fact:
+    nexus_db_password: "{{ nexus_setup_bao_db_resp.json.data.data.password }}"
+    nexus_ci_deploy_password: "{{ nexus_setup_bao_deploy_resp.json.data.data.password }}"
+    nexus_ci_read_password: "{{ nexus_setup_bao_read_resp.json.data.data.password }}"
+  no_log: true

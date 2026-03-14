@@ -1,0 +1,197 @@
+---
+# Runs after Nexus is booted. Uses the Nexus REST API to:
+#   - Bootstrap the admin password from OpenBao (change from the random first-boot password)
+#   - Disable anonymous access
+#   - Create ci-deploy and ci-read service accounts
+#   - Create pypi-hosted and go-hosted repositories
+
+- name: Check for first-boot admin.password file
+  ansible.builtin.stat:
+    path: /opt/nexus/data/admin.password
+  register: nexus_admin_pw_file
+
+- name: Read first-boot admin password (if present)
+  ansible.builtin.slurp:
+    src: /opt/nexus/data/admin.password
+  register: nexus_admin_pw_raw
+  when: nexus_admin_pw_file.stat.exists
+  no_log: true
+
+- name: Set admin password fact from file (first boot)
+  ansible.builtin.set_fact:
+    nexus_current_admin_pw: "{{ nexus_admin_pw_raw.content | b64decode | trim }}"
+  when: nexus_admin_pw_file.stat.exists
+  no_log: true
+
+- name: Set admin password fact from OpenBao (subsequent runs)
+  ansible.builtin.set_fact:
+    nexus_current_admin_pw: "{{ nexus_ci_deploy_password }}"
+  when: not nexus_admin_pw_file.stat.exists
+  no_log: true
+
+- name: Wait for Nexus to accept REST requests
+  ansible.builtin.uri:
+    url: "http://localhost:8081/service/rest/v1/status"
+    force_basic_auth: true
+    user: admin
+    password: "{{ nexus_current_admin_pw }}"
+    status_code: [200, 401, 403]
+    validate_certs: false
+  register: nexus_status_check
+  until: nexus_status_check.status in [200, 401, 403]
+  retries: 20
+  delay: 10
+
+- name: Fetch nexus/admin password from OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/nexus/admin"
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_login.json.auth.client_token }}"
+    validate_certs: false
+  register: nexus_setup_bao_admin_resp
+  no_log: true
+
+- name: Set nexus_admin_password fact from OpenBao
+  ansible.builtin.set_fact:
+    nexus_admin_password: "{{ nexus_setup_bao_admin_resp.json.data.data.password }}"
+  no_log: true
+
+- name: Copy Nexus admin password hash updater script to docker1
+  ansible.builtin.copy:
+    content: |
+      #!/usr/bin/env python3
+      """
+      Generate Apache Shiro SHA-512/1024 hash for Nexus 3.90 admin password.
+      Nexus 3.90 uses this as its 'legacy password service' format.
+      """
+      import os, hashlib, base64, psycopg2
+
+      pwd = os.environ['NEXUS_ADMIN_PWD']
+      db_pwd = os.environ['NEXUS_DB_PWD']
+
+      # Generate Apache Shiro SHA-512 hash (1024 iterations)
+      salt = os.urandom(16)
+      pw_bytes = pwd.encode('utf-8')
+      current_hash = hashlib.sha512(salt + pw_bytes).digest()
+      for _ in range(1023):
+          current_hash = hashlib.sha512(current_hash).digest()
+      salt_b64 = base64.b64encode(salt).decode()
+      hash_b64 = base64.b64encode(current_hash).decode()
+      shiro_hash = f"$shiro1$SHA-512$1024${salt_b64}${hash_b64}"
+
+      conn = psycopg2.connect(host='127.0.0.1', port=5432,
+                              dbname='nexus', user='nexus', password=db_pwd)
+      cur = conn.cursor()
+      cur.execute("UPDATE security_user SET password=%s WHERE id='admin'", (shiro_hash,))
+      conn.commit()
+      cur.close()
+      conn.close()
+      print("Nexus admin password updated with Shiro SHA-512 hash.")
+    dest: /tmp/update_nexus_admin_hash.py
+    mode: "0755"
+
+- name: Generate Shiro SHA-512 hash and update Nexus admin password in Postgres
+  ansible.builtin.shell: >
+    NEXUS_ADMIN_PWD={{ nexus_admin_password | quote }}
+    NEXUS_DB_PWD={{ nexus_db_password | quote }}
+    python3 /tmp/update_nexus_admin_hash.py
+  register: nexus_hash_update
+  changed_when: true
+  no_log: true
+
+- name: Restart Nexus to apply new admin PHC password hash
+  ansible.builtin.shell: docker restart nexus
+  become: true
+  changed_when: true
+
+- name: Wait for Nexus to come back up after password reset
+  ansible.builtin.uri:
+    url: "http://localhost:8081/service/rest/v1/status/check"
+    force_basic_auth: true
+    user: admin
+    password: "{{ nexus_admin_password }}"
+    status_code: [200, 401, 403]
+    validate_certs: false
+  register: nexus_pw_check
+  until: nexus_pw_check.status == 200
+  retries: 30
+  delay: 10
+  no_log: true
+
+- name: Disable anonymous access
+  ansible.builtin.uri:
+    url: "http://localhost:8081/service/rest/v1/security/anonymous"
+    method: PUT
+    force_basic_auth: true
+    user: admin
+    password: "{{ nexus_admin_password }}"
+    body_format: json
+    body:
+      enabled: false
+      userId: "anonymous"
+      realmName: "NexusAuthorizingRealm"
+    status_code: [200, 204]
+    validate_certs: false
+
+- name: Create ci-deploy service account
+  ansible.builtin.uri:
+    url: "http://localhost:8081/service/rest/v1/security/users"
+    method: POST
+    force_basic_auth: true
+    user: admin
+    password: "{{ nexus_admin_password }}"
+    body_format: json
+    body:
+      userId: "ci-deploy"
+      firstName: "CI"
+      lastName: "Deploy"
+      emailAddress: "ci-deploy@sonatype.local"
+      password: "{{ nexus_ci_deploy_password }}"
+      status: "active"
+      roles: ["nx-admin"]
+    status_code: [200, 204, 400, 500]  # 400/500 = user already exists
+    validate_certs: false
+  no_log: true
+  ignore_errors: true
+
+- name: Create ci-read service account
+  ansible.builtin.uri:
+    url: "http://localhost:8081/service/rest/v1/security/users"
+    method: POST
+    force_basic_auth: true
+    user: admin
+    password: "{{ nexus_admin_password }}"
+    body_format: json
+    body:
+      userId: "ci-read"
+      firstName: "CI"
+      lastName: "Read"
+      emailAddress: "ci-read@sonatype.local"
+      password: "{{ nexus_ci_read_password }}"
+      status: "active"
+      roles: ["nx-anonymous"]
+    status_code: [200, 204, 400, 500]  # 400/500 = user already exists
+    validate_certs: false
+  no_log: true
+  ignore_errors: true
+
+- name: Create pypi-hosted repository
+  ansible.builtin.uri:
+    url: "http://localhost:8081/service/rest/v1/repositories/pypi/hosted"
+    method: POST
+    force_basic_auth: true
+    user: admin
+    password: "{{ nexus_admin_password }}"
+    body_format: json
+    body:
+      name: "pypi-hosted"
+      online: true
+      storage:
+        blobStoreName: "default"
+        strictContentTypeValidation: true
+        writePolicy: "allow"
+    status_code: [201, 400]  # 400 = already exists
+    validate_certs: false
+
+# NOTE: Nexus Community Edition does not support Go repository format.
+# go-hosted repository creation is intentionally omitted.

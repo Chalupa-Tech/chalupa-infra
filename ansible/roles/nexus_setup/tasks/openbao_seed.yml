@@ -1,0 +1,224 @@
+---
+# Runs on the k3s control node (delegated from docker1).
+# Seeds nexus secret paths in OpenBao KV and creates an AppRole so
+# docker1 can authenticate without a long-lived root token.
+
+- name: Read OpenBao init data from k3s control node
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/openbao_init_data.json
+  register: nexus_setup_bao_init_raw
+  delegate_to: "{{ k3s_control_node }}"
+  become: true
+  no_log: true
+
+- name: Set OpenBao root token fact
+  ansible.builtin.set_fact:
+    nexus_setup_bao_root_token: >-
+      {{ (nexus_setup_bao_init_raw.content | b64decode | from_json).root_token }}
+  no_log: true
+
+- name: Enable KV v2 secrets engine (idempotent)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/mounts/secret"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    body_format: json
+    body:
+      type: kv
+      options:
+        version: "2"
+    status_code: [200, 204, 400]  # 400 = already mounted
+    validate_certs: false
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Check if nexus/db secret already exists
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/nexus/db"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: nexus_setup_bao_db_check
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Seed nexus/db password (first-time only)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/nexus/db"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    body_format: json
+    body:
+      data:
+        password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: nexus_setup_bao_db_check.status == 404
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Check if nexus/ci-deploy secret already exists
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/nexus/ci-deploy"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: nexus_setup_bao_deploy_check
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Seed nexus/ci-deploy password (first-time only)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/nexus/ci-deploy"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    body_format: json
+    body:
+      data:
+        password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: nexus_setup_bao_deploy_check.status == 404
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Check if nexus/ci-read secret already exists
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/nexus/ci-read"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: nexus_setup_bao_read_check
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Seed nexus/ci-read password (first-time only)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/nexus/ci-read"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    body_format: json
+    body:
+      data:
+        password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: nexus_setup_bao_read_check.status == 404
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Check if nexus/admin secret already exists
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/nexus/admin"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: nexus_setup_bao_admin_check
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Seed nexus/admin password (first-time only)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/nexus/admin"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    body_format: json
+    body:
+      data:
+        password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: nexus_setup_bao_admin_check.status == 404
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Enable AppRole auth method (idempotent)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/auth/approle"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    body_format: json
+    body:
+      type: approle
+    status_code: [200, 204, 400]
+    validate_certs: false
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Write nexus-provisioner policy
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/policies/acl/nexus-provisioner"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    body_format: json
+    body:
+      policy: |
+        path "secret/data/nexus/*" {
+          capabilities = ["read"]
+        }
+    status_code: [200, 204]
+    validate_certs: false
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Create nexus-provisioner AppRole
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/auth/approle/role/nexus-provisioner"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    body_format: json
+    body:
+      policies: ["nexus-provisioner"]
+      token_ttl: "1h"
+      secret_id_ttl: "0"   # never expire (rotated by playbook)
+      secret_id_num_uses: 0
+    status_code: [200, 204]
+    validate_certs: false
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Fetch AppRole role-id
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/auth/approle/role/nexus-provisioner/role-id"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    validate_certs: false
+  register: nexus_setup_bao_role_id_resp
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Generate AppRole secret-id
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/auth/approle/role/nexus-provisioner/secret-id"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ nexus_setup_bao_root_token }}"
+    body_format: json
+    body: {}
+    validate_certs: false
+  register: nexus_setup_bao_secret_id_resp
+  delegate_to: "{{ k3s_control_node }}"
+  no_log: true
+
+- name: Set AppRole credentials as facts (available to docker1)
+  ansible.builtin.set_fact:
+    nexus_setup_bao_role_id: "{{ nexus_setup_bao_role_id_resp.json.data.role_id }}"
+    nexus_setup_bao_secret_id: "{{ nexus_setup_bao_secret_id_resp.json.data.secret_id }}"
+  no_log: true

@@ -1,0 +1,186 @@
+---
+- name: Seed Nexus credentials into OpenBao and create AppRole
+  ansible.builtin.include_tasks: openbao_seed.yml
+
+- name: Fetch Nexus credentials from OpenBao
+  ansible.builtin.include_tasks: openbao_fetch.yml
+
+- name: Ensure python3-psycopg2 is installed (for Nexus admin password update)
+  ansible.builtin.dnf:
+    name:
+      - python3-psycopg2
+    state: present
+  become: true
+
+- name: Create Nexus group
+  group:
+    name: nexus
+    gid: 200
+    state: present
+
+- name: Create Nexus user
+  user:
+    name: nexus
+    uid: 200
+    group: nexus
+    shell: /sbin/nologin
+    state: present
+
+- name: Create Nexus data directory
+  file:
+    path: /opt/nexus/data
+    state: directory
+    owner: "200"
+    group: "200"
+    mode: '0755'
+    recurse: yes
+
+- name: Create Nexus etc/fabric directory (for nexus-store.properties)
+  file:
+    path: /opt/nexus/data/etc/fabric
+    state: directory
+    owner: "200"
+    group: "200"
+    mode: '0755'
+    recurse: yes
+
+- name: Create Docker network with Tailscale-compatible MTU
+  docker_network:
+    name: infra_network
+    driver: bridge
+    driver_options:
+      com.docker.network.driver.mtu: "1280"
+
+- name: Deploy Postgres Docker Container
+  docker_container:
+    name: nexus-postgres
+    image: postgres:14-alpine
+    state: started
+    restart_policy: unless-stopped
+    env:
+      POSTGRES_DB: nexus
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: "{{ nexus_db_password }}"
+    command: ["postgres", "-c", "max_connections=200"]
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - "/opt/nexus/postgres/data:/var/lib/postgresql/data:Z"
+    networks:
+      - name: infra_network
+
+- name: Wait for Postgres to accept connections
+  ansible.builtin.command: >
+    docker exec nexus-postgres
+    pg_isready -U nexus -d nexus
+  register: pg_ready
+  retries: 12
+  delay: 5
+  until: pg_ready.rc == 0
+  changed_when: false
+
+- name: Write nexus.properties to enable external datastore
+  copy:
+    dest: /opt/nexus/data/etc/nexus.properties
+    owner: "200"
+    group: "200"
+    mode: '0640'
+    content: |
+      nexus.datastore.enabled=true
+
+- name: Write nexus-store.properties with PostgreSQL connection details
+  copy:
+    dest: /opt/nexus/data/etc/fabric/nexus-store.properties
+    owner: "200"
+    group: "200"
+    mode: '0640'
+    content: |
+      name=nexus
+      type=jdbc
+      jdbcUrl=jdbc:postgresql://nexus-postgres:5432/nexus
+      username=nexus
+      password={{ nexus_db_password }}
+
+- name: Sync Postgres nexus user password with OpenBao-managed value
+  ansible.builtin.shell: >
+    docker exec nexus-postgres psql -U nexus -d nexus
+    -c "ALTER USER nexus WITH PASSWORD '{{ nexus_db_password }}';"
+  become: true
+  changed_when: true
+  no_log: true
+
+- name: Deploy Sonatype Nexus Repository OSS container
+  docker_container:
+    name: nexus
+    image: sonatype/nexus3:latest
+    state: started
+    restart_policy: unless-stopped
+    env:
+      NEXUS_SECURITY_RANDOMPASSWORD: "false"
+    ports:
+      - "8081:8081"
+    volumes:
+      - "/opt/nexus/data:/nexus-data:Z"
+    networks:
+      - name: infra_network
+
+- name: Create Nginx config directory
+  file:
+    path: /opt/nexus/nginx/conf
+    state: directory
+    mode: '0755'
+
+- name: Create Nginx SSL directory
+  file:
+    path: /opt/nexus/nginx/ssl
+    state: directory
+    mode: '0755'
+
+- name: Template Nginx proxy configuration
+  template:
+    src: nexus-ssl.conf.j2
+    dest: /opt/nexus/nginx/conf/nexus-ssl.conf
+    mode: '0644'
+  notify: Restart Nginx
+
+- name: Clear existing Tailscale Serve configs
+  ansible.builtin.shell: tailscale serve --https=443 off
+  ignore_errors: true
+  changed_when: false
+
+- name: Discover Tailscale cert domain
+  ansible.builtin.shell: |
+    tailscale cert 2>&1 | grep -oP '(?<=")[^"]+tailbecff0[^"]+(?=")' | head -1
+  register: ts_cert_domain
+  changed_when: false
+
+- name: Generate Tailscale TLS Certificate for Nginx
+  ansible.builtin.shell: >
+    tailscale cert
+    --cert-file /opt/nexus/nginx/ssl/nexus.crt
+    --key-file /opt/nexus/nginx/ssl/nexus.key
+    {{ ts_cert_domain.stdout | trim }}
+  args:
+    creates: /opt/nexus/nginx/ssl/nexus.crt
+
+- name: Deploy Nexus Nginx Proxy
+  docker_container:
+    name: nexus-nginx-proxy
+    image: nginx:alpine
+    state: started
+    restart_policy: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/opt/nexus/nginx/conf/nexus-ssl.conf:/etc/nginx/conf.d/default.conf:ro"
+      - "/opt/nexus/nginx/ssl:/etc/nginx/ssl:ro"
+    networks:
+      - name: infra_network
+
+- name: Expose Nginx via Tailscale TCP proxy
+  ansible.builtin.shell: tailscale serve --bg --tcp 443 tcp://localhost:443
+  changed_when: false
+
+- name: Provision Nexus (users, repos, anonymous access)
+  ansible.builtin.include_tasks: nexus_provision.yml
