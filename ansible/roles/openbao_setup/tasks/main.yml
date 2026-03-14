@@ -67,6 +67,15 @@
     path: /var/lib/rancher/k3s/server/openbao_init_data.json
   register: openbao_setup_init_stat
 
+- name: Set OpenBao credentials from Ansible Vault (subsequent runs, file already backed up)
+  ansible.builtin.set_fact:
+    openbao_setup_unseal_key: "{{ openbao_unseal_key }}"
+    openbao_setup_root_token: "{{ openbao_root_token }}"
+  when:
+    - not ansible_check_mode
+    - not openbao_setup_init_stat.stat.exists
+  no_log: true
+
 - name: Process unsealing and auth
   when:
     - not ansible_check_mode
@@ -78,11 +87,19 @@
       register: openbao_setup_init_slurp
       no_log: true
 
-    - name: Set facts from initialization data
+    - name: Set facts from initialization data (file-based, first boot)
       ansible.builtin.set_fact:
         openbao_setup_unseal_key: "{{ (openbao_setup_init_slurp.content | b64decode | from_json).unseal_keys_b64[0] }}"
         openbao_setup_root_token: "{{ (openbao_setup_init_slurp.content | b64decode | from_json).root_token }}"
       no_log: true
+
+    - name: Back up init_data.json (credentials now secured in Ansible Vault)
+      ansible.builtin.command: >
+        mv /var/lib/rancher/k3s/server/openbao_init_data.json
+           /var/lib/rancher/k3s/server/openbao_init_data.json.bak
+      args:
+        creates: /var/lib/rancher/k3s/server/openbao_init_data.json.bak
+      changed_when: true
 
     - name: Unseal OpenBao leader (openbao-0)
       ansible.builtin.command: >

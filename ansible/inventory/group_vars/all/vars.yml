@@ -15,6 +15,10 @@ ts_operator_client_secret: "{{ vault_ts_operator_client_secret }}"
 cloudflare_api_key: "{{ vault_cloudflare_api_key }}"
 ts_service_name: "{{ vault_ts_service_name | default('svc:chalupa-k3s') }}"
 
+# OpenBao bootstrap credentials (sourced from Ansible Vault)
+openbao_root_token: "{{ vault_openbao_root_token }}"
+openbao_unseal_key: "{{ vault_openbao_unseal_key }}"
+
 # Journald configuration
 journald_system_max_use: "2G"
 journald_system_keep_free: "10G"
