@@ -1,0 +1,41 @@
+---
+# Manage Tailscale ACL policy — ensures required tagOwners are defined.
+# Requires vault_tailscale_api_key with acl:read + acl:write scopes.
+# Create at: https://login.tailscale.com/admin/settings/keys
+
+- name: Fetch current Tailscale ACL policy
+  ansible.builtin.uri:
+    url: "https://api.tailscale.com/api/v2/tailnet/-/acl"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ vault_tailscale_api_key }}"
+      Accept: "application/json"
+    return_content: true
+  register: ts_acl_current
+  delegate_to: localhost
+  run_once: true
+
+- name: Merge required tagOwners into ACL policy
+  ansible.builtin.set_fact:
+    ts_acl_updated: >-
+      {{
+        ts_acl_current.json | combine({
+          'tagOwners': (ts_acl_current.json.get('tagOwners', {}) | combine(tailscale_required_tag_owners))
+        }, recursive=True)
+      }}
+  delegate_to: localhost
+  run_once: true
+
+- name: Push updated ACL policy to Tailscale
+  ansible.builtin.uri:
+    url: "https://api.tailscale.com/api/v2/tailnet/-/acl"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ vault_tailscale_api_key }}"
+      Content-Type: "application/json"
+    body_format: json
+    body: "{{ ts_acl_updated }}"
+    status_code: [200, 204]
+  when: ts_acl_updated.tagOwners != ts_acl_current.json.get('tagOwners', {})
+  delegate_to: localhost
+  run_once: true

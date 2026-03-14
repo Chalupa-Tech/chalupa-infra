@@ -14,6 +14,12 @@ ts_operator_client_id: "{{ vault_ts_operator_client_id }}"
 ts_operator_client_secret: "{{ vault_ts_operator_client_secret }}"
 cloudflare_api_key: "{{ vault_cloudflare_api_key }}"
 ts_service_name: "{{ vault_ts_service_name | default('svc:chalupa-k3s') }}"
+tailscale_api_key: "{{ vault_tailscale_api_key }}"
+
+# Tags to ensure exist in the Tailscale ACL tagOwners
+tailscale_required_tag_owners:
+  tag:k3-node: []
+  tag:docker: []
 
 # OpenBao bootstrap credentials (sourced from Ansible Vault)
 openbao_root_token: "{{ vault_openbao_root_token }}"

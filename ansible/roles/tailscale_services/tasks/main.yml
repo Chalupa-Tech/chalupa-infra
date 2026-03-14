@@ -1,4 +1,7 @@
 ---
+- name: Manage Tailscale ACL policy (tagOwners)
+  ansible.builtin.include_tasks: acl_manage.yml
+
 - name: Copy Tailscale service management script
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../remote/manage_tailscale_services.sh"
