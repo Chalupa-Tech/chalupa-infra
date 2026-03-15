@@ -40,7 +40,7 @@ fi
 if kubectl get ns "$NAMESPACE" >/dev/null 2>&1; then
     echo "Deleting '$NAMESPACE' namespace..."
     kubectl delete namespace "$NAMESPACE" --ignore-not-found
-    
+
     echo "Waiting for namespace to terminate..."
     kubectl wait --for=delete namespace/"$NAMESPACE" --timeout=120s || echo "Namespace deletion timed out (it might still be terminating)"
 fi
