@@ -88,17 +88,17 @@ while read -r HOST ADDR; do
     echo "Creating context for node $HOST ($ADDR)..."
     HOST_CONFIG="$MERGE_DIR/k3s-$HOST.yaml"
     CONTEXT_NAME="chalupa-k3s-$HOST"
-    
+
     sed "s/127.0.0.1/$ADDR/g" "$CLEAN_CONFIG" | \
     sed "s/default/$CONTEXT_NAME/g" > "$HOST_CONFIG"
-    
+
     KUBECONFIG_LIST="$KUBECONFIG_LIST:$HOST_CONFIG"
 done <<< "$SERVERS"
 
 # 3. Merge everything into ~/.kube/config
 if command -v kubectl &> /dev/null; then
     echo "Merging into ~/.kube/config using kubectl..."
-    
+
     # Backup existing config
     if [ -f ~/.kube/config ]; then
         cp ~/.kube/config ~/.kube/config.bak.$(date +%s)
@@ -106,7 +106,7 @@ if command -v kubectl &> /dev/null; then
     else
         export KUBECONFIG="$KUBECONFIG_LIST"
     fi
-    
+
     # Flatten the configuration into a single file
     kubectl config view --flatten > ~/.kube/config.new
     mv ~/.kube/config.new ~/.kube/config
