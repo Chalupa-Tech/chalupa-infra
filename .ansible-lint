@@ -4,7 +4,7 @@ exclude_paths:
   - .gemini/
 quiet: false
 use_default_rules: true
-project_dir: scripts/raspberrypi-k3s/ansible/
+project_dir: ansible/
 progressive: false
 mock_roles:
   - preflight

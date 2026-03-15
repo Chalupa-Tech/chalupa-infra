@@ -11,16 +11,16 @@ for service_def in "$@"; do
     # Split by colon
     # Expected format: svc:chalupa-k3s:6443
     IFS=':' read -r PREFIX NAME PORT <<< "$service_def"
-    
+
     if [ -z "$PREFIX" ] || [ -z "$NAME" ] || [ -z "$PORT" ]; then
         echo "Error: Invalid service definition '$service_def'. Expected format 'svc:name:port'."
         continue
     fi
 
     FULL_NAME="${PREFIX}:${NAME}"
-    
+
     echo "Configuring Tailscale Service: $FULL_NAME on port $PORT..."
-    
+
     # Check for existing conflicting configuration (Reset if Web/HTTPS found)
     if command -v python3 &> /dev/null; then
         SHOULD_RESET=$(tailscale serve status --json | python3 -c "

@@ -42,12 +42,12 @@ check_pi_cgroups() {
     if [ -n "$CMDLINE_FILE" ]; then
         CURRENT_CMDLINE=$(cat "$CMDLINE_FILE")
         NEEDS_UPDATE=0
-        
+
         if ! echo "$CURRENT_CMDLINE" | grep -q "cgroup_enable=memory"; then
             echo "Missing cgroup_enable=memory in $CMDLINE_FILE"
             NEEDS_UPDATE=1
         fi
-        
+
         if ! echo "$CURRENT_CMDLINE" | grep -q "cgroup_memory=1"; then
             echo "Missing cgroup_memory=1 in $CMDLINE_FILE"
             NEEDS_UPDATE=1
@@ -113,7 +113,7 @@ if tailscale status &> /dev/null; then
     echo "Tailscale is already up."
 else
     echo "Authenticating Tailscale..."
-    # Using --authkey to automate. 
+    # Using --authkey to automate.
     tailscale up --authkey="$TS_AUTHKEY"
 fi
 
@@ -154,10 +154,10 @@ if [ -n "$TS_DNS_NAME" ]; then
     # Extract everything after the first dot (e.g., node1.tailnet.ts.net -> tailnet.ts.net)
     # This assumes the node name doesn't contain dots, which is standard for MagicDNS.
     TS_BASE_DOMAIN=$(echo "$TS_DNS_NAME" | cut -d. -f2-)
-    
+
     # Extract the service name part (remove svc: prefix)
     CLEAN_SVC_NAME=$(echo "$SERVICE_NAME" | sed 's/^svc://')
-    
+
     TS_SERVICE_FQDN="${CLEAN_SVC_NAME}.${TS_BASE_DOMAIN}"
     echo "Constructed Service FQDN: $TS_SERVICE_FQDN"
 fi
@@ -172,10 +172,10 @@ if [ -n "$NODE_LOCATION_LABEL" ]; then
 fi
 
 if [ "$ROLE" == "server" ]; then
-    
+
     # Servers need to include their Tailscale IP in the TLS SAN list so others can verify the cert
     SERVER_ARGS="$COMMON_ARGS --tls-san=$TS_IP"
-    
+
     # Add DNS name to SAN if detected
     if [ -n "$TS_DNS_NAME" ]; then
         SERVER_ARGS="$SERVER_ARGS --tls-san=$TS_DNS_NAME"
@@ -189,7 +189,7 @@ if [ "$ROLE" == "server" ]; then
     if [ -z "$SERVER_IP" ]; then
         # Case A: First Server (Cluster Init)
         echo "Mode: Initializing NEW Cluster..."
-        
+
         # Use provided token if set, otherwise auto-generate
         if [ -n "$K3S_TOKEN" ]; then
             TOKEN_ARG="--token=$K3S_TOKEN"
@@ -198,20 +198,20 @@ if [ "$ROLE" == "server" ]; then
         fi
 
         curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --cluster-init $TOKEN_ARG $SERVER_ARGS" sh -
-        
+
     else
         # Case B: Joining Server (HA)
         echo "Mode: Joining EXISTING Cluster as Server (HA)..."
-        
+
         # Must have token and server IP (validated above)
         curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --server https://${SERVER_IP}:6443 --token=$K3S_TOKEN $SERVER_ARGS" sh -
     fi
 
 elif [ "$ROLE" == "agent" ]; then
-    
-    # For agent, we need the server URL. 
+
+    # For agent, we need the server URL.
     # Note: The server IP provided must be reachable. If using Tailscale, it should be the Server's Tailscale IP.
-    
+
     curl -sfL https://get.k3s.io | K3S_URL=https://${SERVER_IP}:6443 K3S_TOKEN=${K3S_TOKEN} INSTALL_K3S_EXEC="agent $COMMON_ARGS" sh -
 
 else

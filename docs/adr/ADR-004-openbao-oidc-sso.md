@@ -1,7 +1,7 @@
 # ADR-004: OpenBao OIDC SSO for Gitea, Grafana, and ArgoCD
 
-**Status:** Accepted  
-**Date:** 2026-03-15  
+**Status:** Accepted
+**Date:** 2026-03-15
 **Deciders:** ddowell, tbigelow
 
 ---
