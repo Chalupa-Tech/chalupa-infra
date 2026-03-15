@@ -114,9 +114,18 @@ path "sys/internal/ui/mounts" { capabilities = ["read"] }
 
 ## Stale Browser Session Warning
 
-The OpenBao UI stores the user's token in `localStorage`. If a token becomes orphaned (references a deleted entity), OIDC will fail silently with "state token mismatch" even after re-deployment.
+The OpenBao UI stores the user's token in `localStorage` for `pi-k3s.chalupatech.com`. Stale tokens manifest as two different symptoms depending on the service:
 
-**Resolution:** Sign out of the OpenBao UI fully (not just the service), or open an **incognito/private browser window** to force a fresh token.
+| Symptom | Service | Cause |
+|---|---|---|
+| `state token mismatch` | Gitea | Stale token → permission denied → no OIDC code returned |
+| Redirect loop (login → OpenBao → login → ...) | ArgoCD, Grafana | Browser cached OIDC session fighting the new token |
+
+**Resolution (same fix for both):**
+1. Open an **incognito/private browser window**, OR
+2. Clear **site data** for `pi-k3s.chalupatech.com` in your browser (this clears `localStorage` where the OpenBao token lives), then re-login
+
+> Simply logging out of the service (Gitea/ArgoCD/Grafana) does **not** clear the OpenBao session.
 
 ---
 
