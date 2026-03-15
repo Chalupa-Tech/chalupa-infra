@@ -63,7 +63,7 @@
     body:
       name: "{{ item.name }}"
       metadata:
-        email: "{{ item.name }}@chalupatech.com"
+        email: "{{ item.email }}"
     status_code: [200, 204]
     validate_certs: false
   loop: "{{ managed_users }}"
