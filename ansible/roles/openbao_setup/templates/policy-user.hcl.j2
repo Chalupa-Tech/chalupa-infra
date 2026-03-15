@@ -10,9 +10,10 @@ path "shared/*" {
   capabilities = ["create", "read", "update", "delete", "list", "sudo"]
 }
 
-# Allow OIDC authorization flow (required for Gitea/Grafana/ArgoCD SSO)
-path "identity/oidc/provider/+/authorize" {
-  capabilities = ["read"]
+# Allow full OIDC authorization flow (required for Gitea/Grafana/ArgoCD SSO)
+# Must use * wildcard — OpenBao does not support + in policy paths
+path "identity/oidc/*" {
+  capabilities = ["read", "update"]
 }
 
 # Allow token self-lookup and renew (required for OIDC session)
