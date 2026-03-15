@@ -261,7 +261,7 @@
           clientID: {{ openbao_oidc_creds.argocd.client_id }}
           clientSecret: $oidc.openbao.clientSecret
           requestedScopes: ["openid", "user"]
-          requestedIDTokenClaims: {"username": {"essential": true}}
+          requestedIDTokenClaims: {"preferred_username": {"essential": true}, "email": {"essential": true}}
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   no_log: true
