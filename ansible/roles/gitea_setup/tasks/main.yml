@@ -111,7 +111,7 @@
       GITEA__oauth2_client__ENABLE_AUTO_REGISTRATION: "true"
       GITEA__oauth2_client__ACCOUNT_LINKING: "auto"
       GITEA__oauth2_client__USERNAME: "preferred_username"
-      GITEA__oauth2_client__OPENID_CONNECT_SCOPES: "openid profile email"
+      GITEA__oauth2_client__OPENID_CONNECT_SCOPES: "openid profile email user"
       # Disable mailer (no SMTP configured)
       GITEA__mailer__ENABLED: "false"
       # Log level

@@ -59,7 +59,13 @@ openbao_oidc_clients:
 
 # Go-template string for the OpenBao OIDC 'user' scope.
 # Defined here to prevent Ansible/Jinja2 from interpreting the {{ }} delimiters.
-# Uses standard OIDC claim names that Gitea recognizes:
-#   preferred_username → picked up by Gitea oauth2_client USERNAME=preferred_username
-#   email → used by Gitea ACCOUNT_LINKING=auto to match/create users
-openbao_oidc_user_scope_template: !unsafe '{"preferred_username":"{{identity.entity.name}}","email":"{{identity.entity.name}}@chalupatech.com","groups":{{identity.entity.groups.names}}}'
+#
+# IMPORTANT: Do NOT add "..." around {{...}} placeholders.
+# The OpenBao template engine auto-JSON-quotes string values:
+#   {{identity.entity.name}}           → "ddowell"    (already JSON-quoted)
+#   {{identity.entity.metadata.email}} → "user@..."   (already JSON-quoted)
+#   {{identity.entity.groups.names}}   → ["g1","g2"]  (already a JSON array)
+#
+# Email is stored as entity metadata (see oidc_setup.yml / user_setup.yml).
+# This is the correct multi-tenant pattern: each entity has its own email.
+openbao_oidc_user_scope_template: !unsafe '{"preferred_username":{{identity.entity.name}},"email":{{identity.entity.metadata.email}},"groups":{{identity.entity.groups.names}}}'

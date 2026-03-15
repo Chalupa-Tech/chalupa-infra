@@ -34,8 +34,8 @@
     openbao_setup_userpass_accessor: "{{ openbao_setup_userpass_auth.json.accessor }}"
   no_log: true
 
-# ── Create OIDC scope (shared) ────────────────────────────────────────────────
-- name: Create OIDC user scope
+# ── Create/Update OIDC scope (shared, multi-tenant) ─────────────────────────
+- name: Upsert OIDC user scope (preferred_username, email, groups)
   ansible.builtin.uri:
     url: "{{ openbao_url }}/v1/identity/oidc/scope/user"
     method: POST
@@ -44,14 +44,16 @@
     body_format: json
     body:
       template: "{{ openbao_oidc_user_scope_template }}"
-      description: "User scope — exposes username and groups claims"
+      description: "User scope — preferred_username, email, groups (multi-tenant)"
     status_code: [200, 204]
     validate_certs: false
   no_log: true
-  failed_when: false  # Idempotent: scope already exists returns 400/204
+  # Note: no failed_when: false — we want to know if scope update fails
 
-# ── Create entities and aliases for managed users ─────────────────────────────
-- name: Create identity entity for each managed user
+# ── Create/update entities and aliases for managed users ──────────────────────
+# Entity metadata.email is required by the OIDC user scope template:
+#   {{identity.entity.metadata.email}} → "user@domain.com" (auto-JSON-quoted)
+- name: Upsert identity entity with email metadata for each managed user
   ansible.builtin.uri:
     url: "{{ openbao_url }}/v1/identity/entity/name/{{ item.name }}"
     method: POST
@@ -60,6 +62,8 @@
     body_format: json
     body:
       name: "{{ item.name }}"
+      metadata:
+        email: "{{ item.name }}@chalupatech.com"
     status_code: [200, 204]
     validate_certs: false
   loop: "{{ managed_users }}"
