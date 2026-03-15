@@ -1,3 +1,6 @@
 ---
-roles:
-  - name: gantsign.tailscale
+roles: []
+
+collections:
+  - name: community.docker
+  - name: ansible.posix

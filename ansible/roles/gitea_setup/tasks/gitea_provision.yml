@@ -34,6 +34,7 @@
     --admin
     --must-change-password=false
   when: "'gitea-admin' not in gitea_admin_list.stdout"
+  changed_when: true
   no_log: true
 
 - name: Sync gitea-admin password with Ansible Vault value (idempotent)

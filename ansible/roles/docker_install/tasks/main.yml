@@ -3,7 +3,7 @@
 
 # RedHat/Fedora Installation
 - name: Install dnf-plugins-core (RedHat)
-  dnf:
+  ansible.builtin.dnf:
     name: dnf-plugins-core
     state: present
   when: ansible_facts['os_family'] == "RedHat"
@@ -12,10 +12,11 @@
   ansible.builtin.get_url:
     url: https://download.docker.com/linux/fedora/docker-ce.repo
     dest: /etc/yum.repos.d/docker-ce.repo
+    mode: "0644"
   when: ansible_facts['os_family'] == "RedHat"
 
 - name: Install Docker System (RedHat)
-  dnf:
+  ansible.builtin.dnf:
     name:
       - docker-ce
       - docker-ce-cli
@@ -27,12 +28,12 @@
 
 # Common tasks
 - name: Ensure Docker service is running and enabled
-  systemd:
+  ansible.builtin.systemd:
     name: docker
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Create docker network for internal services
-  docker_network:
+  community.docker.docker_network:
     name: infra_network
     state: present
