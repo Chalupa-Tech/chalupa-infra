@@ -8,7 +8,7 @@
 
 # ── Docker network ────────────────────────────────────────────────────────────
 - name: Create Docker network with Tailscale-compatible MTU
-  docker_network:
+  community.docker.docker_network:
     name: "{{ gitea_docker_network }}"
     driver: bridge
     driver_options:
@@ -30,7 +30,7 @@
 
 # ── PostgreSQL ────────────────────────────────────────────────────────────────
 - name: Deploy Postgres Docker container for Gitea
-  docker_container:
+  community.docker.docker_container:
     name: gitea-postgres
     image: postgres:16-alpine
     state: started
@@ -66,7 +66,7 @@
 
 # ── Gitea ─────────────────────────────────────────────────────────────────────
 - name: Deploy Gitea container
-  docker_container:
+  community.docker.docker_container:
     name: gitea
     image: gitea/gitea:latest
     state: started
@@ -137,7 +137,7 @@
 
 # ── Nginx reverse proxy ───────────────────────────────────────────────────────
 - name: Template Nginx proxy configuration
-  template:
+  ansible.builtin.template:
     src: gitea-ssl.conf.j2
     dest: "{{ gitea_data_dir }}/nginx/conf/gitea-ssl.conf"
     mode: '0644'
@@ -147,11 +147,12 @@
   ansible.builtin.shell: |
     tailscale serve --https=443 off || true
     tailscale serve --tcp 443 off || true
-  ignore_errors: true
+  failed_when: false
   changed_when: false
 
 - name: Discover Tailscale cert domain
   ansible.builtin.shell: |
+    set -o pipefail
     tailscale cert 2>&1 | grep -oP '(?<=")[^"]+tailbecff0[^"]+(?=")' | head -1
   register: ts_cert_domain
   changed_when: false
@@ -166,12 +167,12 @@
     creates: "{{ gitea_data_dir }}/nginx/ssl/gitea.crt"
 
 - name: Ensure stale Gitea Nginx Proxy is removed
-  docker_container:
+  community.docker.docker_container:
     name: gitea-nginx-proxy
     state: absent
 
 - name: Deploy Gitea Nginx Proxy
-  docker_container:
+  community.docker.docker_container:
     name: gitea-nginx-proxy
     image: nginx:alpine
     state: started
@@ -185,7 +186,7 @@
       - name: "{{ gitea_docker_network }}"
 
 - name: Expose Nginx via Tailscale TCP proxy
-  ansible.builtin.shell: tailscale serve --bg --https=443 http://localhost:80
+  ansible.builtin.command: tailscale serve --bg --https=443 http://localhost:80
   changed_when: false
 
 # ── Provision users and clean up legacy secrets ───────────────────────────────

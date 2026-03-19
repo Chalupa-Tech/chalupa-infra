@@ -5,10 +5,17 @@
   failed_when: false
   changed_when: false
 
-- name: Download and install Tailscale
-  ansible.builtin.shell: curl -fsSL https://tailscale.com/install.sh | sh
+- name: Download Tailscale install script
+  ansible.builtin.get_url:
+    url: https://tailscale.com/install.sh
+    dest: /tmp/tailscale-install.sh
+    mode: '0755'
   when: ts_check.rc != 0
-  changed_when: ts_check.rc != 0
+
+- name: Run Tailscale install script
+  ansible.builtin.command: /tmp/tailscale-install.sh
+  when: ts_check.rc != 0
+  changed_when: true
 
 - name: Ensure Tailscale service is running
   ansible.builtin.systemd:

@@ -61,6 +61,7 @@
     --password {{ gitea_ci_deploy_password }}
     --must-change-password=false
   when: "'ci-deploy' not in gitea_all_users.stdout"
+  changed_when: true
   no_log: true
 
 # ── ci-read user ──────────────────────────────────────────────────────────────
@@ -72,6 +73,7 @@
     --password {{ gitea_ci_read_password }}
     --must-change-password=false
   when: "'ci-read' not in gitea_all_users.stdout"
+  changed_when: true
   no_log: true
 
 # ── API tokens ────────────────────────────────────────────────────────────────
@@ -152,4 +154,5 @@
     --auto-discover-url "https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default/.well-known/openid-configuration"
     --scopes "openid user"
   when: "'OpenBao' not in gitea_auth_list.stdout"
+  changed_when: true
   no_log: true

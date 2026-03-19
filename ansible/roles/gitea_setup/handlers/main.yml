@@ -1,6 +1,6 @@
 ---
 - name: Restart Nginx
-  docker_container:
+  community.docker.docker_container:
     name: gitea-nginx-proxy
     state: started
     restart: yes

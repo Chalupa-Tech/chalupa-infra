@@ -85,7 +85,7 @@
   register: openbao_userpass_check
   no_log: true
 
-- name: Create userpass account for {{ user_item.name }} (first run only)
+- name: "Create userpass account (first run only) for {{ user_item.name }}"
   ansible.builtin.uri:
     url: "{{ openbao_url }}/v1/auth/userpass/users/{{ user_item.name }}"
     method: POST
@@ -100,7 +100,7 @@
   when: openbao_userpass_check.status == 404
   no_log: true
 
-- name: Sync userpass account policies for {{ user_item.name }} (idempotent)
+- name: "Sync userpass account policies (idempotent) for {{ user_item.name }}"
   ansible.builtin.uri:
     url: "{{ openbao_url }}/v1/auth/userpass/users/{{ user_item.name }}"
     method: POST
