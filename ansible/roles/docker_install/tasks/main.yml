@@ -1,7 +1,5 @@
 ---
 # RedHat/Fedora Installation
-
-# RedHat/Fedora Installation
 - name: Install dnf-plugins-core (RedHat)
   ansible.builtin.dnf:
     name: dnf-plugins-core
