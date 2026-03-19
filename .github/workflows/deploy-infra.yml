@@ -91,10 +91,10 @@ jobs:
       - name: Run site.yml (openbao_setup / cluster config)
         run: |
           ansible-playbook \
-            -i ansible/inventory/hosts.yml \
+            -i inventory/hosts.yml \
             --vault-password-file /tmp/vault-pass.txt \
-            ansible/playbooks/site.yml
-        working-directory: ${{ github.workspace }}
+            playbooks/site.yml
+        working-directory: ${{ github.workspace }}/ansible
 
       - name: Cleanup vault password
         if: always()
@@ -129,11 +129,11 @@ jobs:
       - name: Run docker-node.yml (Gitea + OIDC)
         run: |
           ansible-playbook \
-            -i ansible/inventory/hosts.yml \
+            -i inventory/hosts.yml \
             --vault-password-file /tmp/vault-pass.txt \
             -l docker_nodes \
-            ansible/playbooks/docker-node.yml
-        working-directory: ${{ github.workspace }}
+            playbooks/docker-node.yml
+        working-directory: ${{ github.workspace }}/ansible
 
       - name: Cleanup vault password
         if: always()
