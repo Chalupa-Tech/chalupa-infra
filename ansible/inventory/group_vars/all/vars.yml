@@ -3,15 +3,15 @@
 managed_users:
   - name: ddowell
     email: dowell.dustin@gmail.com
-    pubkey_file: "{{ playbook_dir }}/../../ssh_keys/ddowell.pub"
+    pubkey_file: "{{ playbook_dir }}/../ssh_keys/ddowell.pub"
     argocd_admin: true
   - name: tbigelow
     email: gwathruoko@gmail.com
-    pubkey_file: "{{ playbook_dir }}/../../ssh_keys/tbigelow.pub"
+    pubkey_file: "{{ playbook_dir }}/../ssh_keys/tbigelow.pub"
     argocd_admin: true
   - name: ci
     email: github-actions-ci@localhost
-    pubkey_file: "{{ playbook_dir }}/../../ssh_keys/ci.pub"
+    pubkey_file: "{{ playbook_dir }}/../ssh_keys/ci.pub"
 
 # Secrets (Now managed via Ansible Vault: vault.yml)
 ts_authkey: "{{ vault_ts_authkey }}"
