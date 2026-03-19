@@ -21,6 +21,7 @@ on:
 env:
   ANSIBLE_FORCE_COLOR: "1"
   ANSIBLE_HOST_KEY_CHECKING: "False"
+  ANSIBLE_USER: "ci"
 
 jobs:
   detect-changes:
@@ -82,6 +83,11 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
           tags: tag:ci
 
+      - name: Install SSH Key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.ANSIBLE_SSH_PRIVATE_KEY }}
+
       - name: Install Ansible
         run: pip install ansible
 
@@ -119,6 +125,11 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
           tags: tag:ci
+
+      - name: Install SSH Key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.ANSIBLE_SSH_PRIVATE_KEY }}
 
       - name: Install Ansible
         run: pip install ansible
