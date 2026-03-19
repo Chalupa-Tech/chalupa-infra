@@ -152,7 +152,6 @@
 
 - name: Discover Tailscale cert domain
   ansible.builtin.shell: |
-    set -o pipefail
     tailscale cert 2>&1 | grep -oP '(?<=")[^"]+tailbecff0[^"]+(?=")' | head -1
   register: ts_cert_domain
   changed_when: false
