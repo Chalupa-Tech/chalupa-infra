@@ -21,7 +21,7 @@ on:
 env:
   ANSIBLE_FORCE_COLOR: "1"
   ANSIBLE_HOST_KEY_CHECKING: "False"
-  ANSIBLE_USER: "ci"
+  ANSIBLE_REMOTE_USER: "ci"
 
 jobs:
   detect-changes:
