@@ -3,4 +3,4 @@
   community.docker.docker_container:
     name: gitea-nginx-proxy
     state: started
-    restart: yes
+    restart: true
