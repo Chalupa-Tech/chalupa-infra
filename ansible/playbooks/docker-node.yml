@@ -1,7 +1,7 @@
 ---
 - name: Provision Docker and Gitea Servers
   hosts: docker_nodes
-  become: yes
+  become: true
   vars:
     # Explicitly specify to use Python 3
     ansible_python_interpreter: /usr/bin/python3
