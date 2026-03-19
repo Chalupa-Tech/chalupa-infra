@@ -62,6 +62,7 @@ jobs:
           github.event.review.author_association ||
           github.event.issue.author_association
         )
+      )
     runs-on: 'ubuntu-latest'
     permissions:
       contents: 'read'
