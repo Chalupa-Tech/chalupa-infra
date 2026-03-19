@@ -150,12 +150,16 @@
   failed_when: false
   changed_when: false
 
-- name: Discover Tailscale cert domain # noqa: risky-shell-pipe
-  ansible.builtin.shell: |
-    set -o pipefail
-    tailscale cert 2>&1 | grep -oP '(?<=")[^"]+tailbecff0[^"]+(?=")' | head -1
-  register: ts_cert_domain
+- name: Run Tailscale cert to dump domains
+  ansible.builtin.command: tailscale cert
+  register: ts_cert_raw
+  failed_when: false
   changed_when: false
+
+- name: Parse Tailscale cert domain natively
+  ansible.builtin.set_fact:
+    ts_cert_domain:
+      stdout: "{{ ts_cert_raw.stderr | regex_search('\"([^\"]+tailbecff0[^\"]+)\"', '\\1') | first }}"
 
 - name: Generate Tailscale TLS Certificate for Nginx
   ansible.builtin.shell: >
