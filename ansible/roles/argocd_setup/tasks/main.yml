@@ -102,7 +102,7 @@
       mode: "0755"
     - src: "../../../../k8s/platform/core-apps-appset.yaml"
       dest: "core-apps-appset.yaml"
-    - src: "../../local/observability/bootstrap_observability_crds.sh"
+    - src: "../../../../scripts/raspberrypi-k3s/local/observability/bootstrap_observability_crds.sh"
       dest: "bootstrap_observability_crds.sh"
       mode: "0755"
 
