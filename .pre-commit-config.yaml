@@ -5,7 +5,10 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-        args: [--allow-multiple-documents]
+        args: [--allow-multiple-documents, --unsafe]
+        # --unsafe is required because vars.yml uses Ansible's !unsafe tag
+        # (for the OpenBao OIDC scope template). The standard YAML parser
+        # in check-yaml rejects unknown tags without this flag.
 
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.33.0
@@ -28,3 +31,5 @@ repos:
         pass_filenames: false
         always_run: true
         args: ["ansible/"]
+        additional_dependencies:
+          - ansible-core>=2.15

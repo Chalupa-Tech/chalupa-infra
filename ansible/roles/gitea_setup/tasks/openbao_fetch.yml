@@ -1,0 +1,69 @@
+---
+# Runs on docker1. Authenticates to OpenBao via AppRole (role-id/secret-id
+# seeded by openbao_seed.yml) and sets Gitea password facts.
+#
+# gitea_admin_password comes from Ansible Vault (vault_gitea_admin_password)
+# NOT from OpenBao — break-glass credentials must be independent of the
+# secrets backend they protect.
+
+- name: Authenticate to OpenBao via AppRole
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/auth/approle/login"
+    method: POST
+    body_format: json
+    body:
+      role_id: "{{ gitea_setup_bao_role_id }}"
+      secret_id: "{{ gitea_setup_bao_secret_id }}"
+    validate_certs: false
+  register: gitea_setup_bao_login
+  no_log: true
+
+- name: Fetch gitea/db password from OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/db"
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    validate_certs: false
+  register: gitea_setup_bao_db_resp
+  no_log: true
+
+- name: Fetch gitea/ci-deploy password from OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-deploy"
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    validate_certs: false
+  register: gitea_setup_bao_deploy_resp
+  no_log: true
+
+- name: Fetch gitea/ci-read password from OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-read"
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    validate_certs: false
+  register: gitea_setup_bao_read_resp
+  no_log: true
+
+# ── Fetch OIDC credentials from K8s Secret (created by openbao_setup) ─────────
+- name: Fetch Gitea OIDC client credentials from Kubernetes secret
+  ansible.builtin.command: >
+    kubectl get secret gitea-oidc-secret -n openbao
+    -o jsonpath='{.data.client_id},{.data.client_secret}'
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: gitea_setup_oidc_raw
+  delegate_to: "{{ k3s_control_node }}"
+  become: true
+  changed_when: false
+  no_log: true
+
+- name: Set Gitea password and OIDC facts
+  ansible.builtin.set_fact:
+    gitea_db_password: "{{ gitea_setup_bao_db_resp.json.data.data.password }}"
+    gitea_admin_password: "{{ vault_gitea_admin_password }}"
+    gitea_ci_deploy_password: "{{ gitea_setup_bao_deploy_resp.json.data.data.password }}"
+    gitea_ci_read_password: "{{ gitea_setup_bao_read_resp.json.data.data.password }}"
+    gitea_oidc_client_id: "{{ (gitea_setup_oidc_raw.stdout.split(',')[0] | b64decode) }}"
+    gitea_oidc_client_secret: "{{ (gitea_setup_oidc_raw.stdout.split(',')[1] | b64decode) }}"
+  no_log: true

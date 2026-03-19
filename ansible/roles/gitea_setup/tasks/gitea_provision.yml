@@ -1,0 +1,158 @@
+---
+# Runs after Gitea is booted. Uses Gitea CLI and REST API to:
+#   - Create the gitea-admin user (idempotent, password from Ansible Vault)
+#   - Create ci-deploy and ci-read service accounts
+#   - Generate API tokens for each CI account
+#   - Store tokens back to OpenBao
+#   - Register OpenBao as OIDC authentication provider (idempotent)
+
+# ── Admin user ────────────────────────────────────────────────────────────────
+- name: Wait for Gitea to finish initialization
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/version"
+    status_code: 200
+    validate_certs: false
+  register: gitea_init_ready
+  retries: 30
+  delay: 5
+  until: gitea_init_ready.status == 200
+
+- name: Check if gitea-admin user already exists
+  ansible.builtin.command: >
+    docker exec -u git gitea
+    gitea admin user list --admin
+  register: gitea_admin_list
+  changed_when: false
+  no_log: false
+
+- name: Create Gitea admin user (first-time only)
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin user create
+    --username gitea-admin
+    --email admin@gitea.local
+    --password {{ gitea_admin_password }}
+    --admin
+    --must-change-password=false
+  when: "'gitea-admin' not in gitea_admin_list.stdout"
+  changed_when: true
+  no_log: true
+
+- name: Sync gitea-admin password with Ansible Vault value (idempotent)
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin user change-password
+    --username gitea-admin
+    --password {{ gitea_admin_password }}
+  no_log: true
+  changed_when: true
+
+# ── ci-deploy user ────────────────────────────────────────────────────────────
+# REST API user creation is blocked by DISABLE_REGISTRATION even with admin auth.
+# Use the Gitea CLI inside the container instead (bypasses the setting).
+- name: Check if ci-deploy user exists
+  ansible.builtin.command: docker exec -u git gitea gitea admin user list
+  register: gitea_all_users
+  changed_when: false
+
+- name: Create ci-deploy service account via CLI
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin user create
+    --username ci-deploy
+    --email ci-deploy@gitea.local
+    --password {{ gitea_ci_deploy_password }}
+    --must-change-password=false
+  when: "'ci-deploy' not in gitea_all_users.stdout"
+  changed_when: true
+  no_log: true
+
+# ── ci-read user ──────────────────────────────────────────────────────────────
+- name: Create ci-read service account via CLI
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin user create
+    --username ci-read
+    --email ci-read@gitea.local
+    --password {{ gitea_ci_read_password }}
+    --must-change-password=false
+  when: "'ci-read' not in gitea_all_users.stdout"
+  changed_when: true
+  no_log: true
+
+# ── API tokens ────────────────────────────────────────────────────────────────
+# REST token API is blocked by DISABLE_REGISTRATION — use CLI exclusively.
+- name: List ci-deploy existing tokens via CLI
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin user generate-access-token
+    --username ci-deploy --token-name ci-deploy-token --raw
+  register: cli_deploy_token_raw
+  failed_when: false
+  changed_when: cli_deploy_token_raw.rc == 0
+  no_log: true
+
+- name: Extract ci-deploy token
+  ansible.builtin.set_fact:
+    gitea_ci_deploy_token_val: "{{ cli_deploy_token_raw.stdout | trim }}"
+  when: cli_deploy_token_raw.rc == 0 and cli_deploy_token_raw.stdout | trim | length > 0
+  no_log: true
+
+- name: List ci-read existing tokens via CLI
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin user generate-access-token
+    --username ci-read --token-name ci-read-token --raw
+  register: cli_read_token_raw
+  failed_when: false
+  changed_when: cli_read_token_raw.rc == 0
+  no_log: true
+
+- name: Extract ci-read token
+  ansible.builtin.set_fact:
+    gitea_ci_read_token_val: "{{ cli_read_token_raw.stdout | trim }}"
+  when: cli_read_token_raw.rc == 0 and cli_read_token_raw.stdout | trim | length > 0
+  no_log: true
+
+# Store tokens only when freshly created
+- name: Store ci-deploy API token to OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-deploy-token"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    body_format: json
+    body:
+      data:
+        token: "{{ gitea_ci_deploy_token_val }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: cli_deploy_token_raw is not skipped and cli_deploy_token_raw.rc == 0
+  no_log: true
+
+- name: Store ci-read API token to OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-read-token"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    body_format: json
+    body:
+      data:
+        token: "{{ gitea_ci_read_token_val }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: cli_read_token_raw is not skipped and cli_read_token_raw.rc == 0
+  no_log: true
+# ── OpenBao OIDC authentication source ───────────────────────────────────────
+- name: Check if OpenBao OAuth2 auth source exists in Gitea
+  ansible.builtin.command: docker exec -u git gitea gitea admin auth list
+  register: gitea_auth_list
+  changed_when: false
+
+- name: Register OpenBao as OIDC login provider in Gitea
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin auth add-oauth
+    --name "OpenBao"
+    --provider openidConnect
+    --key "{{ gitea_oidc_client_id }}"
+    --secret "{{ gitea_oidc_client_secret }}"
+    --auto-discover-url "https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default/.well-known/openid-configuration"
+    --scopes "openid user"
+  when: "'OpenBao' not in gitea_auth_list.stdout"
+  changed_when: true
+  no_log: true

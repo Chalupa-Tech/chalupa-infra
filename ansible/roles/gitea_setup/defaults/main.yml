@@ -1,0 +1,15 @@
+---
+# Data root on the host for all Gitea-related volumes
+gitea_data_dir: /opt/gitea
+
+# Internal HTTP port Gitea listens on (also published on host)
+gitea_http_port: 3000
+
+# SSH port for Gitea's built-in SSH server
+gitea_ssh_port: 2222
+
+# Docker network name shared by all containers
+gitea_docker_network: infra_network
+
+# Gitea app name shown in the UI
+gitea_app_name: "Chalupa Gitea Registry"

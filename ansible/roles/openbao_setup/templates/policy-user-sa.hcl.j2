@@ -1,0 +1,11 @@
+# Service account policy for {{ user_item.name }}
+
+# Read access to own namespace secrets
+path "{{ user_item.name }}/secret/*" {
+  capabilities = ["read", "list"]
+}
+
+# Read access to shared namespace secrets
+path "shared/secret/*" {
+  capabilities = ["read", "list"]
+}

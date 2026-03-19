@@ -1,0 +1,26 @@
+# User policy for {{ user_item.name }}
+
+# Access to own namespace secrets
+path "{{ user_item.name }}/*" {
+  capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+}
+
+# Access to shared namespace
+path "shared/*" {
+  capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+}
+
+# Allow full OIDC authorization flow (required for Gitea/Grafana/ArgoCD SSO)
+# Must use * wildcard — OpenBao does not support + in policy paths
+path "identity/oidc/*" {
+  capabilities = ["read", "update"]
+}
+
+# Allow token self-lookup and renew (required for OIDC session)
+path "auth/token/lookup-self" {
+  capabilities = ["read"]
+}
+
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}

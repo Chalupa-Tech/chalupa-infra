@@ -4,12 +4,14 @@
     that:
       - ansible_facts['os_family'] == "Debian"
     fail_msg: "This playbook only supports Debian-based systems."
+  when: enforce_debian | default(true) | bool
 
 - name: Verify architecture is 64-bit ARM
   ansible.builtin.assert:
     that:
       - ansible_facts['architecture'] == "aarch64"
     fail_msg: "K3s setup in this project targets 64-bit ARM (aarch64)."
+  when: enforce_arm64 | default(true) | bool
 
 - name: Check if Tailscale is installed
   ansible.builtin.command: tailscale version
