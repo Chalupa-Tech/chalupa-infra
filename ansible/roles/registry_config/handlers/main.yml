@@ -1,6 +1,6 @@
 ---
 - name: Restart K3s
   ansible.builtin.systemd:
-    name: k3s
+    name: "{{ 'k3s' if inventory_hostname in groups.get('k3s_servers', []) + groups.get('k3s_ha_servers', []) else 'k3s-agent' }}"
     state: restarted
   become: true
