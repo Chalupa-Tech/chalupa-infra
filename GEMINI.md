@@ -16,7 +16,7 @@ The cluster nodes (`tpi1`, `tpi2`, `tpi3`) are interconnected using **Tailscale*
 - **Kubernetes (k8s)**: Platform services include `cert-manager`, `external-secrets`, and a full `observability` stack (Prometheus, Grafana, etc.).
 
 ## Directory Structure
-- `scripts/raspberrypi-k3s/ansible/`: Ansible configuration, playbooks, and roles.
+- `ansible/`: Ansible configuration, playbooks, and roles.
   - `roles/`: Modular components (`argocd_setup`, `k3s_install`, `openbao_setup`, `pi_prepare`, `tailscale_services`, `user_setup`).
   - `playbooks/site.yml`: Main multi-stage orchestration playbook.
 - `k8s/platform/`: ArgoCD `ApplicationSet` and manifests for core infrastructure services (`cert-manager`, `external-secrets`, `observability`, `openbao`).
@@ -35,7 +35,7 @@ The cluster is provisioned in four distinct stages via Ansible:
 
 Command to execute:
 ```bash
-cd scripts/raspberrypi-k3s/ansible
+cd ansible
 ansible-playbook playbooks/site.yml --ask-vault-pass
 ```
 *Note: Secrets (Tailscale AuthKey, Cloudflare API Key) are managed via Ansible Vault in `inventory/group_vars/all/vault.yml`. Ensure you have the vault password.*
@@ -58,7 +58,7 @@ New applications are added by:
 
 ## Development Conventions
 - **Workflow**: All changes must be merged via Pull Requests (PRs). Direct commits to the main branch are discouraged/restricted.
-- **Ansible**: Roles are modular and located in `scripts/raspberrypi-k3s/ansible/roles/`. Use `ansible-lint` to verify playbooks.
+- **Ansible**: Roles are modular and located in `ansible/roles/`. Use `ansible-lint` to verify playbooks.
 - **Secrets Management**: Sensitive data (API keys, auth tokens) MUST be managed according to the following rules:
     - **Core Apps (`core-apps` ApplicationSet)**: Must NOT rely on external apps (like OpenBao) for their bootstrap. Their secrets MUST be stored in Ansible Vault and provisioned directly into Kubernetes secrets during the Ansible bootstrapping phase.
     - **Other Apps**: All other applications and user workloads SHOULD utilize OpenBao for secret storage and retrieval via External-Secrets.
