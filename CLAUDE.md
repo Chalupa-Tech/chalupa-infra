@@ -27,14 +27,15 @@ k8s/
   platform/                     # Core infrastructure ApplicationSets
     argocd/                     # ArgoCD install manifests
     cert-manager/               # Helm chart wrapper
-    external-secrets/           # ESO + ClusterSecretStore
+    external-secrets/           # External Secrets Operator
     observability/              # Kube Prometheus Stack
     openbao/                    # OpenBao HA Helm chart
     management-proxy/           # Nginx reverse proxy
     tailscale-operator/         # Tailscale ingress
     core-apps-appset.yaml       # ApplicationSet for all platform services
   apps/                         # End-user application manifests
-    example-app-appset.yaml     # Template ApplicationSet for apps
+    schwab/                     # Schwab service group (base + per-service charts)
+    user-apps-appset.yaml       # ApplicationSet for user app instances
 scripts/                        # Deploy scripts, local utilities
 .github/workflows/              # CI (validate-infra.yml) + CD (deploy-infra.yml)
 docs/                           # Architecture guides, implementation docs

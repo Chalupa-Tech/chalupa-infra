@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-notify
+  labels:
+    app: go-notify
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-notify
+  template:
+    metadata:
+      labels:
+        app: go-notify
+    spec:
+      containers:
+        - name: go-notify
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          envFrom:
+            - secretRef:
+                name: schwab-secrets
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: token-storage
+              mountPath: /root/data
+      volumes:
+        - name: token-storage
+          persistentVolumeClaim:
+            claimName: schwab-token-pvc

@@ -1,0 +1,6 @@
+---
+apiVersion: v2
+name: schwab-base
+description: Shared infrastructure for Schwab microservices (secrets, storage)
+type: application
+version: 0.1.0

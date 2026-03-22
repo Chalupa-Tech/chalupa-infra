@@ -3,6 +3,14 @@
 # The ci-read password is sourced from Ansible Vault (bootstrap-tier secret),
 # not fetched from OpenBao at runtime.
 
+- name: Ensure K3s config directory exists
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Template K3s registries.yaml
   ansible.builtin.template:
     src: registries.yaml.j2

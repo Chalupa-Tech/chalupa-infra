@@ -1,0 +1,13 @@
+---
+image:
+  registry: gitea.tailbecff0.ts.net
+  repository: chalupa-tech/go-notify
+  tag: latest
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
