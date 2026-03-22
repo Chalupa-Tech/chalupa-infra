@@ -43,7 +43,7 @@ ansible-playbook playbooks/site.yml --ask-vault-pass
 ### 2. Managing Applications (GitOps)
 New applications are added by:
 1. Creating manifests in `k8s/apps/<app-name>`.
-2. Adding an entry to the `generators.list.elements` in an `ApplicationSet` (e.g., `k8s/apps/example-app-appset.yaml`).
+2. Adding an entry to the `generators.list.elements` in `k8s/apps/user-apps-appset.yaml`.
 3. Committing and pushing changes to the repository's `main` branch (ArgoCD is configured to track `main`).
 
 ### 3. Local Environment Setup

@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: go-notify
+description: Stock reporting and notification service
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

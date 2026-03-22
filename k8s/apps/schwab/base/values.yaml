@@ -1,0 +1,4 @@
+---
+vault:
+  server: "http://openbao-active.openbao.svc.cluster.local:8200"
+  path: secret

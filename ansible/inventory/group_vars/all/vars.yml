@@ -15,8 +15,10 @@ managed_users:
 
 # Application workloads deployed to K3s via ArgoCD.
 # Each entry gets: K8s namespace, OpenBao policy, Kubernetes auth role.
+# Namespace = service-group + tenant (e.g. schwab-ddowell).
+# Multiple services share a namespace and its secrets.
 managed_apps:
-  - name: go-notify
+  - name: schwab-ddowell
 
 # Secrets (Now managed via Ansible Vault: vault.yml)
 gitea_ci_read_password: "{{ vault_gitea_ci_read_password }}"

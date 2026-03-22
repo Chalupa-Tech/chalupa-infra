@@ -94,22 +94,15 @@ We use ArgoCD `ApplicationSets` to manage groups of applications.
 Core platform services are defined in `k8s/platform/core-apps-appset.yaml`. These are bootstrapped during the Ansible run but are managed by ArgoCD thereafter.
 
 ### Adding New Applications
-To add new applications, follow the pattern in `k8s/apps/example-app-appset.yaml`.
+User applications are defined in `k8s/apps/user-apps-appset.yaml`. Service groups share a namespace per tenant (e.g., `schwab-ddowell`).
 
-1.  Create your application manifests in a sub-folder (e.g., `k8s/apps/my-new-app`).
-2.  Add an entry to the `generators.list.elements` in an ApplicationSet:
-
-```yaml
-- name: my-new-app
-  path: k8s/apps/my-new-app
-```
-
-3.  Apply the ApplicationSet (or let the "App of Apps" discover it):
+1.  Create a service group directory with a `base/` chart (shared secrets, storage) and per-service charts (e.g., `k8s/apps/schwab/go-notify/`).
+2.  Add entries to `generators.list.elements` in the ApplicationSet — one for base, one per service, all targeting the same namespace.
+3.  Add the namespace to `managed_apps` in `ansible/inventory/group_vars/all/vars.yml` and run Ansible to provision OpenBao access.
+4.  Deploy:
 
 ```bash
-# Manual apply with repo URL injection
-export REPO_URL=$(git remote get-url origin)
-sed "s|{{REPO_URL}}|$REPO_URL|g" k8s/apps/example-app-appset.yaml | kubectl apply -f -
+bash scripts/deploy-user-apps.sh
 ```
 
 ## Troubleshooting

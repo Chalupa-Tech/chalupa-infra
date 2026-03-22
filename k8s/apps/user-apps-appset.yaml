@@ -1,0 +1,38 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: user-apps
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          # Schwab service group — shared secrets per tenant, independent service charts.
+          # Base deploys SecretStore + ExternalSecret + PVC; services deploy Deployments.
+          # To add a tenant: append base + service entries here, add to managed_apps in vars.yml,
+          # and seed secrets at secret/data/schwab-<user>/ in OpenBao.
+          - name: schwab-ddowell-base
+            path: k8s/apps/schwab/base
+            namespace: schwab-ddowell
+          - name: schwab-ddowell-go-notify
+            path: k8s/apps/schwab/go-notify
+            namespace: schwab-ddowell
+  template:
+    metadata:
+      name: "{{name}}"
+    spec:
+      project: default
+      source:
+        repoURL: "{{REPO_URL}}"
+        targetRevision: HEAD
+        path: "{{path}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{namespace}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
