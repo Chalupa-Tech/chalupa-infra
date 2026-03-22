@@ -1,0 +1,49 @@
+---
+# Provisions an application namespace in OpenBao with:
+#   - K8s namespace and ServiceAccount
+#   - OpenBao read-only policy for the app's secret path
+#   - Kubernetes auth role binding the app's SA to the policy
+#
+# Called once per entry in `managed_apps` (see vars.yml).
+
+- name: Ensure K8s namespace exists for {{ app_item.name }}
+  ansible.builtin.command: kubectl create namespace {{ app_item.name }}
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: openbao_app_ns_create
+  failed_when: false
+  changed_when: "'created' in openbao_app_ns_create.stdout"
+
+- name: Write app policy for {{ app_item.name }}
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/policies/acl/app-{{ app_item.name }}-policy"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      policy: |
+        # Application read-only policy for {{ app_item.name }}
+        path "secret/data/{{ app_item.name }}/*" {
+          capabilities = ["read", "list"]
+        }
+        path "secret/data/gitea/ci-read" {
+          capabilities = ["read"]
+        }
+    status_code: [200, 204]
+    validate_certs: false
+  no_log: true
+
+- name: Write Kubernetes auth role for {{ app_item.name }}
+  ansible.builtin.shell: |
+    kubectl exec -n openbao openbao-0 -- sh -c "
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write auth/kubernetes/role/{{ app_item.name }}-role \
+        bound_service_account_names=default \
+        bound_service_account_namespaces={{ app_item.name }} \
+        policies=app-{{ app_item.name }}-policy \
+        ttl=1h
+    "
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+  no_log: true
