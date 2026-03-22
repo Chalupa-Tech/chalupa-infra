@@ -53,7 +53,7 @@ jobs:
           SITE=false
           DOCKER=false
 
-          if echo "$CHANGED" | grep -qE '^ansible/roles/(openbao_setup|argocd_setup|k3s_install)/'; then
+          if echo "$CHANGED" | grep -qE '^ansible/roles/(openbao_setup|argocd_setup|k3s_install|registry_config)/'; then
             SITE=true
           fi
           if echo "$CHANGED" | grep -qE '^ansible/roles/gitea_setup/|^ansible/playbooks/docker-node\.yml'; then

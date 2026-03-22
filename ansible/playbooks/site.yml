@@ -61,3 +61,9 @@
   roles:
     - argocd_setup
     - openbao_setup
+
+- name: Configure Container Registry on All K3s Nodes
+  hosts: k3s_servers:k3s_ha_servers:k3s_agents
+  become: true
+  roles:
+    - registry_config

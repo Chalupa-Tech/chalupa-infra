@@ -1,0 +1,37 @@
+---
+# Configures K3s containerd to authenticate to the Gitea container registry.
+# Must run AFTER OpenBao and Gitea are provisioned (ci-read credentials exist).
+# Fetches the ci-read password from OpenBao, then templates registries.yaml.
+
+- name: Fetch ci-read password from OpenBao
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-read"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ openbao_root_token }}"
+    status_code: [200]
+    validate_certs: false
+  register: registry_config_bao_resp
+  delegate_to: "{{ k3s_control_node }}"
+  run_once: true
+  no_log: true
+
+- name: Set ci-read password fact
+  ansible.builtin.set_fact:
+    registry_ci_read_password: "{{ registry_config_bao_resp.json.data.data.password }}"
+  no_log: true
+
+- name: Template K3s registries.yaml
+  ansible.builtin.template:
+    src: registries.yaml.j2
+    dest: /etc/rancher/k3s/registries.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart K3s
+
+- name: Verify registries.yaml was written
+  ansible.builtin.stat:
+    path: /etc/rancher/k3s/registries.yaml
+  register: registry_config_stat
+  failed_when: not registry_config_stat.stat.exists

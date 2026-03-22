@@ -163,5 +163,11 @@
       loop_control:
         loop_var: user_item
 
+    - name: Setup Application Namespaces and Roles
+      ansible.builtin.include_tasks: app_setup.yml
+      loop: "{{ managed_apps | default([]) }}"
+      loop_control:
+        loop_var: app_item
+
     - name: Setup Grafana OIDC
       ansible.builtin.include_tasks: oidc_setup.yml
