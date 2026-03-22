@@ -19,6 +19,7 @@ managed_apps:
   - name: go-notify
 
 # Secrets (Now managed via Ansible Vault: vault.yml)
+gitea_ci_read_password: "{{ vault_gitea_ci_read_password }}"
 ts_authkey: "{{ vault_ts_authkey }}"
 ts_docker_authkey: "{{ vault_ts_docker_authkey }}"
 ts_operator_client_id: "{{ vault_ts_operator_client_id }}"
