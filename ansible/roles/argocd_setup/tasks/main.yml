@@ -79,33 +79,6 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
 
-- name: Set bootstrap directory fact
-  ansible.builtin.set_fact:
-    argocd_setup_bootstrap_dir: /tmp/argocd-bootstrap
-
-- name: Create temporary directory for core apps bootstrap
-  ansible.builtin.file:
-    path: "{{ argocd_setup_bootstrap_dir }}"
-    state: directory
-    mode: "0755"
-  check_mode: false
-
-- name: Copy core apps bootstrap files
-  ansible.builtin.copy:
-    src: "{{ item.src }}"
-    dest: "{{ argocd_setup_bootstrap_dir }}/{{ item.dest | basename }}"
-    mode: "{{ item.mode | default('0644') }}"
-  check_mode: false
-  loop:
-    - src: "../../../../scripts/deploy-core-apps.sh"
-      dest: "deploy-core-apps.sh"
-      mode: "0755"
-    - src: "../../../../k8s/platform/core-apps-appset.yaml"
-      dest: "core-apps-appset.yaml"
-    - src: "../../../../scripts/raspberrypi-k3s/local/observability/bootstrap_observability_crds.sh"
-      dest: "bootstrap_observability_crds.sh"
-      mode: "0755"
-
 - name: Get repository URL
   ansible.builtin.command: git remote get-url origin # noqa: command-instead-of-module
   delegate_to: localhost
@@ -113,20 +86,53 @@
   become: false
   changed_when: false
 
-- name: Deploy core applications via ArgoCD
-  ansible.builtin.command: ./deploy-core-apps.sh
-  args:
-    chdir: "{{ argocd_setup_bootstrap_dir }}"
+- name: Set repository URL fact
+  ansible.builtin.set_fact:
+    argocd_repo_url: "{{ argocd_setup_repo_url_cmd.stdout }}"
+
+- name: Copy observability CRD bootstrap script
+  ansible.builtin.copy:
+    src: ../../../../scripts/raspberrypi-k3s/local/observability/bootstrap_observability_crds.sh
+    dest: /tmp/bootstrap_observability_crds.sh
+    mode: "0755"
+
+- name: Bootstrap observability CRDs
+  ansible.builtin.command: /tmp/bootstrap_observability_crds.sh
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-    REPO_URL: "{{ argocd_setup_repo_url_cmd.stdout | default('https://github.com/example/repo') }}"
-    APPSET_FILE: "{{ argocd_setup_bootstrap_dir }}/core-apps-appset.yaml"
-    CRD_BOOTSTRAP_SCRIPT: >-
-      {{ argocd_setup_bootstrap_dir }}/bootstrap_observability_crds.sh
   changed_when: true
 
-- name: Cleanup bootstrap files
+- name: Cleanup CRD bootstrap script
   ansible.builtin.file:
-    path: "{{ argocd_setup_bootstrap_dir }}"
+    path: /tmp/bootstrap_observability_crds.sh
     state: absent
+  when: not ansible_check_mode
+
+- name: Template ApplicationSets
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/tmp/{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - src: core-apps-appset.yaml.j2
+      dest: core-apps-appset.yaml
+    - src: user-apps-appset.yaml.j2
+      dest: user-apps-appset.yaml
+
+- name: Apply ApplicationSets to ArgoCD
+  ansible.builtin.command: kubectl apply -f /tmp/{{ item }}
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  loop:
+    - core-apps-appset.yaml
+    - user-apps-appset.yaml
+  changed_when: true
+
+- name: Cleanup templated ApplicationSets
+  ansible.builtin.file:
+    path: "/tmp/{{ item }}"
+    state: absent
+  loop:
+    - core-apps-appset.yaml
+    - user-apps-appset.yaml
   when: not ansible_check_mode

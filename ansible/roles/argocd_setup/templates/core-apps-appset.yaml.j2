@@ -1,0 +1,42 @@
+{% raw %}
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: core-apps
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - name: cert-manager
+            path: k8s/platform/cert-manager
+          - name: external-secrets
+            path: k8s/platform/external-secrets
+          - name: observability
+            path: k8s/platform/observability
+          - name: openbao
+            path: k8s/platform/openbao
+          - name: management-proxy
+            path: k8s/platform/management-proxy
+          - name: tailscale-operator
+            path: k8s/platform/tailscale-operator
+  template:
+    metadata:
+      name: '{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: '{% endraw %}{{ argocd_repo_url }}{% raw %}'
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{name}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+{% endraw %}
