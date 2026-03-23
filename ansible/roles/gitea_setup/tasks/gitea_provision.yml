@@ -93,6 +93,7 @@
     user: gitea-admin
     password: "{{ gitea_admin_password }}"
     force_basic_auth: true
+    return_content: false
     status_code: [204, 404, 422]
     validate_certs: false
   loop:
@@ -105,13 +106,14 @@
 # ── Organizations ────────────────────────────────────────────────────────────
 # Create orgs and add service accounts as members so they can push container
 # images to gitea.tailbecff0.ts.net/<org>/<image>.
-- name: Check if organization exists — {{ item.name }}
+- name: Check if organization exists
   ansible.builtin.uri:
     url: "http://localhost:{{ gitea_http_port }}/api/v1/orgs/{{ item.name }}"
     method: GET
     user: gitea-admin
     password: "{{ gitea_admin_password }}"
     force_basic_auth: true
+    return_content: false
     status_code: [200, 404]
     validate_certs: false
   register: org_check
@@ -119,13 +121,14 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Create organization — {{ item.item.name }}
+- name: Create organization
   ansible.builtin.uri:
     url: "http://localhost:{{ gitea_http_port }}/api/v1/orgs"
     method: POST
     user: gitea-admin
     password: "{{ gitea_admin_password }}"
     force_basic_auth: true
+    return_content: false
     body_format: json
     body:
       username: "{{ item.item.name }}"
@@ -141,13 +144,14 @@
 # Gitea manages org membership through teams, not direct member endpoints.
 # Every org has a default "Owners" team. We look up its ID, then add members.
 # Ref: https://gitea.com/api/swagger#/organization/orgListTeams
-- name: Get Owners team for organization — {{ item.name }}
+- name: Get Owners team for organization
   ansible.builtin.uri:
     url: "http://localhost:{{ gitea_http_port }}/api/v1/orgs/{{ item.name }}/teams"
     method: GET
     user: gitea-admin
     password: "{{ gitea_admin_password }}"
     force_basic_auth: true
+    return_content: true
     status_code: [200]
     validate_certs: false
   register: org_teams
@@ -172,6 +176,7 @@
     user: gitea-admin
     password: "{{ gitea_admin_password }}"
     force_basic_auth: true
+    return_content: false
     status_code: [204, 404]
     validate_certs: false
   register: team_member_result
