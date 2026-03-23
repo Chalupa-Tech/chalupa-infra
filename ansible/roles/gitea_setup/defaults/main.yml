@@ -13,3 +13,13 @@ gitea_docker_network: infra_network
 
 # Gitea app name shown in the UI
 gitea_app_name: "Chalupa Gitea Registry"
+
+# Service accounts with API tokens managed in OpenBao.
+# Adding a new entry here auto-provisions the token on next playbook run.
+gitea_service_accounts:
+  - username: ci-deploy
+    token_name: ci-deploy-token
+    vault_path: gitea/ci-deploy-token
+  - username: ci-read
+    token_name: ci-read-token
+    vault_path: gitea/ci-read-token

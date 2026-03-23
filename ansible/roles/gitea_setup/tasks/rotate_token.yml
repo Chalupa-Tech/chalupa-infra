@@ -1,0 +1,56 @@
+---
+# Ensures a Gitea service account token exists in OpenBao.
+# If missing from OpenBao: deletes any stale Gitea token, regenerates, and stores.
+#
+# Expected loop_var: svc_account with keys:
+#   - username:   Gitea username (e.g. ci-deploy)
+#   - token_name: Gitea token name (e.g. ci-deploy-token)
+#   - vault_path: OpenBao KV path (e.g. gitea/ci-deploy-token)
+
+- name: "Check OpenBao for token — {{ svc_account.username }}"
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/{{ svc_account.vault_path }}"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: bao_token_check
+  no_log: true
+
+- name: "Delete stale Gitea token — {{ svc_account.username }}"
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/users/{{ svc_account.username }}/tokens/{{ svc_account.token_name }}"
+    method: DELETE
+    user: gitea-admin
+    password: "{{ gitea_admin_password }}"
+    force_basic_auth: true
+    status_code: [204, 404, 422]
+    validate_certs: false
+  when: bao_token_check.status == 404
+
+- name: "Generate Gitea API token — {{ svc_account.username }}"
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin user generate-access-token
+    --username {{ svc_account.username }}
+    --token-name {{ svc_account.token_name }}
+    --scopes all --raw
+  register: cli_token_raw
+  changed_when: true
+  when: bao_token_check.status == 404
+  no_log: true
+
+- name: "Store token to OpenBao — {{ svc_account.username }}"
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/{{ svc_account.vault_path }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
+    body_format: json
+    body:
+      data:
+        token: "{{ cli_token_raw.stdout | trim }}"
+    status_code: [200, 204]
+    validate_certs: false
+  when: bao_token_check.status == 404 and cli_token_raw.rc == 0
+  no_log: true
