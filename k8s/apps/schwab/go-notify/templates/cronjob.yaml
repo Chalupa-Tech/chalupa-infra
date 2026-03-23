@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: go-notify
+  labels:
+    app: go-notify
+spec:
+  schedule: "{{ .Values.schedule }}"
+  timeZone: "{{ .Values.timeZone }}"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: go-notify
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: go-notify
+              image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              envFrom:
+                - secretRef:
+                    name: schwab-secrets
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+              volumeMounts:
+                - name: token-storage
+                  mountPath: /root/data
+          volumes:
+            - name: token-storage
+              persistentVolumeClaim:
+                claimName: schwab-token-pvc

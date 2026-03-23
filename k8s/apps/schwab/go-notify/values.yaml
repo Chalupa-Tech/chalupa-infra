@@ -1,4 +1,7 @@
 ---
+schedule: "30 14 * * 1-5"
+timeZone: "America/Denver"
+
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-notify
