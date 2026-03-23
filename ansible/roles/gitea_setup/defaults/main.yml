@@ -16,13 +16,15 @@ gitea_app_name: "Chalupa Gitea Registry"
 
 # Organizations provisioned in Gitea's container registry.
 # Each org gets created via REST API with admin auth, and listed
-# service accounts are added as members (owner role).
+# members are added to the Owners team. Add a line to add a member.
 gitea_organizations:
   - name: chalupa-tech
     description: "Chalupa Tech container images"
     members:
       - ci-deploy
       - ci-read
+      - ddowell
+      - tbigelow
 
 # Service accounts with API tokens managed in OpenBao.
 # Adding a new entry here auto-provisions the token on next playbook run.
