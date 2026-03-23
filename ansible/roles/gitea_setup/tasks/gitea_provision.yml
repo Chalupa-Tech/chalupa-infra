@@ -138,14 +138,41 @@
   loop_control:
     label: "{{ item.item.name }}"
 
-- name: Add members to organizations
+# Gitea manages org membership through teams, not direct member endpoints.
+# Every org has a default "Owners" team. We look up its ID, then add members.
+# Ref: https://gitea.com/api/swagger#/organization/orgListTeams
+- name: Get Owners team for organization — {{ item.name }}
   ansible.builtin.uri:
-    url: "http://localhost:{{ gitea_http_port }}/api/v1/orgs/{{ item.0.name }}/members/{{ item.1 }}"
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/orgs/{{ item.name }}/teams"
+    method: GET
+    user: gitea-admin
+    password: "{{ gitea_admin_password }}"
+    force_basic_auth: true
+    status_code: [200]
+    validate_certs: false
+  register: org_teams
+  loop: "{{ gitea_organizations }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Build org-to-team-id mapping
+  ansible.builtin.set_fact:
+    org_owner_team_ids: >-
+      {{ org_owner_team_ids | default({}) | combine({
+        item.item.name: (item.json | selectattr('name', 'equalto', 'Owners') | first).id
+      }) }}
+  loop: "{{ org_teams.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Add members to organization teams
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/teams/{{ org_owner_team_ids[item.0.name] }}/members/{{ item.1 }}"
     method: PUT
     user: gitea-admin
     password: "{{ gitea_admin_password }}"
     force_basic_auth: true
-    status_code: [204, 404]
+    status_code: [204]
     validate_certs: false
   loop: "{{ gitea_organizations | subelements('members') }}"
   loop_control:
