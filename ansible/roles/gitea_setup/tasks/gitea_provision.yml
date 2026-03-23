@@ -37,12 +37,19 @@
   changed_when: true
   no_log: true
 
-- name: Sync gitea-admin password with Ansible Vault value (idempotent)
+- name: Sync gitea-admin password and clear must-change flag
   ansible.builtin.command: >
     docker exec -u git gitea gitea admin user change-password
     --username gitea-admin
     --password {{ gitea_admin_password }}
+    --must-change-password=false
   no_log: true
+  changed_when: true
+
+- name: Ensure gitea-admin must-change-password flag is cleared
+  ansible.builtin.command: >
+    docker exec -u git gitea gitea admin user must-change-password
+    --unset gitea-admin
   changed_when: true
 
 # ── ci-deploy user ────────────────────────────────────────────────────────────
