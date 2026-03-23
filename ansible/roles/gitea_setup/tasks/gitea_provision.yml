@@ -77,67 +77,16 @@
   no_log: true
 
 # ── API tokens ────────────────────────────────────────────────────────────────
-# REST token API is blocked by DISABLE_REGISTRATION — use CLI exclusively.
-- name: List ci-deploy existing tokens via CLI
-  ansible.builtin.command: >
-    docker exec -u git gitea gitea admin user generate-access-token
-    --username ci-deploy --token-name ci-deploy-token --raw
-  register: cli_deploy_token_raw
-  failed_when: false
-  changed_when: cli_deploy_token_raw.rc == 0
-  no_log: true
+# Idempotent token management: check OpenBao first, rotate if missing.
+# The Gitea CLI can create tokens but not delete them, so we use the REST API
+# (with admin basic auth) to delete stale tokens before regenerating.
+# Looped over gitea_service_accounts (defined in defaults/main.yml).
 
-- name: Extract ci-deploy token
-  ansible.builtin.set_fact:
-    gitea_ci_deploy_token_val: "{{ cli_deploy_token_raw.stdout | trim }}"
-  when: cli_deploy_token_raw.rc == 0 and cli_deploy_token_raw.stdout | trim | length > 0
-  no_log: true
-
-- name: List ci-read existing tokens via CLI
-  ansible.builtin.command: >
-    docker exec -u git gitea gitea admin user generate-access-token
-    --username ci-read --token-name ci-read-token --raw
-  register: cli_read_token_raw
-  failed_when: false
-  changed_when: cli_read_token_raw.rc == 0
-  no_log: true
-
-- name: Extract ci-read token
-  ansible.builtin.set_fact:
-    gitea_ci_read_token_val: "{{ cli_read_token_raw.stdout | trim }}"
-  when: cli_read_token_raw.rc == 0 and cli_read_token_raw.stdout | trim | length > 0
-  no_log: true
-
-# Store tokens only when freshly created
-- name: Store ci-deploy API token to OpenBao
-  ansible.builtin.uri:
-    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-deploy-token"
-    method: POST
-    headers:
-      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
-    body_format: json
-    body:
-      data:
-        token: "{{ gitea_ci_deploy_token_val }}"
-    status_code: [200, 204]
-    validate_certs: false
-  when: cli_deploy_token_raw is not skipped and cli_deploy_token_raw.rc == 0
-  no_log: true
-
-- name: Store ci-read API token to OpenBao
-  ansible.builtin.uri:
-    url: "{{ openbao_url }}/v1/secret/data/gitea/ci-read-token"
-    method: POST
-    headers:
-      X-Vault-Token: "{{ gitea_setup_bao_login.json.auth.client_token }}"
-    body_format: json
-    body:
-      data:
-        token: "{{ gitea_ci_read_token_val }}"
-    status_code: [200, 204]
-    validate_certs: false
-  when: cli_read_token_raw is not skipped and cli_read_token_raw.rc == 0
-  no_log: true
+- name: Ensure Gitea service account tokens are in OpenBao
+  ansible.builtin.include_tasks: rotate_token.yml
+  loop: "{{ gitea_service_accounts }}"
+  loop_control:
+    loop_var: svc_account
 # ── OpenBao OIDC authentication source ───────────────────────────────────────
 - name: Check if OpenBao OAuth2 auth source exists in Gitea
   ansible.builtin.command: docker exec -u git gitea gitea admin auth list
