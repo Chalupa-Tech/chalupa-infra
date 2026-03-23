@@ -2,6 +2,7 @@
 # Runs after Gitea is booted. Uses Gitea CLI and REST API to:
 #   - Create the gitea-admin user (idempotent, password from Ansible Vault)
 #   - Create ci-deploy and ci-read service accounts
+#   - Create organizations for container registry (list-driven)
 #   - Generate API tokens for each CI account
 #   - Store tokens back to OpenBao
 #   - Register OpenBao as OIDC authentication provider (idempotent)
@@ -81,6 +82,74 @@
     --must-change-password=false
   when: "'ci-read' not in gitea_all_users.stdout"
   changed_when: true
+  no_log: true
+
+# ── Orphan token cleanup ────────────────────────────────────────────────────
+# Manually created tokens from debugging sessions. DELETE is idempotent (204/404).
+- name: Remove orphaned tokens
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/users/{{ item.user }}/tokens/{{ item.token }}"
+    method: DELETE
+    user: gitea-admin
+    password: "{{ gitea_admin_password }}"
+    force_basic_auth: true
+    status_code: [204, 404, 422]
+    validate_certs: false
+  loop:
+    - {user: ci-deploy, token: ci-deploy-registry}
+    - {user: ci-read, token: ci-read-registry}
+  loop_control:
+    label: "{{ item.user }}/{{ item.token }}"
+  no_log: true
+
+# ── Organizations ────────────────────────────────────────────────────────────
+# Create orgs and add service accounts as members so they can push container
+# images to gitea.tailbecff0.ts.net/<org>/<image>.
+- name: Check if organization exists — {{ item.name }}
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/orgs/{{ item.name }}"
+    method: GET
+    user: gitea-admin
+    password: "{{ gitea_admin_password }}"
+    force_basic_auth: true
+    status_code: [200, 404]
+    validate_certs: false
+  register: org_check
+  loop: "{{ gitea_organizations }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create organization — {{ item.item.name }}
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/orgs"
+    method: POST
+    user: gitea-admin
+    password: "{{ gitea_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      username: "{{ item.item.name }}"
+      description: "{{ item.item.description | default('') }}"
+      visibility: "private"
+    status_code: [201]
+    validate_certs: false
+  when: item.status == 404
+  loop: "{{ org_check.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Add members to organizations
+  ansible.builtin.uri:
+    url: "http://localhost:{{ gitea_http_port }}/api/v1/orgs/{{ item.0.name }}/members/{{ item.1 }}"
+    method: PUT
+    user: gitea-admin
+    password: "{{ gitea_admin_password }}"
+    force_basic_auth: true
+    status_code: [204, 404]
+    validate_certs: false
+  loop: "{{ gitea_organizations | subelements('members') }}"
+  loop_control:
+    label: "{{ item.0.name }}/{{ item.1 }}"
   no_log: true
 
 # ── API tokens ────────────────────────────────────────────────────────────────
