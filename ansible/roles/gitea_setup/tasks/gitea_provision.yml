@@ -172,12 +172,21 @@
     user: gitea-admin
     password: "{{ gitea_admin_password }}"
     force_basic_auth: true
-    status_code: [204]
+    status_code: [204, 404]
     validate_certs: false
+  register: team_member_result
   loop: "{{ gitea_organizations | subelements('members') }}"
   loop_control:
     label: "{{ item.0.name }}/{{ item.1 }}"
   no_log: true
+
+- name: Warn about users not yet in Gitea
+  ansible.builtin.debug:
+    msg: "User '{{ item.item.1 }}' not found in Gitea — they need to log in via OIDC first"
+  loop: "{{ team_member_result.results }}"
+  loop_control:
+    label: "{{ item.item.1 }}"
+  when: item.status == 404
 
 # ── API tokens ────────────────────────────────────────────────────────────────
 # Idempotent token management: check OpenBao first, rotate if missing.
