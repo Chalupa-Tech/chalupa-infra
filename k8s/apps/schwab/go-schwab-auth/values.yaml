@@ -9,10 +9,6 @@ vault:
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
 
-# Schwab requires https://127.0.0.1 callback URLs for developer apps.
-# OAuth flow uses kubectl port-forward; Tailscale Ingress serves health/index only.
-externalURL: "https://127.0.0.1:8080"
-
 tailscale:
   hostname: go-schwab-auth
 
