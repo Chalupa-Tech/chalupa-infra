@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-schwab-auth
+  labels:
+    app: go-schwab-auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-schwab-auth
+  template:
+    metadata:
+      labels:
+        app: go-schwab-auth
+    spec:
+      containers:
+        - name: go-schwab-auth
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: VAULT_ADDR
+              value: {{ .Values.vault.addr | quote }}
+            - name: VAULT_ROLE
+              value: "{{ .Release.Namespace }}-role"
+            - name: NATS_URL
+              value: {{ .Values.nats.url | quote }}
+            - name: EXTERNAL_URL
+              value: "https://{{ .Values.tailscale.hostname }}.tailbecff0.ts.net"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
