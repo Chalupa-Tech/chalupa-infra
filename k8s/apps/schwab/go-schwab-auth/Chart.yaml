@@ -1,0 +1,6 @@
+apiVersion: v2
+name: go-schwab-auth
+description: Centralized Schwab OAuth token broker with NATS event publishing
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

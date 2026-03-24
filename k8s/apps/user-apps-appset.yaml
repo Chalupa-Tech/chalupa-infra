@@ -22,6 +22,9 @@ spec:
           - name: schwab-ddowell-go-notify
             path: k8s/apps/schwab/go-notify
             namespace: schwab-ddowell
+          - name: schwab-ddowell-go-schwab-auth
+            path: k8s/apps/schwab/go-schwab-auth
+            namespace: schwab-ddowell
   template:
     metadata:
       name: "{{name}}"

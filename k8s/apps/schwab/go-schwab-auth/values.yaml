@@ -1,14 +1,19 @@
----
-schedule: "30 14 * * 1-5"
-timeZone: "America/Denver"
-
 image:
   registry: gitea.tailbecff0.ts.net
-  repository: chalupa-tech/go-notify
+  repository: chalupa-tech/go-schwab-auth
   tag: latest
+
+vault:
+  addr: "http://openbao-active.openbao.svc.cluster.local:8200"
 
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
+
+tailscale:
+  hostname: go-schwab-auth
+
+service:
+  port: 8080
 
 resources:
   requests:

@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: go-schwab-auth-tailscale
+spec:
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - {{ .Values.tailscale.hostname }}.tailbecff0.ts.net
+  rules:
+    - host: {{ .Values.tailscale.hostname }}.tailbecff0.ts.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: go-schwab-auth
+                port:
+                  number: {{ .Values.service.port }}
