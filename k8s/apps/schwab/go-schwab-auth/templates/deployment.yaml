@@ -33,12 +33,14 @@ spec:
             httpGet:
               path: /healthz
               port: {{ .Values.service.port }}
+              scheme: HTTPS
             initialDelaySeconds: 5
             periodSeconds: 30
           readinessProbe:
             httpGet:
               path: /readyz
               port: {{ .Values.service.port }}
+              scheme: HTTPS
             initialDelaySeconds: 3
             periodSeconds: 10
           resources:
