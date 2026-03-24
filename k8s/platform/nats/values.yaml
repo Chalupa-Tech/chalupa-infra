@@ -1,0 +1,37 @@
+nats:
+  config:
+    cluster:
+      enabled: false
+
+    jetstream:
+      enabled: true
+      fileStore:
+        enabled: true
+        dir: /data
+        pvc:
+          enabled: true
+          size: 1Gi
+        maxSize: 1Gi
+
+  container:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 200m
+        memory: 64Mi
+
+  reloader:
+    enabled: true
+
+  # Disable nats-box in production; use for debugging only.
+  natsBox:
+    enabled: false
+
+  # ClusterIP only — no external exposure. Add auth when threat model changes.
+  service:
+    enabled: true
+    ports:
+      nats:
+        enabled: true
