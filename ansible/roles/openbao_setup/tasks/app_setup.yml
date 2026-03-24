@@ -34,6 +34,20 @@
     validate_certs: false
   no_log: true
 
+- name: Write auth-service write policy for {{ app_item.name }}
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/policies/acl/app-{{ app_item.name }}-auth-policy"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      policy: "{{ lookup('template', 'policy-app-auth.hcl.j2') }}"
+    status_code: [200, 204]
+    validate_certs: false
+  no_log: true
+  when: app_item.auth_service | default(false)
+
 - name: Write Kubernetes auth role for {{ app_item.name }}
   ansible.builtin.shell: |
     kubectl exec -n openbao openbao-0 -- sh -c "
@@ -47,3 +61,18 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
   no_log: true
+
+- name: Write auth-service Kubernetes auth role for {{ app_item.name }}
+  ansible.builtin.shell: |
+    kubectl exec -n openbao openbao-0 -- sh -c "
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write auth/kubernetes/role/{{ app_item.name }}-auth-role \
+        bound_service_account_names={{ app_item.auth_sa | default('go-schwab-auth') }} \
+        bound_service_account_namespaces={{ app_item.name }} \
+        policies=app-{{ app_item.name }}-auth-policy \
+        ttl=1h
+    "
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+  no_log: true
+  when: app_item.auth_service | default(false)
