@@ -2,12 +2,12 @@
 set -e
 
 # Bootstrap script for initial cluster setup.
-# After first apply, ArgoCD self-heals from the repo — this script
-# is only needed when bootstrapping a fresh cluster or re-applying CRDs.
+# Applies the appset-manager Application, which then syncs both
+# ApplicationSet files from k8s/bootstrap/ automatically.
+# After first apply, ArgoCD self-heals — this script is only
+# needed when bootstrapping a fresh cluster.
 
-APPSET_FILE="${APPSET_FILE:-k8s/platform/core-apps-appset.yaml}"
 CRD_BOOTSTRAP_SCRIPT="${CRD_BOOTSTRAP_SCRIPT:-scripts/raspberrypi-k3s/local/observability/bootstrap_observability_crds.sh}"
-NAMESPACE="argocd"
 
 # Ensure CRDs are bootstrapped first
 if [ -f "$CRD_BOOTSTRAP_SCRIPT" ]; then
@@ -17,7 +17,7 @@ else
     echo "Warning: CRD bootstrap script not found at $CRD_BOOTSTRAP_SCRIPT"
 fi
 
-echo "Deploying Core ApplicationSet..."
-kubectl apply -n "$NAMESPACE" -f "$APPSET_FILE"
+echo "Deploying appset-manager (manages all ApplicationSets)..."
+kubectl apply -n argocd -f k8s/bootstrap/appset-manager.yaml
 
-echo "Core applications deployed successfully."
+echo "Bootstrap complete. ArgoCD will sync ApplicationSets from git."
