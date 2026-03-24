@@ -19,6 +19,8 @@ spec:
             path: k8s/platform/management-proxy
           - name: tailscale-operator
             path: k8s/platform/tailscale-operator
+          - name: nats
+            path: k8s/platform/nats
   template:
     metadata:
       name: '{{name}}'

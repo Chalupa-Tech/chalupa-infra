@@ -1,0 +1,10 @@
+apiVersion: v2
+name: nats-wrapper
+description: Wrapper chart for NATS with JetStream
+type: application
+version: 0.1.0
+appVersion: "2.12.5"
+dependencies:
+  - name: nats
+    version: 2.12.5
+    repository: https://nats-io.github.io/k8s/helm/charts/
