@@ -108,31 +108,20 @@
     state: absent
   when: not ansible_check_mode
 
-- name: Template ApplicationSets
-  ansible.builtin.template:
-    src: "{{ item.src }}"
-    dest: "/tmp/{{ item.dest }}"
+- name: Copy appset-manager bootstrap manifest
+  ansible.builtin.copy:
+    src: appset-manager.yaml
+    dest: /tmp/appset-manager.yaml
     mode: "0644"
-  loop:
-    - src: core-apps-appset.yaml.j2
-      dest: core-apps-appset.yaml
-    - src: user-apps-appset.yaml.j2
-      dest: user-apps-appset.yaml
 
-- name: Apply ApplicationSets to ArgoCD
-  ansible.builtin.command: kubectl apply -f /tmp/{{ item }}
+- name: Apply appset-manager (syncs all ApplicationSets from git)
+  ansible.builtin.command: kubectl apply -f /tmp/appset-manager.yaml
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  loop:
-    - core-apps-appset.yaml
-    - user-apps-appset.yaml
   changed_when: true
 
-- name: Cleanup templated ApplicationSets
+- name: Cleanup bootstrap manifest
   ansible.builtin.file:
-    path: "/tmp/{{ item }}"
+    path: /tmp/appset-manager.yaml
     state: absent
-  loop:
-    - core-apps-appset.yaml
-    - user-apps-appset.yaml
   when: not ansible_check_mode

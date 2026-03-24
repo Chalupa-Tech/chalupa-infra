@@ -1,0 +1,24 @@
+---
+# Bootstrap Application — the only resource that needs manual `kubectl apply`.
+# Syncs both ApplicationSet files from this directory, so adding services
+# or tenants is a merge-to-main operation with no manual intervention.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: appset-manager
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Chalupa-Tech/chalupa-infra.git
+    targetRevision: HEAD
+    path: k8s/bootstrap
+    directory:
+      include: "*-appset.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
