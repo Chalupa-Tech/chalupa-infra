@@ -44,16 +44,14 @@ spec:
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{name}}'
-      # K8s adds these defaults to StatefulSets after creation; they're
-      # immutable so ArgoCD can't reconcile them, causing permanent OutOfSync.
+      # K8s (via k3s) defaults ~25 fields on StatefulSets after creation
+      # (imagePullPolicy, protocol, volumeMode, etc). Ignore all fields
+      # owned by the k3s manager so ArgoCD only diffs what Helm manages.
       ignoreDifferences:
         - group: apps
           kind: StatefulSet
-          jsonPointers:
-            - /spec/persistentVolumeClaimRetentionPolicy
-            - /spec/revisionHistoryLimit
-            - /spec/updateStrategy
-            - /spec/volumeClaimTemplates/0/spec/volumeMode
+          managedFieldsManagers:
+            - k3s
       syncPolicy:
         automated:
           prune: true
