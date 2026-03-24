@@ -28,7 +28,7 @@ spec:
             - name: NATS_URL
               value: {{ .Values.nats.url | quote }}
             - name: EXTERNAL_URL
-              value: "https://{{ .Values.tailscale.hostname }}.tailbecff0.ts.net"
+              value: {{ .Values.externalURL | quote }}
           livenessProbe:
             httpGet:
               path: /healthz
