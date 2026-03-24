@@ -2,7 +2,7 @@
 # Grants read/create/update to the app's secret namespace so the service
 # can read credentials and write tokens back to OpenBao.
 path "secret/data/{{ app_item.name }}/*" {
-  capabilities = ["read", "create", "update", "list"]
+  capabilities = ["read", "create", "update", "patch", "list"]
 }
 path "secret/metadata/{{ app_item.name }}/*" {
   capabilities = ["read", "list"]
