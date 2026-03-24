@@ -1,4 +1,8 @@
 ---
+# User Application ApplicationSet
+#
+# Repo URL hardcoded for true GitOps — merge to main and ArgoCD deploys.
+# See core-apps-appset.yaml header for rationale.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -24,7 +28,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: "{{REPO_URL}}"
+        repoURL: https://github.com/Chalupa-Tech/chalupa-infra.git
         targetRevision: HEAD
         path: "{{path}}"
       destination:

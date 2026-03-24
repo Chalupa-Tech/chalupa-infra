@@ -1,3 +1,14 @@
+# Core Platform ApplicationSet
+#
+# This manifest is the single source of truth for platform services.
+# Adding a new service is a one-step process: add an entry to the list
+# below and merge to main. ArgoCD detects the change and deploys
+# automatically — no scripts, no manual apply, no intervention.
+#
+# The repo URL is intentionally hardcoded rather than templated so that
+# ArgoCD can self-heal this manifest like any other resource. A templated
+# placeholder (e.g. {{REPO_URL}}) would require out-of-band script
+# execution after every change, breaking the GitOps contract.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -27,7 +38,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: '{{REPO_URL}}'
+        repoURL: https://github.com/Chalupa-Tech/chalupa-infra.git
         targetRevision: HEAD
         path: '{{path}}'
       destination:
