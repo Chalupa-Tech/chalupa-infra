@@ -31,13 +31,13 @@ spec:
               value: "https://{{ .Values.tailscale.hostname }}.tailbecff0.ts.net"
           livenessProbe:
             httpGet:
-              path: /health
+              path: /healthz
               port: {{ .Values.service.port }}
             initialDelaySeconds: 5
             periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /health
+              path: /readyz
               port: {{ .Values.service.port }}
             initialDelaySeconds: 3
             periodSeconds: 10
