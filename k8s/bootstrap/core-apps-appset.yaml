@@ -44,11 +44,8 @@ spec:
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{name}}'
-      # Kubernetes adds default fields to StatefulSets after creation
-      # (volumeMode, persistentVolumeClaimRetentionPolicy, etc.) that
-      # aren't in the Helm-rendered spec. These are immutable and can't
-      # be reconciled, so ArgoCD reports permanent OutOfSync. Ignoring
-      # these specific fields is safe — real spec drift still triggers sync.
+      # K8s defaults these immutable StatefulSet fields after creation,
+      # causing permanent OutOfSync since ArgoCD can't reconcile them.
       ignoreDifferences:
         - group: apps
           kind: StatefulSet
