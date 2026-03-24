@@ -44,14 +44,6 @@ spec:
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{name}}'
-      # K8s defaults these immutable StatefulSet fields after creation,
-      # causing permanent OutOfSync since ArgoCD can't reconcile them.
-      ignoreDifferences:
-        - group: apps
-          kind: StatefulSet
-          jsonPointers:
-            - /spec/volumeClaimTemplates/0/spec/volumeMode
-            - /spec/persistentVolumeClaimRetentionPolicy
       syncPolicy:
         automated:
           prune: true
@@ -59,4 +51,6 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
-          - RespectIgnoreDifferences=true
+          # Use K8s server-side diff so ArgoCD only compares fields it
+          # owns, ignoring the dozens of defaults K8s adds to live resources.
+          - ServerSideDiff=true
