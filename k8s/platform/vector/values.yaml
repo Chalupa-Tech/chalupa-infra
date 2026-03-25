@@ -4,6 +4,8 @@ vector:
   # Agent mode (DaemonSet) has no ports to expose
   service:
     enabled: false
+  serviceHeadless:
+    enabled: false
 
   resources:
     requests:
@@ -11,7 +13,7 @@ vector:
       memory: 64Mi
     limits:
       cpu: 200m
-      memory: 128Mi
+      memory: 256Mi
 
   customConfig:
     data_dir: /vector-data-dir
