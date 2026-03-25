@@ -1,6 +1,9 @@
 victoria-metrics-k8s-stack:
   # Required for correct service discovery when deployed via ArgoCD ApplicationSet
   argocdReleaseOverride: "observability"
+  # Shorten resource names — default includes full chart name which exceeds
+  # the 63-char K8s name limit (e.g. observability-victoria-metrics-k8s-stack-kube-controller-manager)
+  fullnameOverride: "vmstack"
 
   ## VMSingle — replaces Prometheus
   vmsingle:

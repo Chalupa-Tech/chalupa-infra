@@ -1,6 +1,10 @@
 vector:
   role: Agent
 
+  # Agent mode (DaemonSet) has no ports to expose
+  service:
+    enabled: false
+
   resources:
     requests:
       cpu: 20m
