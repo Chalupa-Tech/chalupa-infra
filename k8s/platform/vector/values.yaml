@@ -31,10 +31,10 @@ vector:
         inputs:
           - kubernetes_logs
         source: |
-          .stream_fields.pod = .kubernetes.pod_name
-          .stream_fields.namespace = .kubernetes.pod_namespace
-          .stream_fields.container = .kubernetes.container_name
-          .stream_fields.node = .kubernetes.pod_node_name
+          .pod = .kubernetes.pod_name
+          .namespace = .kubernetes.pod_namespace
+          .container = .kubernetes.container_name
+          .node = .kubernetes.pod_node_name
 
     sinks:
       victorialogs:
