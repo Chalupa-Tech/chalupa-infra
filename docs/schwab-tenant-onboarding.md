@@ -5,9 +5,10 @@ How to deploy a new Schwab service group (go-schwab-auth + go-notify) for a new 
 ## Prerequisites
 
 - Access to the [Schwab Developer Portal](https://developer.schwab.com)
-- SSH access to K3s control node (tpi2)
 - GitHub access to Chalupa-Tech repos: chalupa-infra, go-schwab-auth, go-notify
 - Tailscale access to the tailnet
+- OpenBao root token (from Ansible Vault) or a token with `sys/policies/acl/*` and `secret/data/*` access
+- `bao` CLI installed ([OpenBao releases](https://github.com/openbao/openbao/releases)) or `curl`
 
 ## Overview
 
@@ -37,21 +38,19 @@ The tenant needs two secret paths seeded in OpenBao before deployment.
 ### Schwab credentials
 
 ```bash
-# From tpi2 or via kubectl exec
-kubectl exec -n openbao openbao-0 -- sh -c "
-  BAO_TOKEN=<root_token> bao kv put secret/schwab-<tenant>/schwab \
-    api_key=<schwab_client_id> \
-    api_secret=<schwab_client_secret>
-"
+export BAO_ADDR=https://openbao.tailbecff0.ts.net
+export BAO_TOKEN=<root_token>
+
+bao kv put secret/schwab-<tenant>/schwab \
+  api_key=<schwab_client_id> \
+  api_secret=<schwab_client_secret>
 ```
 
 ### Discord webhook
 
 ```bash
-kubectl exec -n openbao openbao-0 -- sh -c "
-  BAO_TOKEN=<root_token> bao kv put secret/schwab-<tenant>/discord \
-    webhook_url=<discord_webhook_url>
-"
+bao kv put secret/schwab-<tenant>/discord \
+  webhook_url=<discord_webhook_url>
 ```
 
 The token path (`secret/schwab-<tenant>/tokens/<registration>`) is written automatically by go-schwab-auth after the first OAuth flow completes.
@@ -187,9 +186,7 @@ kubectl get pods -n schwab-<tenant>
 kubectl logs -n schwab-<tenant> deploy/go-schwab-auth | head -20
 
 # Verify tokens were written to OpenBao
-kubectl exec -n openbao openbao-0 -- sh -c "
-  BAO_TOKEN=<root_token> bao kv get secret/schwab-<tenant>/tokens/individual
-"
+bao kv get secret/schwab-<tenant>/tokens/individual
 
 # Check NATS subscriber is connected (go-notify)
 kubectl logs -n schwab-<tenant> deploy/go-notify-subscriber | head -10
