@@ -38,8 +38,6 @@ victoria-metrics-k8s-stack:
     persistence:
       enabled: true
       size: 1Gi
-    # Skip init-chown-data — fsGroup handles ownership, and the init
-    # container can't chown dirs created by the old Grafana image renderer
     initChownData:
       enabled: false
     plugins:
@@ -73,6 +71,62 @@ victoria-metrics-k8s-stack:
       limits:
         cpu: 200m
         memory: 256Mi
+
+  ## ── K8s internal scrapes ──────────────────────────────────────────
+  ## Toggle: set enabled: false to disable any scrape entirely.
+  ## Histogram buckets (_bucket series) are dropped to save ~170k series / ~300Mi RAM.
+  ## To restore full histograms: remove the metricRelabelConfigs blocks below.
+
+  # yamllint disable rule:comments-indentation
+  kubeApiServer:
+    enabled: true   # toggle apiserver scraping
+    vmScrape:
+      spec:
+        endpoints:
+          - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+            port: https
+            scheme: https
+            tlsConfig:
+              caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              serverName: kubernetes
+            metricRelabelConfigs:
+              - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
+        jobLabel: component
+        namespaceSelector:
+          matchNames: [default]
+        selector:
+          matchLabels: {component: apiserver, provider: kubernetes}
+
+  kubeEtcd:
+    enabled: true   # toggle etcd scraping
+    vmScrape:
+      spec:
+        endpoints:
+          - port: http-metrics
+            scheme: http
+            metricRelabelConfigs:
+              - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
+
+  kubeControllerManager:
+    enabled: true   # toggle controller-manager scraping
+    vmScrape:
+      spec:
+        endpoints:
+          - port: http-metrics
+            scheme: http
+            metricRelabelConfigs:
+              - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
+
+  kubeScheduler:
+    enabled: true   # toggle scheduler scraping
+    vmScrape:
+      spec:
+        endpoints:
+          - port: http-metrics
+            scheme: http
+            metricRelabelConfigs:
+              - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
+  # yamllint enable rule:comments-indentation
 
   ## Dashboards
   defaultDashboards:
