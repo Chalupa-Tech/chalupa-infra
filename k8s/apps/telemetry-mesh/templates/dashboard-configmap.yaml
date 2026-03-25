@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-telemetry-mesh
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  telemetry-mesh-dashboard.json: |
+{{ .Files.Get "files/telemetry-mesh-dashboard.json" | indent 4 }}

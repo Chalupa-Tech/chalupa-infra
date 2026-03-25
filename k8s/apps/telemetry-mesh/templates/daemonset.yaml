@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: telemetry-mesh
+  labels:
+    app: telemetry-mesh
+spec:
+  selector:
+    matchLabels:
+      app: telemetry-mesh
+  template:
+    metadata:
+      labels:
+        app: telemetry-mesh
+    spec:
+      serviceAccountName: telemetry-mesh
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: telemetry-mesh
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.grpcPort }}
+              protocol: TCP
+            - name: http
+              containerPort: {{ .Values.httpPort }}
+              protocol: TCP
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: HEADLESS_SVC
+              value: "telemetry-mesh"
+            - name: GRPC_PORT
+              value: {{ .Values.grpcPort | quote }}
+            - name: HTTP_PORT
+              value: {{ .Values.httpPort | quote }}
+            - name: PING_INTERVAL
+              value: {{ .Values.mesh.pingInterval | quote }}
+            - name: PING_TIMEOUT
+              value: {{ .Values.mesh.pingTimeout | quote }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.httpPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ .Values.httpPort }}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop:
+                - ALL
