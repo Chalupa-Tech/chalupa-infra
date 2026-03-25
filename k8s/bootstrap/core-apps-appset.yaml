@@ -45,6 +45,9 @@ spec:
           - name: vector
             path: k8s/platform/vector
             namespace: observability
+          - name: telemetry-mesh
+            path: k8s/apps/telemetry-mesh
+            namespace: telemetry-mesh
   template:
     metadata:
       name: '{{name}}'

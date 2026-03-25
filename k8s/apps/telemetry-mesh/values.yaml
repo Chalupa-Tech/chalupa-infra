@@ -1,0 +1,19 @@
+image:
+  registry: gitea.tailbecff0.ts.net
+  repository: chalupa-tech/go-telemetry-mesh
+  tag: latest
+
+grpcPort: 9090
+httpPort: 8080
+
+mesh:
+  pingInterval: "10s"
+  pingTimeout: "5s"
+
+resources:
+  requests:
+    cpu: 5m
+    memory: 16Mi
+  limits:
+    cpu: 50m
+    memory: 64Mi

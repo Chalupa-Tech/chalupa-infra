@@ -1,0 +1,14 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: telemetry-mesh
+  labels:
+    app: telemetry-mesh
+spec:
+  selector:
+    matchLabels:
+      app: telemetry-mesh
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: "15s"

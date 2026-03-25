@@ -1,0 +1,6 @@
+apiVersion: v2
+name: telemetry-mesh
+description: Inter-node latency mesh for K3s cluster observability
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
