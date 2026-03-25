@@ -61,7 +61,7 @@ Email addresses are stored as **entity metadata** in OpenBao (not as a computed 
 
 ### OIDC Assignment: `allow_all`
 
-All OIDC clients (gitea, grafana, argocd) use the `allow_all` built-in assignment. This means **any authenticated OpenBao entity** can use SSO into any of the three services.
+All OIDC clients (gitea, grafana, argocd, cli) use the `allow_all` built-in assignment. This means **any authenticated OpenBao entity** can use SSO into any of the three services.
 
 > **Future improvement:** Replace `allow_all` with a named group assignment (e.g., `sso-users` group) to more explicitly control which entities can access services. This is low-urgency for a small team but is better practice for auditability.
 
@@ -87,6 +87,26 @@ The built-in `default` policy is extended to allow all authenticated tokens to u
 path "identity/oidc/*" { capabilities = ["read", "update"] }
 path "sys/capabilities-self" { capabilities = ["update"] }
 path "sys/internal/ui/mounts" { capabilities = ["read"] }
+```
+
+### CLI OIDC Self-Service
+
+The `auth/oidc` method is enabled and configured to consume tokens from OpenBao's own OIDC provider (self-referencing). This allows CLI access via `bao login -method=oidc`:
+
+1. CLI starts a local listener on `localhost:8250`
+2. Browser opens to OpenBao's OIDC authorize endpoint
+3. If an active browser session exists (token in `localStorage`), consent is automatic
+4. Browser redirects to `localhost:8250/oidc/callback` with the auth code
+5. CLI receives a token (24h TTL) with the user's entity policies attached
+
+The `cli` OIDC client in `vars.yml` uses `http://localhost:8250/oidc/callback` as its redirect URI. The default OIDC auth role maps the `preferred_username` claim to the existing identity entity, so OIDC tokens inherit the same policies as userpass tokens.
+
+**Tenant write policies**: The user policy template (`policy-user.hcl.j2`) dynamically grants write access to `secret/data/<app>/*` for any `managed_apps` entry matching the `*-<username>` convention. This lets users seed their own tenant secrets without the root token.
+
+```bash
+export BAO_ADDR=https://openbao.tailbecff0.ts.net
+bao login -method=oidc
+bao kv put secret/schwab-ddowell/schwab api_key=... api_secret=...
 ```
 
 ---
