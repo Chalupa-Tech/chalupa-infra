@@ -1,0 +1,10 @@
+apiVersion: v2
+name: victoria-logs-wrapper
+description: Wrapper chart for VictoriaLogs Single
+type: application
+version: 0.1.0
+appVersion: "v1.48.0"
+dependencies:
+  - name: victoria-logs-single
+    version: 0.11.30
+    repository: https://victoriametrics.github.io/helm-charts/
