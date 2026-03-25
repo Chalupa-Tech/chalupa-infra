@@ -38,6 +38,10 @@ victoria-metrics-k8s-stack:
     persistence:
       enabled: true
       size: 1Gi
+    # Skip init-chown-data — fsGroup handles ownership, and the init
+    # container can't chown dirs created by the old Grafana image renderer
+    initChownData:
+      enabled: false
     plugins:
       - victoriametrics-logs-datasource
     envFromSecret: "grafana-oidc-secret"
