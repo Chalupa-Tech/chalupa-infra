@@ -55,6 +55,20 @@
              default('tpi2.tailbecff0.ts.net') }}
         k3s_install_token: "{{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] }}"
 
+- name: Provision K3s VM Agents
+  hosts: k3s_vm_agents
+  become: true
+  roles:
+    - preflight
+    - user_setup
+    - pi_prepare
+    - role: k3s_install
+      vars:
+        k3s_install_server_ip: >-
+          {{ hostvars[groups['k3s_servers'][0]]['primary_server_ip'] |
+             default('tpi2.tailbecff0.ts.net') }}
+        k3s_install_token: "{{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] }}"
+
 - name: Finalize Cluster Configuration (ArgoCD & OpenBao)
   hosts: k3s_servers
   become: true
@@ -63,7 +77,7 @@
     - openbao_setup
 
 - name: Configure Container Registry on All K3s Nodes
-  hosts: k3s_servers:k3s_ha_servers:k3s_agents
+  hosts: k3s_servers:k3s_ha_servers:k3s_agents:k3s_vm_agents
   become: true
   roles:
     - registry_config

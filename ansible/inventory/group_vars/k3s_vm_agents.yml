@@ -1,0 +1,4 @@
+---
+k3s_install_role: agent
+enforce_arm64: false
+pi_prepare_disable_wifi: false
