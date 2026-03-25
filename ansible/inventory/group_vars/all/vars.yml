@@ -71,6 +71,9 @@ openbao_oidc_clients:
   - name: gitea
     redirect_uris:
       - "https://gitea.tailbecff0.ts.net/user/oauth2/OpenBao/callback"
+  - name: cli
+    redirect_uris:
+      - "http://localhost:8250/oidc/callback"
 
 # Go-template string for the OpenBao OIDC 'user' scope.
 # Defined here to prevent Ansible/Jinja2 from interpreting the {{ }} delimiters.

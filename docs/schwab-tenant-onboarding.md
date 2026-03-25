@@ -7,8 +7,8 @@ How to deploy a new Schwab service group (go-schwab-auth + go-notify) for a new 
 - Access to the [Schwab Developer Portal](https://developer.schwab.com)
 - GitHub access to Chalupa-Tech repos: chalupa-infra, go-schwab-auth, go-notify
 - Tailscale access to the tailnet
-- OpenBao root token (from Ansible Vault) or a token with `sys/policies/acl/*` and `secret/data/*` access
-- `bao` CLI installed ([OpenBao releases](https://github.com/openbao/openbao/releases)) or `curl`
+- OpenBao userpass account (provisioned by Ansible for each `managed_users` entry)
+- `bao` CLI installed ([OpenBao releases](https://github.com/openbao/openbao/releases))
 
 ## Overview
 
@@ -33,14 +33,23 @@ The shared callback URL (`https://go-schwab-auth.tailbecff0.ts.net/callback`) ha
 
 ## Step 2: Seed OpenBao Secrets
 
-The tenant needs two secret paths seeded in OpenBao before deployment.
+The tenant needs two secret paths seeded in OpenBao before deployment. Each user can write to their own tenant paths (`secret/data/schwab-<username>/*`) via OIDC self-service — no root token required.
+
+### Authenticate
+
+```bash
+export BAO_ADDR=https://openbao.tailbecff0.ts.net
+
+# OIDC login — opens browser, reuses existing OpenBao session if active
+bao login -method=oidc
+
+# Alternative: direct userpass login
+# bao login -method=userpass username=<your-username>
+```
 
 ### Schwab credentials
 
 ```bash
-export BAO_ADDR=https://openbao.tailbecff0.ts.net
-export BAO_TOKEN=<root_token>
-
 bao kv put secret/schwab-<tenant>/schwab \
   api_key=<schwab_client_id> \
   api_secret=<schwab_client_secret>
