@@ -22,6 +22,9 @@ spec:
           containers:
             - name: go-notify
               image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              env:
+                - name: SCHWAB_REGISTRATION
+                  value: {{ .Values.schwab.registration | quote }}
               envFrom:
                 - secretRef:
                     name: schwab-secrets

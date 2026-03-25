@@ -10,6 +10,9 @@ image:
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
 
+schwab:
+  registration: "ddowell-individual"
+
 resources:
   requests:
     cpu: 10m
