@@ -128,6 +128,8 @@ if [[ $HOSTNAME == d* ]]; then
     NODE_LOCATION_LABEL="node_location=dustin"
 elif [[ $HOSTNAME == t* ]]; then
     NODE_LOCATION_LABEL="node_location=tayven"
+elif [[ $HOSTNAME == fw* ]]; then
+    NODE_LOCATION_LABEL="node_location=framework"
 fi
 
 if [ -n "$NODE_LOCATION_LABEL" ]; then
