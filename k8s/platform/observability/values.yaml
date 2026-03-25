@@ -73,6 +73,17 @@ victoria-metrics-k8s-stack:
   ## Histogram buckets (_bucket series) are dropped to save ~170k series / ~300Mi RAM.
   ## To restore full histograms: remove the metricRelabelConfigs blocks below.
 
+  kubelet:
+    enabled: true
+    vmScrape:
+      spec:
+        metricRelabelConfigs:
+          - action: labeldrop
+            regex: (uid)
+          - action: labeldrop
+            regex: (id|name)
+          - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
+
   # yamllint disable rule:comments-indentation
   kubeApiServer:
     enabled: true   # toggle apiserver scraping
