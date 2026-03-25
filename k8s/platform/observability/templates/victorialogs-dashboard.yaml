@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-victorialogs
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  victorialogs-explorer.json: |
+{{ .Files.Get "files/victorialogs-explorer.json" | indent 4 }}

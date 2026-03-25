@@ -49,6 +49,7 @@ victoria-metrics-k8s-stack:
         serve_from_sub_path: true
       auth:
         signout_redirect_url: "https://pi-k3s.chalupatech.com/ui"
+        disable_brute_force_login_protection: true
       auth.generic_oauth:
         enabled: true
         name: OpenBao
@@ -59,11 +60,6 @@ victoria-metrics-k8s-stack:
         api_url: "http://openbao-active.openbao.svc.cluster.local:8200/v1/identity/oidc/provider/default/userinfo"
         login_attribute_path: username
         role_attribute_path: "'Admin'"
-    additionalDataSources:
-      - name: VictoriaLogs
-        type: victoriametrics-logs-datasource
-        url: http://victoria-logs-victoria-logs-single-server.observability.svc.cluster.local:9428
-        access: proxy
     resources:
       requests:
         cpu: 20m
