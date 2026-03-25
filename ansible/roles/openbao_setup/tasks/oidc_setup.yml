@@ -64,6 +64,8 @@
       name: "{{ item.name }}"
       metadata:
         email: "{{ item.email }}"
+      policies:
+        - "user-{{ item.name }}-policy"
     status_code: [200, 204]
     validate_certs: false
   loop: "{{ managed_users }}"
@@ -294,3 +296,90 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
+
+# ── Enable and configure OIDC auth method for CLI self-service ─────────────
+# Allows `bao login -method=oidc` — OpenBao authenticates against its own
+# OIDC provider. Users with an active browser session get seamless CLI login.
+
+- name: Enable OIDC auth method
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/auth/oidc"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      type: oidc
+    status_code: [200, 204]
+    validate_certs: false
+  failed_when: false  # May already be enabled
+  no_log: true
+
+- name: Configure OIDC auth method (self-referencing provider)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/auth/oidc/config"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      oidc_discovery_url: "{{ openbao_url }}/v1/identity/oidc/provider/default"
+      oidc_client_id: "{{ openbao_oidc_creds.cli.client_id }}"
+      oidc_client_secret: "{{ openbao_oidc_creds.cli.client_secret }}"
+      default_role: "default"
+    status_code: [200, 204]
+    validate_certs: false
+  no_log: true
+
+- name: Create default OIDC auth role
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/auth/oidc/role/default"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      user_claim: "preferred_username"
+      oidc_scopes: ["openid", "user"]
+      allowed_redirect_uris: ["http://localhost:8250/oidc/callback"]
+      token_policies: ["default"]
+      token_ttl: "24h"
+      token_max_ttl: "24h"
+    status_code: [200, 204]
+    validate_certs: false
+  no_log: true
+
+# ── Create OIDC entity aliases so CLI tokens map to existing entities ──────
+- name: Get OIDC auth accessor
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/auth/oidc"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    validate_certs: false
+  register: openbao_setup_oidc_auth
+  no_log: true
+
+- name: Set OIDC accessor fact
+  ansible.builtin.set_fact:
+    openbao_setup_oidc_accessor: "{{ openbao_setup_oidc_auth.json.accessor }}"
+  no_log: true
+
+- name: Create OIDC entity aliases (oidc auth → existing entity)
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/identity/entity-alias"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      name: "{{ item.item.name }}"
+      canonical_id: "{{ item.json.data.id }}"
+      mount_accessor: "{{ openbao_setup_oidc_accessor }}"
+    status_code: [200, 204]
+    validate_certs: false
+  loop: "{{ openbao_setup_entity_reads.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  no_log: true
+  failed_when: false  # Alias may already exist

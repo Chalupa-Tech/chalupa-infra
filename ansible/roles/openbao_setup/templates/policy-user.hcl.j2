@@ -10,6 +10,18 @@ path "shared/*" {
   capabilities = ["create", "read", "update", "delete", "list", "sudo"]
 }
 
+# Write access to owned tenant app secrets (derived from managed_apps naming convention)
+{% for app in managed_apps | default([]) %}
+{% if app.name.endswith('-' ~ user_item.name) %}
+path "secret/data/{{ app.name }}/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+path "secret/metadata/{{ app.name }}/*" {
+  capabilities = ["read", "list"]
+}
+{% endif %}
+{% endfor %}
+
 # Allow full OIDC authorization flow (required for Gitea/Grafana/ArgoCD SSO)
 # Must use * wildcard — OpenBao does not support + in policy paths
 path "identity/oidc/*" {
