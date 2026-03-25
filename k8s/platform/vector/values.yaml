@@ -1,0 +1,50 @@
+vector:
+  role: Agent
+
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+  customConfig:
+    data_dir: /vector-data-dir
+
+    api:
+      enabled: false
+
+    sources:
+      kubernetes_logs:
+        type: kubernetes_logs
+
+    transforms:
+      remap_logs:
+        type: remap
+        inputs:
+          - kubernetes_logs
+        source: |
+          .stream_fields.pod = .kubernetes.pod_name
+          .stream_fields.namespace = .kubernetes.pod_namespace
+          .stream_fields.container = .kubernetes.container_name
+          .stream_fields.node = .kubernetes.pod_node_name
+
+    sinks:
+      victorialogs:
+        type: elasticsearch
+        inputs:
+          - remap_logs
+        endpoints:
+          - "http://victoria-logs-victoria-logs-single-server.observability.svc.cluster.local:9428/insert/elasticsearch/"
+        mode: bulk
+        api_version: v8
+        compression: gzip
+        healthcheck:
+          enabled: false
+        query:
+          _msg_field: message
+          _time_field: timestamp
+          _stream_fields: "pod,namespace,container,node"
+        request:
+          concurrency: 1

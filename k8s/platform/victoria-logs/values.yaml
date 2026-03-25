@@ -1,0 +1,16 @@
+victoria-logs-single:
+  server:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    persistentVolume:
+      enabled: true
+      size: 10Gi
+      storageClassName: ""
+
+    retentionPeriod: 14d

@@ -1,0 +1,10 @@
+apiVersion: v2
+name: vector-wrapper
+description: Wrapper chart for Vector log collector
+type: application
+version: 0.1.0
+appVersion: "0.54.0"
+dependencies:
+  - name: vector
+    version: 0.51.0
+    repository: https://helm.vector.dev

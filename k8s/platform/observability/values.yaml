@@ -1,10 +1,42 @@
-kube-prometheus-stack:
+victoria-metrics-k8s-stack:
+  # Required for correct service discovery when deployed via ArgoCD ApplicationSet
+  argocdReleaseOverride: "observability"
+
+  ## VMSingle — replaces Prometheus
+  vmsingle:
+    enabled: true
+    spec:
+      retentionPeriod: "30d"
+      replicaCount: 1
+      resources:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+      storage:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+
+  ## VMOperator — converts ServiceMonitor CRDs to VM scrape configs
+  victoria-metrics-operator:
+    enabled: true
+    operator:
+      disable_prometheus_converter: false
+
   ## Grafana
   grafana:
+    enabled: true
     replicas: 1
     persistence:
       enabled: true
       size: 1Gi
+    plugins:
+      - victoriametrics-logs-datasource
     envFromSecret: "grafana-oidc-secret"
     grafana.ini:
       server:
@@ -22,6 +54,11 @@ kube-prometheus-stack:
         api_url: "http://openbao-active.openbao.svc.cluster.local:8200/v1/identity/oidc/provider/default/userinfo"
         login_attribute_path: username
         role_attribute_path: "'Admin'"
+    additionalDataSources:
+      - name: VictoriaLogs
+        type: victoriametrics-logs-datasource
+        url: http://victoria-logs-victoria-logs-single-server.observability.svc.cluster.local:9428
+        access: proxy
     resources:
       requests:
         cpu: 20m
@@ -30,31 +67,15 @@ kube-prometheus-stack:
         cpu: 200m
         memory: 256Mi
 
-  ## Prometheus
-  prometheus:
-    prometheusSpec:
-      replicas: 1  # Non-HA
-      shards: 1
-      retention: 10d
-      storageSpec:
-        volumeClaimTemplate:
-          spec:
-            accessModes: ["ReadWriteOnce"]
-            resources:
-              requests:
-                storage: 20Gi  # NVMe space is cheap
-      resources:
-        requests:
-          cpu: 100m
-          memory: 512Mi  # Give it some room, but not 2GB
-        limits:
-          cpu: 1000m
-          memory: 2Gi  # RAM is the constraint on Pi 8GB
+  ## Dashboards
+  defaultDashboards:
+    enabled: true
 
   ## Alertmanager
   alertmanager:
-    alertmanagerSpec:
-      replicas: 1
+    enabled: true
+    spec:
+      replicaCount: 1
       resources:
         requests:
           cpu: 10m
@@ -63,8 +84,9 @@ kube-prometheus-stack:
           cpu: 50m
           memory: 128Mi
 
-  ## Components
+  ## Node Exporter
   prometheus-node-exporter:
+    enabled: true
     resources:
       requests:
         cpu: 10m
@@ -73,7 +95,9 @@ kube-prometheus-stack:
         cpu: 100m
         memory: 64Mi
 
+  ## Kube State Metrics
   kube-state-metrics:
+    enabled: true
     resources:
       requests:
         cpu: 10m
