@@ -87,7 +87,7 @@ Run the OpenBao setup playbook to provision policies and K8s auth roles for the 
 
 ```bash
 cd ansible
-ansible-playbook -i inventory/hosts.yml playbooks/openbao_setup.yml --tags app_setup
+ansible-playbook -i inventory/hosts.yml playbooks/openbao-only.yml
 ```
 
 This creates:
