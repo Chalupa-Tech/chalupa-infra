@@ -44,14 +44,6 @@ spec:
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{name}}'
-      # K8s (via k3s) defaults ~25 fields on StatefulSets after creation
-      # (imagePullPolicy, protocol, volumeMode, etc). Ignore all fields
-      # owned by the k3s manager so ArgoCD only diffs what Helm manages.
-      ignoreDifferences:
-        - group: apps
-          kind: StatefulSet
-          managedFieldsManagers:
-            - k3s
       syncPolicy:
         automated:
           prune: true
@@ -59,4 +51,3 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
-          - RespectIgnoreDifferences=true
