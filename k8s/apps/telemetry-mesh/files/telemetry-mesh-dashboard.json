@@ -153,15 +153,241 @@
       "fieldConfig": { "defaults": { "unit": "short" } }
     },
     {
-      "title": "Node-to-Node Latency Matrix",
+      "title": "Site Latency",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
       "collapsed": false
     },
     {
+      "title": "Intra-site: tpi",
+      "description": "Avg latency between tpi nodes (site-tpi)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg(rate(telemetry_mesh_probe_duration_seconds_sum{source_node=~\"tpi.*\",target_node=~\"tpi.*\"}[5m]) / rate(telemetry_mesh_probe_duration_seconds_count{source_node=~\"tpi.*\",target_node=~\"tpi.*\"}[5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.001 },
+              { "color": "red", "value": 0.005 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Intra-site: dpi",
+      "description": "Avg latency between dpi/fw nodes (site-dpi)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg(rate(telemetry_mesh_probe_duration_seconds_sum{source_node=~\"dpi.*|fw.*\",target_node=~\"dpi.*|fw.*\"}[5m]) / rate(telemetry_mesh_probe_duration_seconds_count{source_node=~\"dpi.*|fw.*\",target_node=~\"dpi.*|fw.*\"}[5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.001 },
+              { "color": "red", "value": 0.005 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Cross-site Avg",
+      "description": "Avg latency between site-tpi and site-dpi",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg(rate(telemetry_mesh_probe_duration_seconds_sum{source_node=~\"tpi.*\",target_node=~\"dpi.*|fw.*\"}[5m]) / rate(telemetry_mesh_probe_duration_seconds_count{source_node=~\"tpi.*\",target_node=~\"dpi.*|fw.*\"}[5m]) or rate(telemetry_mesh_probe_duration_seconds_sum{source_node=~\"dpi.*|fw.*\",target_node=~\"tpi.*\"}[5m]) / rate(telemetry_mesh_probe_duration_seconds_count{source_node=~\"dpi.*|fw.*\",target_node=~\"tpi.*\"}[5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.001 },
+              { "color": "red", "value": 0.005 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Cross-site P99",
+      "description": "P99 latency between site-tpi and site-dpi",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(telemetry_mesh_probe_duration_seconds_bucket{source_node=~\"tpi.*\",target_node=~\"dpi.*|fw.*\"}[5m]) or rate(telemetry_mesh_probe_duration_seconds_bucket{source_node=~\"dpi.*|fw.*\",target_node=~\"tpi.*\"}[5m])))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.002 },
+              { "color": "red", "value": 0.01 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Site Latency Over Time",
+      "description": "Avg latency by path: intra-tpi, intra-dpi, cross-site",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg(rate(telemetry_mesh_probe_duration_seconds_sum{source_node=~\"tpi.*\",target_node=~\"tpi.*\"}[5m]) / rate(telemetry_mesh_probe_duration_seconds_count{source_node=~\"tpi.*\",target_node=~\"tpi.*\"}[5m]))",
+          "legendFormat": "intra: site-tpi"
+        },
+        {
+          "refId": "B",
+          "expr": "avg(rate(telemetry_mesh_probe_duration_seconds_sum{source_node=~\"dpi.*|fw.*\",target_node=~\"dpi.*|fw.*\"}[5m]) / rate(telemetry_mesh_probe_duration_seconds_count{source_node=~\"dpi.*|fw.*\",target_node=~\"dpi.*|fw.*\"}[5m]))",
+          "legendFormat": "intra: site-dpi"
+        },
+        {
+          "refId": "C",
+          "expr": "avg(rate(telemetry_mesh_probe_duration_seconds_sum{source_node=~\"tpi.*\",target_node=~\"dpi.*|fw.*\"}[5m]) / rate(telemetry_mesh_probe_duration_seconds_count{source_node=~\"tpi.*\",target_node=~\"dpi.*|fw.*\"}[5m]) or rate(telemetry_mesh_probe_duration_seconds_sum{source_node=~\"dpi.*|fw.*\",target_node=~\"tpi.*\"}[5m]) / rate(telemetry_mesh_probe_duration_seconds_count{source_node=~\"dpi.*|fw.*\",target_node=~\"tpi.*\"}[5m]))",
+          "legendFormat": "cross-site"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "fillOpacity": 10 }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "title": "Cross-site Latency Distribution",
+      "description": "Histogram heatmap of latency between site-tpi and site-dpi",
+      "type": "heatmap",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (le) (rate(telemetry_mesh_probe_duration_seconds_bucket{source_node=~\"tpi.*\",target_node=~\"dpi.*|fw.*\"}[5m]) or rate(telemetry_mesh_probe_duration_seconds_bucket{source_node=~\"dpi.*|fw.*\",target_node=~\"tpi.*\"}[5m]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}"
+        }
+      ],
+      "options": {
+        "color": {
+          "scheme": "Greens",
+          "mode": "scheme"
+        },
+        "yAxis": {
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "title": "Mesh Topology",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "collapsed": false
+    },
+    {
+      "title": "Cluster Mesh — Node Graph",
+      "description": "Force-directed mesh topology. Edge weight = avg latency. Nodes show avg outbound latency.",
+      "type": "nodeGraph",
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 19 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "nodes",
+          "expr": "label_replace(label_replace(avg by (source_node) (rate(telemetry_mesh_probe_duration_seconds_sum[5m]) / rate(telemetry_mesh_probe_duration_seconds_count[5m])), \"id\", \"$1\", \"source_node\", \"(.*)\"), \"title\", \"$1\", \"source_node\", \"(.*)\")",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "edges",
+          "expr": "label_join(label_join(label_join(avg by (source_node, target_node) (rate(telemetry_mesh_probe_duration_seconds_sum[5m]) / rate(telemetry_mesh_probe_duration_seconds_count[5m])), \"id\", \"-\", \"source_node\", \"target_node\"), \"source\", \"\", \"source_node\"), \"target\", \"\", \"target_node\")",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "source_node": true, "target_node": true },
+            "renameByName": { "Value #nodes": "mainStat", "Value #edges": "mainStat" }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "mainStat" },
+            "properties": [
+              { "id": "unit", "value": "s" },
+              { "id": "decimals", "value": 4 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "nodes": {
+          "mainStatUnit": "s"
+        },
+        "edges": {
+          "mainStatUnit": "s"
+        }
+      }
+    },
+    {
+      "title": "Node-to-Node Latency Matrix",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "collapsed": false
+    },
+    {
       "title": "Avg Latency — Source x Target",
       "type": "table",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 6 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 34 },
       "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
       "targets": [
         {
@@ -209,13 +435,13 @@
     {
       "title": "Timeseries",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
       "collapsed": false
     },
     {
       "title": "Latency by Node Pair",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 45 },
       "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
       "targets": [
         {
@@ -238,7 +464,7 @@
     {
       "title": "Error Rate by Pair",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 45 },
       "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
       "targets": [
         {
@@ -261,13 +487,13 @@
     {
       "title": "Deep Dive",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 53 },
       "collapsed": false
     },
     {
       "title": "P99 Latency by Node Pair",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 54 },
       "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
       "targets": [
         {
@@ -290,7 +516,7 @@
     {
       "title": "Node Health State",
       "type": "state-timeline",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 54 },
       "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
       "targets": [
         {
