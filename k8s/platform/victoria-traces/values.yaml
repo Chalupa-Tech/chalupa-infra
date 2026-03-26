@@ -1,0 +1,23 @@
+victoria-traces-single:
+  server:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    # Aggressive retention — time AND disk capped (whichever triggers first)
+    retentionPeriod: 3d
+    retentionDiskSpaceUsage: 5GiB
+
+    persistentVolume:
+      enabled: true
+      size: 8Gi
+      storageClassName: ""
+
+    extraArgs:
+      envflag.enable: true
+      envflag.prefix: VM_
+      loggerFormat: json

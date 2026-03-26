@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-ds-victoriatraces
+  namespace: observability
+  labels:
+    grafana_datasource: "1"
+data:
+  victoriatraces.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: VictoriaTraces
+        uid: victoriatraces
+        type: jaeger
+        access: proxy
+        url: http://victoria-traces-vt-single-server.observability.svc.cluster.local:10428
+        isDefault: false
+        editable: true
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: victorialogs
+            spanStartTimeShift: "-1h"
+            spanEndTimeShift: "1h"
+            filterByTraceID: true
+            customQuery: true
+            query: "trace_id:${__trace.traceId}"
