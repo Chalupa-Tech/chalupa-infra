@@ -1,14 +1,5 @@
 victoria-traces-single:
   server:
-    # fw1 scheduling — AMD Strix Halo VM with NVMe storage
-    nodeSelector:
-      compute-class: framework
-    tolerations:
-      - key: workload
-        operator: Equal
-        value: heavy
-        effect: NoSchedule
-
     resources:
       requests:
         cpu: 250m
