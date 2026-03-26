@@ -1,4 +1,8 @@
 longhorn:
+  # -- Disable pre-install/pre-upgrade hooks (incompatible with ArgoCD)
+  preUpgradeChecker:
+    jobEnabled: false
+
   # -- Global settings
   defaultSettings:
     # Storage reservation: keep 40% of disk free for OS/K3s/images
