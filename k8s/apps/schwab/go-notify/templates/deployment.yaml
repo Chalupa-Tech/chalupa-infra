@@ -18,6 +18,8 @@ spec:
         - name: go-notify-subscriber
           image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           env:
+            - name: APP_VERSION
+              value: {{ .Values.image.tag | quote }}
             - name: HOST_IP
               valueFrom:
                 fieldRef:
