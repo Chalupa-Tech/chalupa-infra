@@ -8,6 +8,11 @@ on:
         description: 'Image name under chalupa-tech org (e.g. go-notify)'
         required: true
         type: string
+      version:
+        description: 'Semantic version to tag (e.g. 0.5.0). Omit to auto-detect from GITHUB_REF.'
+        required: false
+        type: string
+        default: ''
       platforms:
         description: 'Buildx platforms'
         required: false
@@ -82,8 +87,11 @@ jobs:
           SHA_SHORT=$(echo "${{ github.sha }}" | head -c 7)
           echo "sha_short=${SHA_SHORT}" >> "$GITHUB_OUTPUT"
 
-          # Version from tag (v1.2.3 -> 1.2.3) or empty
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          # Version from explicit input, tag ref, or empty
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "has_version=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
             echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
             echo "has_version=true" >> "$GITHUB_OUTPUT"
