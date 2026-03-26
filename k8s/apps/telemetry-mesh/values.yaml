@@ -1,7 +1,7 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-telemetry-mesh
-  tag: latest
+  tag: v0.2.1
 
 grpcPort: 9090
 httpPort: 8080
