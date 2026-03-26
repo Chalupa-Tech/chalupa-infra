@@ -41,6 +41,51 @@
         k3s_install_token: "{{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] }}"
     - tailscale_services
 
+- name: Provision K3s OCI Servers (Non-Scheduling Tiebreaker)
+  hosts: k3s_oci_servers
+  become: true
+  pre_tasks:
+    - name: Configure persistent journald logging with size limits
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/journald.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - {regexp: "^#?Storage=", line: "Storage=persistent"}
+        - {regexp: "^#?SystemMaxUse=", line: "SystemMaxUse={{ journald_system_max_use }}"}
+        - {regexp: "^#?SystemKeepFree=", line: "SystemKeepFree={{ journald_system_keep_free }}"}
+        - {regexp: "^#?MaxFileSec=", line: "MaxFileSec={{ journald_max_file_sec }}"}
+        - {regexp: "^#?MaxRetentionSec=", line: "MaxRetentionSec={{ journald_max_retention_sec }}"}
+      notify: Restart journald
+
+    - name: Install vnstat for egress monitoring
+      ansible.builtin.apt:
+        name: vnstat
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Ensure vnstat service is running
+      ansible.builtin.systemd:
+        name: vnstat
+        state: started
+        enabled: true
+  roles:
+    - preflight
+    - user_setup
+    - role: k3s_install
+      vars:
+        k3s_install_server_ip: "tpi2.tailbecff0.ts.net"
+        k3s_install_token: >-
+          {{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token']
+             | default(k3s_token) }}
+  handlers:
+    - name: Restart journald
+      ansible.builtin.systemd:
+        name: systemd-journald
+        state: restarted
+        daemon_reload: true
+
 - name: Provision K3s Agents
   hosts: k3s_agents
   become: true
@@ -77,7 +122,7 @@
     - openbao_setup
 
 - name: Configure Container Registry on All K3s Nodes
-  hosts: k3s_servers:k3s_ha_servers:k3s_agents:k3s_vm_agents
+  hosts: k3s_servers:k3s_ha_servers:k3s_oci_servers:k3s_agents:k3s_vm_agents
   become: true
   roles:
     - registry_config

@@ -141,12 +141,17 @@ elif [[ $HOSTNAME == fw* ]]; then
     ZONE_LABEL="topology.kubernetes.io/zone=site-dpi"
     COMPUTE_CLASS_LABEL="compute-class=framework"
     TAINT_ARGS="--node-taint workload=heavy:NoSchedule"
+elif [[ $HOSTNAME == oracle* ]]; then
+    NODE_LOCATION_LABEL="node_location=oracle"
+    ZONE_LABEL="topology.kubernetes.io/zone=site-oci"
+    COMPUTE_CLASS_LABEL="compute-class=oci-arm"
+    TAINT_ARGS="--node-taint node-role.kubernetes.io/control-plane:NoSchedule"
 fi
 
 if [ -n "$NODE_LOCATION_LABEL" ]; then
     echo "Detected hostname $HOSTNAME, adding labels: $NODE_LOCATION_LABEL $ZONE_LABEL $COMPUTE_CLASS_LABEL"
     if [ -n "$TAINT_ARGS" ]; then
-        echo "  Applying taint: workload=heavy:NoSchedule"
+        echo "  Applying taint: $TAINT_ARGS"
     fi
 fi
 
