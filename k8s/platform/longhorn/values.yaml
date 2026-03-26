@@ -6,7 +6,7 @@ longhorn:
   # -- Global settings
   defaultSettings:
     # Storage reservation: keep 40% of disk free for OS/K3s/images
-    storageOverProvisioningPercentage: 0
+    storageOverProvisioningPercentage: 100
     storageMinimalAvailablePercentage: 40
     # 2 replicas for cross-site redundancy
     defaultReplicaCount: 2
