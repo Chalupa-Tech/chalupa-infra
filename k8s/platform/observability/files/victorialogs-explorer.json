@@ -13,8 +13,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter | stats by (_stream) count() logs",
-          "legendFormat": "{{namespace}}/{{pod}}"
+          "expr": "$filter | stats by (_time:5m, namespace) count() as total"
         }
       ],
       "fieldConfig": {
@@ -35,36 +34,46 @@
     },
     {
       "title": "Logs by Namespace",
-      "type": "piechart",
+      "type": "barchart",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter | stats by (namespace) count() logs"
+          "expr": "$filter | stats by (namespace) count() as total"
         }
       ],
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
-        "pieType": "donut",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "orientation": "horizontal",
+        "xTickLabelRotation": 0,
+        "legend": { "displayMode": "hidden" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
       }
     },
     {
       "title": "Logs by Node",
-      "type": "piechart",
+      "type": "barchart",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter | stats by (node) count() logs"
+          "expr": "$filter | stats by (node) count() as total"
         }
       ],
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
-        "pieType": "donut",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "orientation": "horizontal",
+        "xTickLabelRotation": 0,
+        "legend": { "displayMode": "hidden" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
       }
     },
     {
@@ -75,7 +84,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter AND (_msg:error OR _msg:ERROR OR _msg:panic OR _msg:FATAL) | stats by (namespace) count() errors"
+          "expr": "$filter _msg:~\"(?i)error|panic|fatal\" | stats by (_time:5m, namespace) count() as errors"
         }
       ],
       "fieldConfig": {
