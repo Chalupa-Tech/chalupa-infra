@@ -17,8 +17,31 @@ on:
       - 'scripts/raspberrypi-k3s/ansible/**'
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      yaml: ${{ steps.filter.outputs.yaml }}
+      shell: ${{ steps.filter.outputs.shell }}
+      ansible: ${{ steps.filter.outputs.ansible }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            yaml:
+              - '**.yml'
+              - '**.yaml'
+            shell:
+              - '**.sh'
+            ansible:
+              - 'ansible/**'
+
   yaml-lint:
     name: YAML Lint
+    needs: changes
+    if: needs.changes.outputs.yaml == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -32,6 +55,8 @@ jobs:
 
   shell-check:
     name: ShellCheck
+    needs: changes
+    if: needs.changes.outputs.shell == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -45,6 +70,8 @@ jobs:
 
   ansible-lint:
     name: Ansible Lint
+    needs: changes
+    if: needs.changes.outputs.ansible == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
