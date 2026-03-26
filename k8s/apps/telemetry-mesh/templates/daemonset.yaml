@@ -27,8 +27,12 @@ spec:
               containerPort: {{ .Values.httpPort }}
               protocol: TCP
           env:
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://127.0.0.1:4317"
+              value: "http://$(HOST_IP):4317"
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
