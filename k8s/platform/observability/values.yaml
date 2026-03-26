@@ -51,7 +51,10 @@ victoria-metrics-k8s-stack:
     envFromSecret: "grafana-oidc-secret"
     grafana.ini:
       plugins:
-        # Ensure plugins finish installing before provisioning runs
+        # Synchronously preinstall plugins before provisioning runs.
+        # Without both settings, the backgroundinstaller loads plugins async
+        # and provisioning races ahead — failing with "data source not found".
+        preinstall: "victoriametrics-logs-datasource,victoriametrics-metrics-datasource"
         preinstall_sync: true
       server:
         root_url: "https://pi-k3s.chalupatech.com/grafana/"
