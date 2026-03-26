@@ -25,8 +25,22 @@ spec:
               env:
                 - name: APP_VERSION
                   value: {{ .Values.image.tag | quote }}
+                - name: HOST_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP
+                - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                  value: "http://$(HOST_IP):4317"
                 - name: SCHWAB_REGISTRATION
                   value: {{ .Values.schwab.registration | quote }}
+                - name: VAULT_ADDR
+                  value: {{ .Values.vault.addr | quote }}
+                - name: VAULT_KUBE_ROLE
+                  value: {{ .Values.vault.kubeRole | quote }}
+                - name: VAULT_SECRET_PATH
+                  value: {{ .Values.vault.secretPath | quote }}
+                - name: VAULT_TOKEN_PATH
+                  value: {{ .Values.vault.tokenPath | quote }}
               envFrom:
                 - secretRef:
                     name: schwab-secrets

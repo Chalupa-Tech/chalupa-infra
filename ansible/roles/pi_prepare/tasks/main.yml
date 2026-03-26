@@ -22,6 +22,22 @@
   notify:
     - Restart systemd-journald service
 
+- name: Install Longhorn prerequisites (open-iscsi)
+  ansible.builtin.apt:
+    name:
+      - open-iscsi
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Ensure iscsid service is enabled and running
+  ansible.builtin.systemd:
+    name: iscsid
+    enabled: true
+    state: started
+  become: true
+
 - name: Check cmdline.txt locations
   ansible.builtin.stat:
     path: "{{ item }}"

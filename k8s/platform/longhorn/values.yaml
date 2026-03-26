@@ -1,0 +1,48 @@
+longhorn:
+  # -- Disable pre-install/pre-upgrade hooks (incompatible with ArgoCD)
+  preUpgradeChecker:
+    jobEnabled: false
+
+  # -- Global settings
+  defaultSettings:
+    # Storage reservation: keep 40% of disk free for OS/K3s/images
+    storageOverProvisioningPercentage: 0
+    storageMinimalAvailablePercentage: 40
+    # 2 replicas for cross-site redundancy
+    defaultReplicaCount: 2
+    # Spread replicas across zones (soft anti-affinity)
+    replicaZoneSoftAntiAffinity: true
+    # Only schedule on Pi nodes
+    systemManagedComponentsNodeSelector: "compute-class:pi5"
+    # Guaranteed engine manager CPU (prevents starvation on Pi)
+    guaranteedInstanceManagerCPU: 5
+
+  persistence:
+    # Set Longhorn as default StorageClass
+    defaultClass: true
+    defaultClassReplicaCount: 2
+
+  # -- Component scheduling: Pi nodes only (exclude fw1 and future oracle1)
+  longhornManager:
+    nodeSelector:
+      compute-class: pi5
+    resources:
+      requests:
+        cpu: 20m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+  longhornDriver:
+    nodeSelector:
+      compute-class: pi5
+
+  longhornUI:
+    replicas: 1
+    nodeSelector:
+      compute-class: pi5
+
+  # -- Ingress (disabled — access via kubectl port-forward if needed)
+  ingress:
+    enabled: false

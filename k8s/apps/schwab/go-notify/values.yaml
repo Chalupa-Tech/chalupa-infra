@@ -5,13 +5,19 @@ timeZone: "America/Denver"
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-notify
-  tag: latest
+  tag: v0.5.2
 
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
 
 schwab:
   registration: "ddowell-individual"
+
+vault:
+  addr: "http://openbao-active.openbao.svc.cluster.local:8200"
+  kubeRole: "schwab-ddowell-role"
+  secretPath: "secret/data/schwab-ddowell/schwab"
+  tokenPath: "secret/data/schwab-ddowell/tokens/individual"
 
 resources:
   requests:

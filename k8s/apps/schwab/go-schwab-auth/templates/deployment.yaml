@@ -24,6 +24,12 @@ spec:
           env:
             - name: APP_VERSION
               value: {{ .Values.image.tag | quote }}
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://$(HOST_IP):4317"
             - name: VAULT_ADDR
               value: {{ .Values.vault.addr | quote }}
             - name: VAULT_ROLE
