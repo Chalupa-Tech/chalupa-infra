@@ -18,8 +18,12 @@ spec:
         - name: go-notify-subscriber
           image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           env:
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://127.0.0.1:4317"
+              value: "http://$(HOST_IP):4317"
             - name: RUN_MODE
               value: "subscriber"
             - name: NATS_URL

@@ -23,8 +23,12 @@ spec:
             - name: go-notify
               image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               env:
+                - name: HOST_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP
                 - name: OTEL_EXPORTER_OTLP_ENDPOINT
-                  value: "http://127.0.0.1:4317"
+                  value: "http://$(HOST_IP):4317"
                 - name: SCHWAB_REGISTRATION
                   value: {{ .Values.schwab.registration | quote }}
                 - name: VAULT_ADDR

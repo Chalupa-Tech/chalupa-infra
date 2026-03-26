@@ -22,8 +22,12 @@ spec:
             - containerPort: {{ .Values.service.port }}
               protocol: TCP
           env:
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://127.0.0.1:4317"
+              value: "http://$(HOST_IP):4317"
             - name: VAULT_ADDR
               value: {{ .Values.vault.addr | quote }}
             - name: VAULT_ROLE
