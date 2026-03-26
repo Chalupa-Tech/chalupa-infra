@@ -50,12 +50,10 @@ victoria-metrics-k8s-stack:
       - victoriametrics-metrics-datasource
     envFromSecret: "grafana-oidc-secret"
     grafana.ini:
-      plugins:
-        # Synchronously preinstall plugins before provisioning runs.
-        # Without both settings, the backgroundinstaller loads plugins async
-        # and provisioning races ahead — failing with "data source not found".
-        preinstall: "victoriametrics-logs-datasource,victoriametrics-metrics-datasource"
-        preinstall_sync: true
+      # NOTE: plugins.preinstall_sync is handled by the Helm chart's `plugins:`
+      # list above — it sets GF_PLUGINS_PREINSTALL_SYNC env var automatically.
+      # Do NOT add a [plugins] section here; grafana.ini `preinstall` puts
+      # plugins in the ASYNC queue which conflicts with the sync env var.
       server:
         root_url: "https://pi-k3s.chalupatech.com/grafana/"
         serve_from_sub_path: true
