@@ -8,7 +8,7 @@ httpPort: 8080
 
 mesh:
   pingInterval: "10s"
-  pingTimeout: "5s"
+  pingTimeout: "1s"
 
 resources:
   requests:
