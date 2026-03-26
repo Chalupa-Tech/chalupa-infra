@@ -2,7 +2,7 @@
 - name: Validate remote user is allowed
   ansible.builtin.assert:
     that:
-      - ansible_user in allowed_bootstrap_users | default(['ddowell', 'tbigelow', 'fedora', 'root', 'ci'])
+      - ansible_user in allowed_bootstrap_users | default(['ddowell', 'tbigelow', 'fedora', 'ubuntu', 'root', 'ci'])
     fail_msg: "Running as remote user '{{ ansible_user }}' which is not in the allowed list"
     success_msg: "Running as allowed remote user: {{ ansible_user }}"
   run_once: true
