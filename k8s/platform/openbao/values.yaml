@@ -28,6 +28,26 @@ openbao:
           }
           service_registration "kubernetes" {}
     replicas: 3
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: openbao
+            component: server
+    affinity: |
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - openbao
+              topologyKey: kubernetes.io/hostname
     dataStorage:
       enabled: true
       size: 1Gi
