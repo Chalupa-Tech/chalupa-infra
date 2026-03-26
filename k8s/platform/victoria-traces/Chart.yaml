@@ -1,0 +1,10 @@
+apiVersion: v2
+name: victoria-traces-wrapper
+description: Wrapper chart for VictoriaTraces Single
+type: application
+version: 0.1.0
+appVersion: "v0.8.0"
+dependencies:
+  - name: victoria-traces-single
+    version: 0.0.7
+    repository: https://victoriametrics.github.io/helm-charts/

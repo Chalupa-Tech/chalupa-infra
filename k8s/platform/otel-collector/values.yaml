@@ -1,0 +1,81 @@
+opentelemetry-collector:
+  mode: daemonset
+
+  # Core image (~60MB) — contrib is ~200MB and unnecessary for trace forwarding
+  image:
+    repository: otel/opentelemetry-collector
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+  # Run on all nodes including fw1
+  tolerations:
+    - operator: Exists
+
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      # Disable chart defaults — core image doesn't have these receivers
+      jaeger: null
+      zipkin: null
+      prometheus: null
+
+    processors:
+      memory_limiter:
+        check_interval: 5s
+        limit_mib: 100
+        spike_limit_mib: 20
+      batch:
+        timeout: 5s
+        send_batch_size: 512
+
+    exporters:
+      otlphttp:
+        endpoint: http://victoria-traces-vt-single-server.observability.svc.cluster.local:10428/insert/opentelemetry
+        tls:
+          insecure: true
+      # Disable chart default
+      debug: null
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp]
+        # Disable default pipelines — traces-only collector
+        logs: null
+        metrics: null
+
+  ports:
+    otlp:
+      enabled: true
+      containerPort: 4317
+      servicePort: 4317
+      hostPort: 4317
+      protocol: TCP
+    otlp-http:
+      enabled: true
+      containerPort: 4318
+      servicePort: 4318
+      hostPort: 4318
+      protocol: TCP
+    # Disable default ports we don't need
+    jaeger-compact:
+      enabled: false
+    jaeger-thrift:
+      enabled: false
+    jaeger-grpc:
+      enabled: false
+    zipkin:
+      enabled: false

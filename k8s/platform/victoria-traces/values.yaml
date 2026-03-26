@@ -1,0 +1,32 @@
+victoria-traces-single:
+  server:
+    # fw1 scheduling — AMD Strix Halo VM with NVMe storage
+    nodeSelector:
+      compute-class: framework
+    tolerations:
+      - key: workload
+        operator: Equal
+        value: heavy
+        effect: NoSchedule
+
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    # Aggressive retention — time AND disk capped (whichever triggers first)
+    retentionPeriod: 3d
+    retentionDiskSpaceUsage: 5GiB
+
+    persistentVolume:
+      enabled: true
+      size: 8Gi
+      storageClassName: ""
+
+    extraArgs:
+      envflag.enable: true
+      envflag.prefix: VM_
+      loggerFormat: json

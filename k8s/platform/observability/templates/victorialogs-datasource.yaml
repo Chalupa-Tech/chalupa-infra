@@ -10,6 +10,7 @@ data:
     apiVersion: 1
     datasources:
       - name: VictoriaLogs
+        uid: victorialogs
         type: victoriametrics-logs-datasource
         access: proxy
         url: http://victoria-logs-victoria-logs-single-server.observability.svc.cluster.local:9428
