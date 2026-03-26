@@ -13,6 +13,12 @@ nats:
 schwab:
   registration: "ddowell-individual"
 
+vault:
+  addr: "http://openbao-active.openbao.svc.cluster.local:8200"
+  kubeRole: "schwab-ddowell-role"
+  secretPath: "secret/data/schwab-ddowell/schwab"
+  tokenPath: "secret/data/schwab-ddowell/tokens/individual"
+
 resources:
   requests:
     cpu: 10m
