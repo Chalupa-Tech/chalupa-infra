@@ -42,10 +42,9 @@ victoria-metrics-k8s-stack:
       enabled: false
     plugins:
       - victoriametrics-logs-datasource
-    extraEnvVars:
+    env:
       # Ensure plugins finish installing before provisioning runs
-      - name: GF_PLUGINS_PREINSTALL_SYNC
-        value: "true"
+      GF_PLUGINS_PREINSTALL_SYNC: "true"
     envFromSecret: "grafana-oidc-secret"
     grafana.ini:
       server:
