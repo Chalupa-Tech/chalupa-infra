@@ -23,6 +23,8 @@ spec:
             - name: go-notify
               image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               env:
+                - name: APP_VERSION
+                  value: {{ .Values.image.tag | quote }}
                 - name: SCHWAB_REGISTRATION
                   value: {{ .Values.schwab.registration | quote }}
               envFrom:

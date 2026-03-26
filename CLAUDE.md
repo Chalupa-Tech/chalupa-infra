@@ -84,10 +84,13 @@ bash scripts/deploy-core-apps.sh
 
 All services accessible via Tailscale. Public access via pi-k3s.chalupatech.com (cert-manager + Cloudflare).
 
+## Known Limitations
+
+- **hostPort does not work on K3s with flannel VXLAN** — the portmap CNI plugin is not included. Use `status.hostIP` downward API to inject the node IP, then target the DaemonSet pod via ClusterIP or direct node IP. This affects any service needing DaemonSet-local connectivity (e.g., OTel Collector sidecar-less pattern).
+
 ## Current State
 
-- Platform services deployed and operational
-- No user applications deployed yet (go-notify is first target)
-- ClusterSecretStore references `go-notify` namespace/role but neither exists yet
-- Gitea container registry enabled but K3s nodes lack registry auth config
+- Platform services deployed and operational (go-schwab-auth, go-notify, go-telemetry-mesh)
+- OTel Collector DaemonSet forwarding traces to VictoriaTraces
+- Reusable CI/CD workflows: `build-push-reusable.yml` and `release-reusable.yml`
 - GitHub Actions CI/CD operational (Tailscale join pattern for VPN access)

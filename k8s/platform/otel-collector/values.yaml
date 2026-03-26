@@ -40,7 +40,7 @@ opentelemetry-collector:
         send_batch_size: 512
 
     exporters:
-      otlphttp:
+      otlp_http:
         endpoint: http://victoria-traces-vt-single-server.observability.svc.cluster.local:10428/insert/opentelemetry
         tls:
           insecure: true
@@ -52,7 +52,7 @@ opentelemetry-collector:
         traces:
           receivers: [otlp]
           processors: [memory_limiter, batch]
-          exporters: [otlphttp]
+          exporters: [otlp_http]
         # Disable default pipelines — traces-only collector
         logs: null
         metrics: null

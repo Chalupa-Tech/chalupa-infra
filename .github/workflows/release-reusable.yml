@@ -1,0 +1,129 @@
+---
+name: Reusable Release Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        description: 'Container image name (e.g. go-schwab-auth)'
+        required: true
+        type: string
+      values_path:
+        description: 'Path to values.yaml in chalupa-infra (e.g. k8s/apps/schwab/go-schwab-auth/values.yaml)'
+        required: true
+        type: string
+    secrets:
+      TS_OAUTH_CLIENT_ID:
+        required: true
+      TS_OAUTH_CLIENT_SECRET:
+        required: true
+      GITEA_REGISTRY_USER:
+        required: true
+      GITEA_REGISTRY_PASSWORD:
+        required: true
+      GH_PAT:
+        required: true
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    outputs:
+      new_release: ${{ steps.check_tag.outputs.exists == 'false' }}
+      version: ${{ steps.changelog_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get Version from Changelog
+        id: changelog_version
+        run: |
+          VERSION=$(grep -oE "##\s+\[[0-9]+\.[0-9]+\.[0-9]+\]" CHANGELOG.md | head -n 1 | sed 's/## \[//;s/\]//')
+          echo "Detected version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if Tag Exists
+        id: check_tag
+        run: |
+          VERSION="${{ steps.changelog_version.outputs.version }}"
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists."
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag v$VERSION does not exist. Creating release."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Tag
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.changelog_version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"
+
+      - name: Create Release
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.changelog_version.outputs.version }}
+          generate_release_notes: true
+
+  build-push:
+    name: Build & Push Container
+    needs: release
+    if: needs.release.outputs.new_release == 'true'
+    uses: Chalupa-Tech/chalupa-infra/.github/workflows/build-push-reusable.yml@main
+    with:
+      image_name: ${{ inputs.image_name }}
+    secrets:
+      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+      GITEA_REGISTRY_USER: ${{ secrets.GITEA_REGISTRY_USER }}
+      GITEA_REGISTRY_PASSWORD: ${{ secrets.GITEA_REGISTRY_PASSWORD }}
+      GH_PAT: ${{ secrets.GH_PAT }}
+
+  deploy:
+    name: Update Image Tag in chalupa-infra
+    needs: [release, build-push]
+    if: needs.release.outputs.new_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout chalupa-infra
+        uses: actions/checkout@v4
+        with:
+          repository: Chalupa-Tech/chalupa-infra
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Update image tag
+        run: |
+          VERSION="v${{ needs.release.outputs.version }}"
+          VALUES_FILE="${{ inputs.values_path }}"
+          sed -i "s|^  tag:.*|  tag: ${VERSION}|" "$VALUES_FILE"
+          echo "Updated $VALUES_FILE to tag: $VERSION"
+          cat "$VALUES_FILE"
+
+      - name: Create PR and merge
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          VERSION="v${{ needs.release.outputs.version }}"
+          BRANCH="ci/${{ inputs.image_name }}-${VERSION}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "deploy: ${{ inputs.image_name }} ${VERSION}"
+          git push origin "$BRANCH"
+
+          PR_URL=$(gh pr create \
+            --title "deploy: ${{ inputs.image_name }} ${VERSION}" \
+            --body "Automated image tag bump from [${{ inputs.image_name }} ${VERSION}](https://github.com/Chalupa-Tech/${{ inputs.image_name }}/releases/tag/${VERSION})." \
+            --head "$BRANCH" \
+            --base main)
+          echo "Created PR: $PR_URL"
+
+          gh pr merge "$PR_URL" --squash --auto
