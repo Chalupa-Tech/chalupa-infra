@@ -18,6 +18,9 @@ spec:
   generators:
     - list:
         elements:
+          - name: longhorn
+            path: k8s/platform/longhorn
+            namespace: longhorn-system
           - name: cert-manager
             path: k8s/platform/cert-manager
             namespace: cert-manager
