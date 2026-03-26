@@ -11,6 +11,7 @@ nats:
         pvc:
           enabled: true
           size: 1Gi
+          storageClassName: longhorn
         maxSize: 1Gi
 
   container:
