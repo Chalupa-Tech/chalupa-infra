@@ -121,19 +121,33 @@ fi
 TS_IP=$(tailscale ip -4)
 echo "Detected Tailscale IP: $TS_IP"
 
-# Determine node location label based on hostname
+# Determine node labels based on hostname
 HOSTNAME=$(hostname)
 NODE_LOCATION_LABEL=""
+ZONE_LABEL=""
+COMPUTE_CLASS_LABEL=""
+TAINT_ARGS=""
+
 if [[ $HOSTNAME == d* ]]; then
     NODE_LOCATION_LABEL="node_location=dustin"
+    ZONE_LABEL="topology.kubernetes.io/zone=site-dpi"
+    COMPUTE_CLASS_LABEL="compute-class=pi5"
 elif [[ $HOSTNAME == t* ]]; then
     NODE_LOCATION_LABEL="node_location=tayven"
+    ZONE_LABEL="topology.kubernetes.io/zone=site-tpi"
+    COMPUTE_CLASS_LABEL="compute-class=pi5"
 elif [[ $HOSTNAME == fw* ]]; then
     NODE_LOCATION_LABEL="node_location=framework"
+    ZONE_LABEL="topology.kubernetes.io/zone=site-dpi"
+    COMPUTE_CLASS_LABEL="compute-class=framework"
+    TAINT_ARGS="--node-taint workload=heavy:NoSchedule"
 fi
 
 if [ -n "$NODE_LOCATION_LABEL" ]; then
-    echo "Detected hostname $HOSTNAME, adding label: $NODE_LOCATION_LABEL"
+    echo "Detected hostname $HOSTNAME, adding labels: $NODE_LOCATION_LABEL $ZONE_LABEL $COMPUTE_CLASS_LABEL"
+    if [ -n "$TAINT_ARGS" ]; then
+        echo "  Applying taint: workload=heavy:NoSchedule"
+    fi
 fi
 
 # Get Tailscale DNS Name (MagicDNS) for TLS SAN
@@ -171,6 +185,12 @@ COMMON_ARGS="--vpn-auth=name=tailscale,joinKey=$TS_AUTHKEY --node-external-ip=$T
 
 if [ -n "$NODE_LOCATION_LABEL" ]; then
     COMMON_ARGS="$COMMON_ARGS --node-label $NODE_LOCATION_LABEL"
+    COMMON_ARGS="$COMMON_ARGS --node-label $ZONE_LABEL"
+    COMMON_ARGS="$COMMON_ARGS --node-label $COMPUTE_CLASS_LABEL"
+fi
+
+if [ -n "$TAINT_ARGS" ]; then
+    COMMON_ARGS="$COMMON_ARGS $TAINT_ARGS"
 fi
 
 if [ "$ROLE" == "server" ]; then
