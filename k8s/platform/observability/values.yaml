@@ -21,6 +21,7 @@ victoria-metrics-k8s-stack:
       storage:
         accessModes:
           - ReadWriteOnce
+        storageClassName: longhorn
         resources:
           requests:
             storage: 20Gi
@@ -43,6 +44,7 @@ victoria-metrics-k8s-stack:
     persistence:
       enabled: true
       size: 1Gi
+      storageClassName: longhorn
     initChownData:
       enabled: false
     plugins:
