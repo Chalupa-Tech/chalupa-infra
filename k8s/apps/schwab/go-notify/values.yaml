@@ -5,7 +5,7 @@ timeZone: "America/Denver"
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-notify
-  tag: v0.5.0
+  tag: v0.5.1
 
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
