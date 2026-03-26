@@ -30,6 +30,11 @@ victoria-metrics-k8s-stack:
     enabled: true
     operator:
       disable_prometheus_converter: false
+    admissionWebhooks:
+      certManager:
+        enabled: true
+    nodeSelector:
+      compute-class: pi5
 
   ## Grafana
   grafana:
@@ -42,6 +47,7 @@ victoria-metrics-k8s-stack:
       enabled: false
     plugins:
       - victoriametrics-logs-datasource
+      - victoriametrics-metrics-datasource
     envFromSecret: "grafana-oidc-secret"
     grafana.ini:
       plugins:
