@@ -42,11 +42,11 @@ victoria-metrics-k8s-stack:
       enabled: false
     plugins:
       - victoriametrics-logs-datasource
-    env:
-      # Ensure plugins finish installing before provisioning runs
-      GF_PLUGINS_PREINSTALL_SYNC: "true"
     envFromSecret: "grafana-oidc-secret"
     grafana.ini:
+      plugins:
+        # Ensure plugins finish installing before provisioning runs
+        preinstall_sync: true
       server:
         root_url: "https://pi-k3s.chalupatech.com/grafana/"
         serve_from_sub_path: true
