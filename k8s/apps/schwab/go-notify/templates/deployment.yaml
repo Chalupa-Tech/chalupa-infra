@@ -24,10 +24,8 @@ spec:
               value: {{ .Values.nats.url | quote }}
             - name: SCHWAB_REGISTRATION
               value: {{ .Values.schwab.registration | quote }}
-            - name: DISCORD_WEBHOOK_URL
-              valueFrom:
-                secretKeyRef:
-                  name: schwab-secrets
-                  key: DISCORD_WEBHOOK_URL
+          envFrom:
+            - secretRef:
+                name: schwab-secrets
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
