@@ -1,0 +1,79 @@
+velero:
+  # -- Node scheduling: Pi nodes only
+  nodeSelector:
+    compute-class: pi5
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # -- S3-compatible backup storage (MinIO on fw1)
+  configuration:
+    backupStorageLocation:
+      - name: default
+        provider: aws
+        bucket: velero-backups
+        config:
+          region: us-east-1
+          s3ForcePathStyle: true
+          s3Url: https://fw1.tailbecff0.ts.net:9000
+
+    volumeSnapshotLocation:
+      - name: default
+        provider: csi
+
+    defaultBackupStorageLocation: default
+    defaultVolumeSnapshotLocations: csi:default
+
+    # Features: enable CSI snapshots
+    features: EnableCSI
+
+  # -- AWS (S3) plugin for MinIO connectivity
+  initContainers:
+    - name: velero-plugin-for-aws
+      image: velero/velero-plugin-for-aws:v1.11.1
+      volumeMounts:
+        - mountPath: /target
+          name: plugins
+    - name: velero-plugin-for-csi
+      image: velero/velero-plugin-for-csi:v0.8.1
+      volumeMounts:
+        - mountPath: /target
+          name: plugins
+
+  # -- Credentials from External Secrets (OpenBao → K8s Secret)
+  credentials:
+    useSecret: true
+    existingSecret: velero-s3-credentials
+
+  # -- Scheduled backups
+  schedules:
+    daily-full:
+      disabled: false
+      schedule: "0 3 * * *"
+      useOwnerReferencesInBackup: false
+      template:
+        ttl: "168h"
+        storageLocation: default
+        volumeSnapshotLocations:
+          - default
+        includedNamespaces:
+          - "*"
+        snapshotMoveData: false
+
+  # -- Deploy checks on Pi nodes
+  deployNodeAgent: true
+  nodeAgent:
+    nodeSelector:
+      compute-class: pi5
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi

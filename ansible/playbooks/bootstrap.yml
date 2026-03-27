@@ -127,6 +127,16 @@
     - argocd_setup
     - openbao_setup
 
+- name: Configure etcd S3 Snapshot Offload (all servers, rolling)
+  hosts: k3s_servers:k3s_ha_servers:k3s_oci_servers
+  become: true
+  serial: 1
+  tasks:
+    - name: Include etcd snapshot tasks from k3s_hardening
+      ansible.builtin.include_role:
+        name: k3s_hardening
+        tasks_from: etcd_snapshots
+
 - name: Configure Container Registry on All K3s Nodes
   hosts: k3s_servers:k3s_ha_servers:k3s_oci_servers:k3s_agents:k3s_vm_agents
   become: true

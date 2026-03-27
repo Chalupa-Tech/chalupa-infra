@@ -1,0 +1,7 @@
+---
+# etcd snapshot S3 offload
+k3s_etcd_snapshot_enabled: true
+k3s_etcd_snapshot_schedule: "0 */6 * * *"
+k3s_etcd_snapshot_retention: 10
+k3s_etcd_s3_endpoint: "fw1.tailbecff0.ts.net:9000"
+k3s_etcd_s3_bucket: "etcd-snapshots"
