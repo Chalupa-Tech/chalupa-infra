@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  # ArgoCD is bootstrapped on Raspberry Pi 5 (ARM64, 8GB RAM).
+  # Default timeouts and probe settings are tuned for fast cloud hardware
+  # and cause repo-server CrashLoopBackOff on ARM64 under load.
+  # See: https://github.com/argoproj/argo-cd/issues/14822
+
+  # No parallelism limit needed — the probe/timeout fixes are sufficient.
+  # Default (0 = unlimited) works fine for 17 apps on Pi5.
