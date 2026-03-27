@@ -1,7 +1,8 @@
 nats:
   config:
     cluster:
-      enabled: false
+      enabled: true
+      replicas: 3
 
     jetstream:
       enabled: true
@@ -22,6 +23,15 @@ nats:
       limits:
         cpu: 200m
         memory: 64Mi
+
+  podTemplate:
+    topologySpreadConstraints:
+      topology.kubernetes.io/zone:
+        maxSkew: 1
+        whenUnsatisfiable: ScheduleAnyway
+      kubernetes.io/hostname:
+        maxSkew: 1
+        whenUnsatisfiable: ScheduleAnyway
 
   reloader:
     enabled: true
