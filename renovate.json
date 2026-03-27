@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "helmv3": {
+    "fileMatch": ["k8s/.+/Chart\\.yaml$"]
+  },
+  "packageRules": [
+    {
+      "description": "Group all Helm chart updates into a single PR",
+      "matchManagers": ["helmv3"],
+      "groupName": "helm-charts",
+      "schedule": ["before 9am on monday"]
+    },
+    {
+      "description": "Pin major version updates for manual review",
+      "matchManagers": ["helmv3"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    }
+  ]
+}
