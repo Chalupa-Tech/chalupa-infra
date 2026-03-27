@@ -53,13 +53,6 @@ victoria-metrics-k8s-stack:
     plugins:
       - victoriametrics-logs-datasource
       - victoriametrics-metrics-datasource
-    sidecar:
-      datasources:
-        # Run the datasource sidecar as an init container so ConfigMap-based
-        # datasources are written to the provisioning dir BEFORE Grafana starts.
-        # Without this, the sidecar races the server — provisioning reads files
-        # referencing plugin datasource types before the plugin registry is ready.
-        initDatasources: true
     envFromSecret: "grafana-oidc-secret"
     grafana.ini:
       # NOTE: plugins.preinstall_sync is handled by the Helm chart's `plugins:`
