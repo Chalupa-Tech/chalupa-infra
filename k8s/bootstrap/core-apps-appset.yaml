@@ -78,6 +78,7 @@ spec:
           jqPathExpressions:
             - .spec.conversion
             - .spec.versions
+            - .spec.preserveUnknownFields
       syncPolicy:
         automated:
           prune: true
