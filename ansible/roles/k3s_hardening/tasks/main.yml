@@ -1,0 +1,49 @@
+---
+# K3s HA hardening — traefik HelmChartConfig, PDBs, replica scaling
+# Runs on the primary server node after K3s install.
+
+- name: Deploy Traefik HelmChartConfig (2 replicas, topology spread, PDB)
+  ansible.builtin.copy:
+    src: traefik-config.yaml
+    dest: /var/lib/rancher/k3s/server/manifests/traefik-config.yaml
+    mode: "0644"
+
+- name: Deploy kube-system PodDisruptionBudgets
+  ansible.builtin.copy:
+    src: kube-system-pdbs.yaml
+    dest: /var/lib/rancher/k3s/server/manifests/kube-system-pdbs.yaml
+    mode: "0644"
+
+- name: Wait for K3s API to be ready
+  ansible.builtin.command: kubectl get nodes
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: k3s_hardening_api_check
+  retries: 12
+  delay: 5
+  until: k3s_hardening_api_check.rc == 0
+  changed_when: false
+
+- name: Scale CoreDNS to 2 replicas
+  ansible.builtin.command: >
+    kubectl scale deploy coredns -n kube-system --replicas=2
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+
+- name: Scale metrics-server to 2 replicas
+  ansible.builtin.command: >
+    kubectl scale deploy metrics-server -n kube-system --replicas=2
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+
+- name: Patch metrics-server with topology spread and anti-affinity
+  ansible.builtin.command:
+    cmd: >-
+      kubectl patch deploy metrics-server -n kube-system
+      --type=strategic
+      -p '{{ lookup("file", "metrics-server-patch.json") }}'
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true

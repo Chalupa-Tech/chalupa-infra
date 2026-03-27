@@ -114,10 +114,11 @@
              default('tpi2.tailbecff0.ts.net') }}
         k3s_install_token: "{{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] }}"
 
-- name: Finalize Cluster Configuration (ArgoCD & OpenBao)
+- name: Finalize Cluster Configuration (ArgoCD, OpenBao & HA Hardening)
   hosts: k3s_servers
   become: true
   roles:
+    - k3s_hardening
     - argocd_setup
     - openbao_setup
 
