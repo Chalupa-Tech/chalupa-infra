@@ -1,0 +1,177 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  # ── Resource Customizations ──────────────────────────────────────────
+  # These were previously applied via kubectl patch. Now tracked in Git
+  # so they survive ArgoCD reinstalls.
+  #
+  # Reference: https://argo-cd.readthedocs.io/en/stable/user-guide/diffing/
+  # Cheat sheet: https://oneuptime.com/blog/post/2026-02-26-argocd-diff-customization-cheat-sheet/view
+
+  # --- ignoreDifferences (global) ---
+  # Suppress diff noise from runtime-injected fields that controllers
+  # continuously mutate. These apply to ALL ArgoCD Applications.
+  resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
+    jqPathExpressions:
+      - .webhooks[]?.clientConfig.caBundle
+      - .webhooks[]?.failurePolicy
+
+  resource.customizations.ignoreDifferences.admissionregistration.k8s.io_ValidatingWebhookConfiguration: |
+    jqPathExpressions:
+      - .webhooks[]?.clientConfig.caBundle
+      - .webhooks[]?.failurePolicy
+
+  # StatefulSet VCTs are immutable after creation — ignore storage diffs
+  resource.customizations.ignoreDifferences.apps_StatefulSet: |
+    jqPathExpressions:
+      - .spec.volumeClaimTemplates[]?.spec
+
+  # --- ignoreResourceUpdates ---
+  # Suppress unnecessary sync triggers from high-churn resources.
+  # These prevent ArgoCD from re-syncing when only status/metadata changes.
+  resource.customizations.ignoreResourceUpdates.all: |
+    jsonPointers:
+      - /status
+
+  resource.customizations.ignoreResourceUpdates._ConfigMap: |
+    jsonPointers:
+      - /metadata/resourceVersion
+
+  resource.customizations.ignoreResourceUpdates._Endpoints: |
+    jsonPointers:
+      - /metadata/resourceVersion
+      - /subsets
+
+  resource.customizations.ignoreResourceUpdates.apps_ReplicaSet: |
+    jsonPointers:
+      - /metadata/resourceVersion
+
+  resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
+    jsonPointers:
+      - /metadata/annotations
+      - /status
+
+  resource.customizations.ignoreResourceUpdates.discovery.k8s.io_EndpointSlice: |
+    jsonPointers:
+      - /metadata/resourceVersion
+      - /endpoints
+
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
+    jsonPointers:
+      - /status
+      - /operation
+
+  # External Secrets — refreshTime and syncedResourceVersion churn on every sync
+  resource.customizations.ignoreResourceUpdates.external-secrets.io_ExternalSecret: |
+    jsonPointers:
+      - /status/refreshTime
+      - /status/syncedResourceVersion
+
+  # cert-manager — certificate renewal timestamps
+  resource.customizations.ignoreResourceUpdates.cert-manager.io_Certificate: |
+    jsonPointers:
+      - /status/renewalTime
+      - /status/notAfter
+      - /status/notBefore
+
+  # VictoriaMetrics CRs — operator continuously reconciles /status
+  resource.customizations.ignoreResourceUpdates.operator.victoriametrics.com_VMAgent: |
+    jsonPointers:
+      - /status
+  resource.customizations.ignoreResourceUpdates.operator.victoriametrics.com_VMSingle: |
+    jsonPointers:
+      - /status
+  resource.customizations.ignoreResourceUpdates.operator.victoriametrics.com_VMAlertmanager: |
+    jsonPointers:
+      - /status
+
+  # --- Health Checks ---
+  # Custom health assessments for CRDs that ArgoCD doesn't natively understand.
+  resource.customizations.health.longhorn.io_Volume: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.state == "attached" or obj.status.state == "detached" then
+        hs.status = "Healthy"
+        hs.message = obj.status.state
+      elseif obj.status.state == "attaching" or obj.status.state == "detaching" then
+        hs.status = "Progressing"
+        hs.message = obj.status.state
+      else
+        hs.status = "Degraded"
+        hs.message = obj.status.state or "unknown"
+      end
+    else
+      hs.status = "Progressing"
+      hs.message = "waiting for status"
+    end
+    return hs
+
+  resource.customizations.health.longhorn.io_Replica: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.currentState == "running" then
+        hs.status = "Healthy"
+      elseif obj.status.currentState == "starting" or obj.status.currentState == "rebuilding" then
+        hs.status = "Progressing"
+      else
+        hs.status = "Degraded"
+      end
+      hs.message = obj.status.currentState or "unknown"
+    else
+      hs.status = "Progressing"
+      hs.message = "waiting for status"
+    end
+    return hs
+
+  resource.customizations.health.operator.victoriametrics.com_VMSingle: |
+    hs = {}
+    if obj.status ~= nil and obj.status.updateStatus ~= nil then
+      if obj.status.updateStatus == "operational" then
+        hs.status = "Healthy"
+      elseif obj.status.updateStatus == "expanding" then
+        hs.status = "Progressing"
+      else
+        hs.status = "Degraded"
+      end
+      hs.message = obj.status.updateStatus
+    else
+      hs.status = "Progressing"
+      hs.message = "waiting for status"
+    end
+    return hs
+
+  resource.customizations.health.operator.victoriametrics.com_VMAgent: |
+    hs = {}
+    if obj.status ~= nil and obj.status.updateStatus ~= nil then
+      if obj.status.updateStatus == "operational" then
+        hs.status = "Healthy"
+      elseif obj.status.updateStatus == "expanding" then
+        hs.status = "Progressing"
+      else
+        hs.status = "Degraded"
+      end
+      hs.message = obj.status.updateStatus
+    else
+      hs.status = "Progressing"
+      hs.message = "waiting for status"
+    end
+    return hs
+
+  resource.customizations.health.operator.victoriametrics.com_VMAlertmanager: |
+    hs = {}
+    if obj.status ~= nil and obj.status.updateStatus ~= nil then
+      if obj.status.updateStatus == "operational" then
+        hs.status = "Healthy"
+      elseif obj.status.updateStatus == "expanding" then
+        hs.status = "Progressing"
+      else
+        hs.status = "Degraded"
+      end
+      hs.message = obj.status.updateStatus
+    else
+      hs.status = "Progressing"
+      hs.message = "waiting for status"
+    end
+    return hs
