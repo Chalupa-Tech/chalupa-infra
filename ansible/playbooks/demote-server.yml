@@ -1,0 +1,274 @@
+---
+# Demote a K3s server node to agent.
+#
+# Removes the node from etcd, uninstalls the server, reinstalls as agent.
+# The target node must already be in k3s_agents (or k3s_vm_agents) in the
+# inventory — this playbook does NOT move inventory entries.
+#
+# Usage:
+#   ansible-playbook playbooks/demote-server.yml \
+#     -e target_node=tpi1 --ask-vault-pass
+#
+# Optional variables:
+#   etcdctl_version   — etcdctl release to download (default: v3.5.21)
+#   skip_drain        — set to true if the node is already drained/cordoned
+#   skip_etcd_remove  — set to true if the etcd member was already removed
+
+- name: Validate target_node is provided
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Fail if target_node is not set
+      ansible.builtin.fail:
+        msg: >
+          target_node is required. Usage:
+          ansible-playbook playbooks/demote-server.yml -e target_node=<hostname>
+      when: target_node is not defined
+
+    - name: Fail if target_node is the primary server
+      ansible.builtin.fail:
+        msg: "Cannot demote the primary server ({{ groups['k3s_servers'][0] }})"
+      when: target_node == groups['k3s_servers'][0]
+
+# ---------------------------------------------------------------------------
+# Phase 1: Drain node + remove etcd member (runs on primary server)
+# ---------------------------------------------------------------------------
+- name: Drain and remove etcd member
+  hosts: k3s_servers
+  become: true
+  gather_facts: true
+  vars:
+    etcdctl_version: "{{ etcdctl_version | default('v3.5.21') }}"
+    etcdctl_path: /tmp/etcdctl
+    etcd_cert_dir: /var/lib/rancher/k3s/server/tls/etcd
+  tasks:
+    # -- Drain --
+    - name: Drain target node
+      ansible.builtin.command: >
+        k3s kubectl drain {{ target_node }}
+        --ignore-daemonsets
+        --delete-emptydir-data
+        --force
+        --timeout=300s
+      register: drain_result
+      changed_when: true
+      when: not (skip_drain | default(false) | bool)
+
+    - name: Show drain output
+      ansible.builtin.debug:
+        var: drain_result.stdout_lines
+      when: drain_result is not skipped
+
+    # -- Install etcdctl --
+    - name: Determine architecture
+      ansible.builtin.set_fact:
+        etcd_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+
+    - name: Download etcdctl
+      ansible.builtin.get_url:
+        url: >-
+          https://github.com/etcd-io/etcd/releases/download/{{ etcdctl_version }}/etcd-{{ etcdctl_version }}-linux-{{ etcd_arch }}.tar.gz
+        dest: /tmp/etcd.tar.gz
+        mode: "0644"
+
+    - name: Extract etcdctl binary
+      ansible.builtin.shell: >
+        tar xzf /tmp/etcd.tar.gz
+        -C /tmp
+        --strip-components=1
+        "etcd-{{ etcdctl_version }}-linux-{{ etcd_arch }}/etcdctl"
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Make etcdctl executable
+      ansible.builtin.file:
+        path: "{{ etcdctl_path }}"
+        mode: "0755"
+
+    # -- Find and remove etcd member --
+    - name: List etcd members
+      ansible.builtin.command: >
+        {{ etcdctl_path }} member list
+        --endpoints=https://127.0.0.1:2379
+        --cacert={{ etcd_cert_dir }}/server-ca.crt
+        --cert={{ etcd_cert_dir }}/server-client.crt
+        --key={{ etcd_cert_dir }}/server-client.key
+        --write-out=json
+      register: etcd_members_raw
+      changed_when: false
+      when: not (skip_etcd_remove | default(false) | bool)
+
+    - name: Parse etcd member list
+      ansible.builtin.set_fact:
+        etcd_members: "{{ (etcd_members_raw.stdout | from_json).members }}"
+      when: not (skip_etcd_remove | default(false) | bool)
+
+    - name: Find target member ID
+      ansible.builtin.set_fact:
+        target_member_id: "{{ item.ID }}"
+      loop: "{{ etcd_members }}"
+      when:
+        - not (skip_etcd_remove | default(false) | bool)
+        - item.name is search(target_node)
+
+    - name: Fail if target member not found in etcd
+      ansible.builtin.fail:
+        msg: >
+          Could not find an etcd member matching '{{ target_node }}'.
+          Members: {{ etcd_members | map(attribute='name') | list }}
+          If the member was already removed, re-run with -e skip_etcd_remove=true
+      when:
+        - not (skip_etcd_remove | default(false) | bool)
+        - target_member_id is not defined
+
+    - name: Remove etcd member
+      ansible.builtin.command: >
+        {{ etcdctl_path }} member remove {{ target_member_id }}
+        --endpoints=https://127.0.0.1:2379
+        --cacert={{ etcd_cert_dir }}/server-ca.crt
+        --cert={{ etcd_cert_dir }}/server-client.crt
+        --key={{ etcd_cert_dir }}/server-client.key
+      register: etcd_remove_result
+      changed_when: true
+      when:
+        - not (skip_etcd_remove | default(false) | bool)
+        - target_member_id is defined
+
+    - name: Show etcd removal result
+      ansible.builtin.debug:
+        var: etcd_remove_result.stdout_lines
+      when: etcd_remove_result is not skipped
+
+    # -- Clean up etcdctl --
+    - name: Remove etcdctl and tarball
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ etcdctl_path }}"
+        - /tmp/etcd.tar.gz
+
+# ---------------------------------------------------------------------------
+# Phase 2: Uninstall K3s server on target node
+# ---------------------------------------------------------------------------
+- name: Uninstall K3s server
+  hosts: "{{ target_node }}"
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Stop k3s server service
+      ansible.builtin.systemd:
+        name: k3s
+        state: stopped
+      ignore_errors: true  # noqa: ignore-errors — may not exist
+
+    - name: Stop k3s agent service (dual-install cleanup)
+      ansible.builtin.systemd:
+        name: k3s-agent
+        state: stopped
+      ignore_errors: true  # noqa: ignore-errors — may not exist
+
+    - name: Run k3s server uninstall script
+      ansible.builtin.command: /usr/local/bin/k3s-uninstall.sh
+      register: server_uninstall
+      changed_when: true
+      failed_when: false
+
+    - name: Run k3s agent uninstall script (dual-install cleanup)
+      ansible.builtin.command: /usr/local/bin/k3s-agent-uninstall.sh
+      register: agent_uninstall
+      changed_when: true
+      failed_when: false
+
+    - name: Remove residual K3s directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/lib/rancher/k3s
+        - /etc/rancher/k3s
+        - /run/k3s
+        - /var/lib/kubelet
+        - /etc/cni/net.d
+
+    - name: Remove stale CNI interfaces
+      ansible.builtin.command: "ip link delete {{ item }}"
+      loop:
+        - cni0
+        - flannel.1
+      failed_when: false
+      changed_when: true
+
+# ---------------------------------------------------------------------------
+# Phase 3: Delete stale node object + reinstall as agent
+# ---------------------------------------------------------------------------
+- name: Delete stale node object
+  hosts: k3s_servers
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Delete Kubernetes node object
+      ansible.builtin.command: "k3s kubectl delete node {{ target_node }} --ignore-not-found"
+      changed_when: true
+
+- name: Reinstall as K3s agent
+  hosts: "{{ target_node }}"
+  become: true
+  roles:
+    - role: k3s_install
+      vars:
+        k3s_install_role: agent
+        k3s_install_server_ip: "tpi2.tailbecff0.ts.net"
+        k3s_install_token: "{{ k3s_token }}"
+
+# ---------------------------------------------------------------------------
+# Phase 4: Verify
+# ---------------------------------------------------------------------------
+- name: Verify node rejoined as agent
+  hosts: k3s_servers
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Wait for node to register
+      ansible.builtin.command: "k3s kubectl get node {{ target_node }}"
+      register: node_check
+      until: node_check.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Uncordon node
+      ansible.builtin.command: "k3s kubectl uncordon {{ target_node }}"
+      changed_when: true
+
+    - name: Verify node is Ready with no control-plane role
+      ansible.builtin.shell: |
+        k3s kubectl get node {{ target_node }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      register: node_ready
+      changed_when: false
+
+    - name: Show node status
+      ansible.builtin.debug:
+        msg: "{{ target_node }}: Ready={{ node_ready.stdout }}"
+
+    - name: Verify etcd member count
+      ansible.builtin.shell: |
+        k3s kubectl get nodes -l node-role.kubernetes.io/etcd=true --no-headers | wc -l
+      register: etcd_count
+      changed_when: false
+
+    - name: Show etcd voter count
+      ansible.builtin.debug:
+        msg: "etcd voters: {{ etcd_count.stdout | trim }}"
+
+    - name: Check flannel.1 exists on target
+      ansible.builtin.command: ip link show flannel.1
+      delegate_to: "{{ target_node }}"
+      register: flannel_check
+      changed_when: false
+      failed_when: false
+
+    - name: Show flannel status
+      ansible.builtin.debug:
+        msg: "flannel.1 on {{ target_node }}: {{ 'present' if flannel_check.rc == 0 else 'MISSING' }}"
