@@ -70,14 +70,14 @@ spec:
         server: https://kubernetes.default.svc
         namespace: '{{namespace}}'
       ignoreDifferences:
-        # Longhorn controller injects runtime fields into its CRDs
-        # (conversion webhook caBundle, version schemas) that drift from
-        # the Helm-managed spec. Ignore these to prevent permanent OutOfSync.
+        # Longhorn (and other operators) inject runtime fields into CRDs:
+        # caBundle, conversion webhook namespace, version schemas.
+        # Use jqPathExpressions for flexible matching across nested fields.
         - group: apiextensions.k8s.io
           kind: CustomResourceDefinition
-          jsonPointers:
-            - /spec/versions
-            - /spec/conversion
+          jqPathExpressions:
+            - .spec.conversion
+            - .spec.versions
       syncPolicy:
         automated:
           prune: true
