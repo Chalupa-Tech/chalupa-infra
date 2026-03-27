@@ -2,6 +2,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: go-schwab-auth-tailscale
+  annotations:
+    tailscale.com/proxy-class: kernel-tun
 spec:
   ingressClassName: tailscale
   tls:
