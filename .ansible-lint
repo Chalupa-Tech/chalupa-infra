@@ -17,6 +17,7 @@ mock_roles:
   - openbao_setup
   - docker_install
   - gitea_setup
+  - k3s_hardening
   - registry_config
 skip_list:
   # Role variables in gitea_setup use gitea_ prefix (not gitea_setup_). Renaming all
