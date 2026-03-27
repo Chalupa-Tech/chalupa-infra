@@ -1,0 +1,30 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vmsingle
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vmsingle
+      app.kubernetes.io/instance: vmstack
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: victoria-logs
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: victoria-logs-single-server
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: victoria-traces
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: vt-single-server
