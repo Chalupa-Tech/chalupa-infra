@@ -47,7 +47,7 @@ victoria-metrics-k8s-stack:
     persistence:
       enabled: true
       size: 1Gi
-      storageClassName: longhorn
+      storageClassName: longhorn-single
     initChownData:
       enabled: false
     plugins:

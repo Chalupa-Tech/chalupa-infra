@@ -1,0 +1,16 @@
+---
+# Single-replica StorageClass for stateless workloads with Recreate strategy.
+# Eliminates Multi-Attach errors during pod reschedule — data is in ConfigMaps/code,
+# not the PVC (e.g., Grafana dashboards, Alertmanager state).
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-single
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "1"
+  staleReplicaTimeout: "30"
+  dataLocality: "best-effort"
