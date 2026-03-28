@@ -33,12 +33,12 @@ spec:
           - name: openbao
             path: k8s/platform/openbao
             namespace: openbao
-          - name: management-proxy
-            path: k8s/platform/management-proxy
-            namespace: management-proxy
-          - name: tailscale-operator
-            path: k8s/platform/tailscale-operator
-            namespace: tailscale-operator
+          - name: external-dns
+            path: k8s/platform/external-dns
+            namespace: external-dns
+          - name: argocd-ingress
+            path: k8s/platform/argocd-ingress
+            namespace: argocd
           - name: nats
             path: k8s/platform/nats
             namespace: nats
