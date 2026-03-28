@@ -1,4 +1,5 @@
 ---
+project_dir: ansible
 exclude_paths:
   # Uses dynamic hosts: "{{ target_node }}" — requires -e at runtime
   - ansible/playbooks/demote-server.yml
