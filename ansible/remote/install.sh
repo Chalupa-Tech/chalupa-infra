@@ -202,8 +202,7 @@ fi
 if [ "$ROLE" == "server" ]; then
 
     # Servers need to include their Tailscale IP in the TLS SAN list so others can verify the cert
-    # Reduce pod eviction timeout from 5m to 2m for faster Longhorn volume failover
-    SERVER_ARGS="$COMMON_ARGS --tls-san=$TS_IP --kube-controller-manager-arg=pod-eviction-timeout=120s"
+    SERVER_ARGS="$COMMON_ARGS --tls-san=$TS_IP"
 
     # Add DNS name to SAN if detected
     if [ -n "$TS_DNS_NAME" ]; then

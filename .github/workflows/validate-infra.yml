@@ -81,5 +81,5 @@ jobs:
         run: pip install ansible-lint
 
       - name: Run ansible-lint
-        run: |
-          ansible-lint --profile production ansible/
+        working-directory: ansible
+        run: ansible-lint --profile production .

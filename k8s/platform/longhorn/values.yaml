@@ -22,8 +22,8 @@ longhorn:
     nodeDownPodDeletionPolicy: delete-both-statefulset-and-deployment-pod
 
   persistence:
-    # Set Longhorn as default StorageClass
-    defaultClass: true
+    # local-path is the default StorageClass — Longhorn must be explicitly requested
+    defaultClass: false
     defaultClassReplicaCount: 2
 
   # -- Component scheduling: Pi nodes only (exclude fw1 and future oracle1)

@@ -1,0 +1,4 @@
+---
+exclude_paths:
+  # Uses dynamic hosts: "{{ target_node }}" — requires -e at runtime
+  - playbooks/demote-server.yml
