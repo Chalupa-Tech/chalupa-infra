@@ -1,0 +1,85 @@
+---
+# K3s Rolling Restart Playbook
+#
+# Safely restarts K3s services across the cluster with:
+# - Etcd snapshot before starting
+# - Sequential control plane restarts (quorum-safe)
+# - Drain/cordon for agent nodes
+# - Post-restart validation (node Ready, flannel, DNS)
+#
+# Usage:
+#   ansible-playbook playbooks/k3s-restart.yml                          # Full rolling restart
+#   ansible-playbook playbooks/k3s-restart.yml --tags preflight         # Health check only
+#   ansible-playbook playbooks/k3s-restart.yml --tags servers           # Control planes only
+#   ansible-playbook playbooks/k3s-restart.yml --tags agents            # Workers only
+#   ansible-playbook playbooks/k3s-restart.yml --tags validate          # Validation only
+#   ansible-playbook playbooks/k3s-restart.yml -e k3s_restart_force=true  # Emergency (skip drain)
+#   ansible-playbook playbooks/k3s-restart.yml --limit tpi1 --tags agents # Single agent
+
+- name: "Pre-flight: Verify cluster health"
+  hosts: k3s_servers:k3s_ha_servers:k3s_oci_servers:k3s_agents:k3s_vm_agents
+  become: true
+  tags: [preflight, servers, agents]
+  vars:
+    k3s_server_groups: "{{ groups['k3s_servers'] + groups['k3s_ha_servers'] + groups['k3s_oci_servers'] }}"
+    k3s_service_name: "{{ 'k3s' if inventory_hostname in k3s_server_groups else 'k3s-agent' }}"
+  tasks:
+    - name: Include preflight checks
+      ansible.builtin.include_role:
+        name: k3s_restart
+        tasks_from: preflight
+
+- name: "Restart HA control planes (non-primary)"
+  hosts: k3s_ha_servers
+  become: true
+  serial: 1
+  tags: [servers]
+  tasks:
+    - name: Include server restart
+      ansible.builtin.include_role:
+        name: k3s_restart
+        tasks_from: restart_server
+
+- name: "Restart Oracle tiebreaker"
+  hosts: k3s_oci_servers
+  become: true
+  serial: 1
+  tags: [servers]
+  tasks:
+    - name: Include server restart
+      ansible.builtin.include_role:
+        name: k3s_restart
+        tasks_from: restart_server
+
+- name: "Restart primary control plane (last)"
+  hosts: k3s_servers
+  become: true
+  serial: 1
+  tags: [servers]
+  tasks:
+    - name: Include server restart
+      ansible.builtin.include_role:
+        name: k3s_restart
+        tasks_from: restart_server
+
+- name: "Restart agent nodes"
+  hosts: k3s_agents:k3s_vm_agents
+  become: true
+  serial: 1
+  tags: [agents]
+  tasks:
+    - name: Include agent restart
+      ansible.builtin.include_role:
+        name: k3s_restart
+        tasks_from: restart_agent
+
+- name: "Validate cluster health"
+  hosts: k3s_servers
+  become: true
+  tags: [validate, servers, agents]
+  tasks:
+    - name: Include cluster validation
+      ansible.builtin.include_role:
+        name: k3s_restart
+        tasks_from: validate_cluster
+      run_once: true  # noqa: run-once

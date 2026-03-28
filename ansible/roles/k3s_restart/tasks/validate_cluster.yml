@@ -1,0 +1,74 @@
+---
+# Cluster-wide validation after all restarts complete.
+
+- name: Verify all nodes are Ready
+  ansible.builtin.command: >
+    kubectl get nodes
+    -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}'
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  changed_when: false
+  register: k3s_restart_all_nodes
+
+- name: Display node status
+  ansible.builtin.debug:
+    msg: "{{ k3s_restart_all_nodes.stdout_lines }}"
+
+- name: Fail if any node is not Ready
+  ansible.builtin.fail:
+    msg: "Not all nodes are Ready: {{ k3s_restart_all_nodes.stdout }}"
+  when: "'False' in k3s_restart_all_nodes.stdout"
+
+- name: Verify CoreDNS pods are Running
+  ansible.builtin.command: >
+    kubectl get pods -n kube-system -l k8s-app=kube-dns
+    -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.phase}{"\n"}{end}'
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  changed_when: false
+  register: k3s_restart_coredns_status
+
+- name: Display CoreDNS status
+  ansible.builtin.debug:
+    msg: "{{ k3s_restart_coredns_status.stdout_lines }}"
+
+- name: Test DNS resolution via ClusterIP
+  ansible.builtin.command: >
+    kubectl run dns-test-{{ ansible_date_time.epoch }}
+    --rm -i --restart=Never --image=busybox:1.36
+    --timeout=30s
+    -- nslookup kubernetes.default.svc.cluster.local
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  changed_when: false
+  register: k3s_restart_dns_test
+  failed_when: false
+  when: not k3s_restart_force
+
+- name: Display DNS test result
+  ansible.builtin.debug:
+    msg: "{{ k3s_restart_dns_test.stdout_lines | default(['skipped (force mode)']) }}"
+
+- name: Warn if DNS test failed
+  ansible.builtin.debug:
+    msg: "WARNING: DNS resolution test failed — may need time to stabilize"
+  when:
+    - not k3s_restart_force
+    - k3s_restart_dns_test.rc | default(0) != 0
+
+- name: Verify etcd health
+  ansible.builtin.command: kubectl get --raw=/readyz
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  changed_when: false
+
+- name: Final cluster summary
+  ansible.builtin.command: kubectl get nodes -o wide
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  changed_when: false
+  register: k3s_restart_summary
+
+- name: Display final cluster state
+  ansible.builtin.debug:
+    msg: "{{ k3s_restart_summary.stdout_lines }}"

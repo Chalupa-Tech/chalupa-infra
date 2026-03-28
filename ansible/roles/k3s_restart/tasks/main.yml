@@ -1,0 +1,5 @@
+---
+# Entry point — not used directly. The playbook includes specific task files.
+- name: No-op (use specific task files via include_role tasks_from)
+  ansible.builtin.debug:
+    msg: "Use k3s-restart.yml playbook, not this role directly"

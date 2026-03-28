@@ -1,0 +1,10 @@
+---
+k3s_restart_force: false
+k3s_restart_node_ready_retries: 30
+k3s_restart_node_ready_delay: 10
+k3s_restart_service_retries: 10
+k3s_restart_service_delay: 10
+k3s_restart_drain_timeout: 120
+k3s_restart_stabilize_pause: 15
+k3s_restart_primary_server: "{{ groups['k3s_servers'][0] }}"
+k3s_restart_kubeconfig: /etc/rancher/k3s/k3s.yaml

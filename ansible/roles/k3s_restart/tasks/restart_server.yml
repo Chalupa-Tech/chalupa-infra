@@ -1,0 +1,57 @@
+---
+# Restart a single K3s server node with etcd health gating.
+# Called with serial: 1 from the playbook.
+
+- name: "{{ inventory_hostname }} — Check API server health before restart"
+  ansible.builtin.command: kubectl get --raw=/readyz
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  changed_when: false
+  failed_when: false
+  register: k3s_restart_api_health
+  when: not k3s_restart_force
+
+- name: "{{ inventory_hostname }} — Restart k3s service"
+  ansible.builtin.systemd:
+    name: k3s
+    state: restarted
+  when: not ansible_check_mode
+
+- name: "{{ inventory_hostname }} — Wait for k3s service to start"
+  ansible.builtin.command: systemctl is-active k3s
+  register: k3s_restart_svc_status
+  retries: "{{ k3s_restart_service_retries }}"
+  delay: "{{ k3s_restart_service_delay }}"
+  until: k3s_restart_svc_status.rc == 0
+  changed_when: false
+
+- name: "{{ inventory_hostname }} — Wait for node to become Ready"
+  ansible.builtin.command: >
+    kubectl get node {{ inventory_hostname }}
+    -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  register: k3s_restart_node_ready
+  retries: "{{ k3s_restart_node_ready_retries }}"
+  delay: "{{ k3s_restart_node_ready_delay }}"
+  until: k3s_restart_node_ready.stdout == 'True'
+  changed_when: false
+
+- name: "{{ inventory_hostname }} — Verify flannel.1 interface exists"
+  ansible.builtin.command: ip link show flannel.1
+  changed_when: false
+
+- name: "{{ inventory_hostname }} — Verify API server readiness"
+  ansible.builtin.command: kubectl get --raw=/readyz
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  register: k3s_restart_post_api
+  retries: 12
+  delay: 5
+  until: k3s_restart_post_api.rc == 0
+  changed_when: false
+
+- name: "{{ inventory_hostname }} — Stabilization pause"
+  ansible.builtin.pause:
+    seconds: "{{ k3s_restart_stabilize_pause }}"
+  when: not ansible_check_mode

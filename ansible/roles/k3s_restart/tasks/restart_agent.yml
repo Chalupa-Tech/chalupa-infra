@@ -1,0 +1,63 @@
+---
+# Restart a single K3s agent node with drain/cordon.
+# Called with serial: 1 from the playbook.
+
+- name: "{{ inventory_hostname }} — Cordon node"
+  ansible.builtin.command: >
+    kubectl cordon {{ inventory_hostname }}
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  delegate_to: "{{ k3s_restart_primary_server }}"
+  changed_when: true
+
+- name: "{{ inventory_hostname }} — Drain node"
+  ansible.builtin.command: >
+    kubectl drain {{ inventory_hostname }}
+    --ignore-daemonsets
+    --delete-emptydir-data
+    --timeout={{ k3s_restart_drain_timeout }}s
+    --force
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  delegate_to: "{{ k3s_restart_primary_server }}"
+  changed_when: true
+  when: not k3s_restart_force
+
+- name: "{{ inventory_hostname }} — Restart k3s-agent service"
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: restarted
+  when: not ansible_check_mode
+
+- name: "{{ inventory_hostname }} — Wait for k3s-agent service to start"
+  ansible.builtin.command: systemctl is-active k3s-agent
+  register: k3s_restart_agent_status
+  retries: "{{ k3s_restart_service_retries }}"
+  delay: "{{ k3s_restart_service_delay }}"
+  until: k3s_restart_agent_status.rc == 0
+  changed_when: false
+
+- name: "{{ inventory_hostname }} — Wait for node to become Ready"
+  ansible.builtin.command: >
+    kubectl get node {{ inventory_hostname }}
+    -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  delegate_to: "{{ k3s_restart_primary_server }}"
+  register: k3s_restart_agent_ready
+  retries: "{{ k3s_restart_node_ready_retries }}"
+  delay: "{{ k3s_restart_node_ready_delay }}"
+  until: k3s_restart_agent_ready.stdout == 'True'
+  changed_when: false
+
+- name: "{{ inventory_hostname }} — Verify flannel.1 interface exists"
+  ansible.builtin.command: ip link show flannel.1
+  changed_when: false
+
+- name: "{{ inventory_hostname }} — Uncordon node"
+  ansible.builtin.command: >
+    kubectl uncordon {{ inventory_hostname }}
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  delegate_to: "{{ k3s_restart_primary_server }}"
+  changed_when: true

@@ -1,0 +1,45 @@
+---
+# Pre-flight checks — run on all k3s nodes before any restarts.
+
+- name: Verify k3s service exists
+  ansible.builtin.command: systemctl is-enabled {{ k3s_service_name }}
+  changed_when: false
+  failed_when: false
+  register: k3s_restart_service_check
+
+- name: Fail if k3s service not found
+  ansible.builtin.fail:
+    msg: "Service {{ k3s_service_name }} not found on {{ inventory_hostname }}"
+  when: k3s_restart_service_check.rc != 0
+
+- name: Verify tailscale is connected
+  ansible.builtin.command: tailscale status --json
+  changed_when: false
+  failed_when: false
+  register: k3s_restart_ts_check
+
+- name: Warn if tailscale is down
+  ansible.builtin.debug:
+    msg: "WARNING: tailscale not connected on {{ inventory_hostname }}"
+  when: k3s_restart_ts_check.rc != 0
+
+- name: Check cluster node status
+  ansible.builtin.command: kubectl get nodes -o wide --no-headers
+  environment:
+    KUBECONFIG: "{{ k3s_restart_kubeconfig }}"
+  delegate_to: "{{ k3s_restart_primary_server }}"
+  run_once: true  # noqa: run-once
+  changed_when: false
+  register: k3s_restart_node_status
+
+- name: Display cluster status
+  ansible.builtin.debug:
+    msg: "{{ k3s_restart_node_status.stdout_lines }}"
+  run_once: true  # noqa: run-once
+
+- name: Take etcd snapshot before restart
+  ansible.builtin.command: k3s etcd-snapshot save --name pre-restart
+  delegate_to: "{{ k3s_restart_primary_server }}"
+  run_once: true  # noqa: run-once
+  changed_when: true
+  when: k3s_service_name == 'k3s'
