@@ -66,8 +66,8 @@
 
     - name: Download etcdctl
       ansible.builtin.get_url:
-        url: >-
-          https://github.com/etcd-io/etcd/releases/download/{{ etcdctl_version }}/etcd-{{ etcdctl_version }}-linux-{{ etcd_arch }}.tar.gz
+        url: "https://github.com/etcd-io/etcd/releases/download/\
+          {{ etcdctl_version }}/etcd-{{ etcdctl_version }}-linux-{{ etcd_arch }}.tar.gz"
         dest: /tmp/etcd.tar.gz
         mode: "0644"
 
