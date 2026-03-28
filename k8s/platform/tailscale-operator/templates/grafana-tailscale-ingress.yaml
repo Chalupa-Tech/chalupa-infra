@@ -3,6 +3,8 @@ kind: Ingress
 metadata:
   name: grafana-tailscale
   namespace: observability
+  annotations:
+    tailscale.com/proxy-class: kernel-tun
 spec:
   ingressClassName: tailscale
   tls:

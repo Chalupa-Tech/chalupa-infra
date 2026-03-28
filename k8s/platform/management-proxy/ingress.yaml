@@ -5,6 +5,7 @@ metadata:
   namespace: management-proxy
   annotations:
     tailscale.com/hostname: pi-k3s
+    tailscale.com/proxy-class: kernel-tun
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: tailscale

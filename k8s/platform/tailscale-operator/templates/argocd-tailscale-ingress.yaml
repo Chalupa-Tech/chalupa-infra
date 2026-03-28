@@ -3,6 +3,8 @@ kind: Ingress
 metadata:
   name: argocd-tailscale
   namespace: argocd
+  annotations:
+    tailscale.com/proxy-class: kernel-tun
 spec:
   ingressClassName: tailscale
   tls:

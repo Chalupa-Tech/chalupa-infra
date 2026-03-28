@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Script to install Tailscale and then K3s with Tailscale integration.
-# Based on: https://docs.k3s.io/networking/distributed-multicloud#integration-with-the-tailscale-vpn-provider-experimental
+# Script to install Tailscale and then K3s with flannel VXLAN over Tailscale.
+# Tailscale provides the node mesh; flannel VXLAN handles the pod overlay.
+# Based on: https://docs.k3s.io/networking/distributed-multicloud
 
 set -e
 
@@ -186,7 +187,7 @@ fi
 # --- 4. Install K3s ---
 echo "Installing K3s ($ROLE)..."
 
-COMMON_ARGS="--vpn-auth=name=tailscale,joinKey=$TS_AUTHKEY --node-external-ip=$TS_IP --flannel-iface=tailscale0"
+COMMON_ARGS="--node-external-ip=$TS_IP --flannel-iface=tailscale0"
 
 if [ -n "$NODE_LOCATION_LABEL" ]; then
     COMMON_ARGS="$COMMON_ARGS --node-label $NODE_LOCATION_LABEL"
