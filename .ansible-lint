@@ -1,29 +1,4 @@
 ---
 exclude_paths:
-  - .github/
-  - .gemini/
-quiet: false
-use_default_rules: true
-project_dir: ansible/
-progressive: false
-mock_roles:
-  - preflight
-  - user_setup
-  - pi_prepare
-  - k3s_install
-  - tailscale_install
-  - tailscale_services
-  - argocd_setup
-  - openbao_setup
-  - docker_install
-  - gitea_setup
-  - k3s_hardening
-  - registry_config
-skip_list:
-  # Role variables in gitea_setup use gitea_ prefix (not gitea_setup_). Renaming all
-  # would break inventory vars and cross-role references — skip for now.
-  - var-naming[no-role-prefix]
-  # The OIDC scope template line is intentionally long (Go template, can't split).
-  - yaml[line-length]
-  # !unsafe values use Go template syntax (not Jinja2) so spacing rules don't apply.
-  - jinja[spacing]
+  # Uses dynamic hosts: "{{ target_node }}" — requires -e at runtime
+  - ansible/playbooks/demote-server.yml
