@@ -38,7 +38,7 @@
   become: true
   gather_facts: true
   vars:
-    etcdctl_version: "{{ etcdctl_version | default('v3.5.21') }}"
+    etcdctl_version: "v3.5.21"
     etcdctl_path: /tmp/etcdctl
     etcd_cert_dir: /var/lib/rancher/k3s/server/tls/etcd
   tasks:
@@ -106,7 +106,7 @@
 
     - name: Find target member ID
       ansible.builtin.set_fact:
-        target_member_id: "{{ item.ID }}"
+        target_member_id: "{{ '%x' % (item.ID | int) }}"
       loop: "{{ etcd_members }}"
       when:
         - not (skip_etcd_remove | default(false) | bool)
