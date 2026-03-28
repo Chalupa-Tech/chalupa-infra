@@ -110,7 +110,7 @@
       loop: "{{ etcd_members }}"
       when:
         - not (skip_etcd_remove | default(false) | bool)
-        - item.name is search(target_node)
+        - item.name is match(target_node ~ '-')
 
     - name: Fail if target member not found in etcd
       ansible.builtin.fail:
