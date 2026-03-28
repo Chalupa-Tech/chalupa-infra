@@ -4,10 +4,3 @@ tailscale-operator:
   operatorConfig:
     defaultTags:
       - tag:k8s
-    extraEnv:
-      - name: TS_USERSPACE
-        value: "false"
-    securityContext:
-      privileged: true
-  proxyConfig:
-    defaultProxyClass: kernel-tun
