@@ -1,0 +1,81 @@
+---
+# Unseal all OpenBao pods.
+#
+# OpenBao loses unseal state on every pod restart (Shamir seal by design).
+# This playbook unseals all running pods using the key from Ansible Vault.
+#
+# Usage:
+#   ansible-playbook playbooks/openbao-unseal.yml
+
+- name: Unseal OpenBao cluster
+  hosts: k3s_servers
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Get OpenBao pod names
+      ansible.builtin.command: >
+        k3s kubectl get pods -n openbao
+        -l app.kubernetes.io/name=openbao,component=server
+        --no-headers
+        -o custom-columns=NAME:.metadata.name,READY:.status.containerStatuses[0].ready
+      register: openbao_pods_raw
+      changed_when: false
+
+    - name: Show discovered pods
+      ansible.builtin.debug:
+        var: openbao_pods_raw.stdout_lines
+
+    - name: Check seal status of each pod
+      ansible.builtin.command: >
+        k3s kubectl exec {{ item.split()[0] }} -n openbao -- bao status -format=json
+      loop: "{{ openbao_pods_raw.stdout_lines }}"
+      register: seal_status
+      changed_when: false
+      failed_when: false
+
+    - name: Build list of sealed pods
+      ansible.builtin.set_fact:
+        sealed_pods: >-
+          {{ seal_status.results
+             | selectattr('stdout', 'defined')
+             | selectattr('stdout', 'ne', '')
+             | selectattr('rc', 'ne', 2)
+             | rejectattr('stdout', 'search', '"sealed":false')
+             | map(attribute='item')
+             | map('split')
+             | map('first')
+             | list }}
+      # rc=2 means pod can't exec (not running), skip those
+
+    - name: Show sealed pods
+      ansible.builtin.debug:
+        msg: "Sealed pods to unseal: {{ sealed_pods | default([]) }}"
+
+    - name: Unseal sealed pods
+      ansible.builtin.command: >
+        k3s kubectl exec {{ item }} -n openbao --
+        bao operator unseal {{ openbao_unseal_key }}
+      loop: "{{ sealed_pods | default([]) }}"
+      register: unseal_results
+      changed_when: "'Sealed               false' in unseal_results.stdout | default('')"
+      no_log: true
+
+    - name: Verify final status
+      ansible.builtin.command: >
+        k3s kubectl exec {{ item.split()[0] }} -n openbao -- bao status -format=json
+      loop: "{{ openbao_pods_raw.stdout_lines }}"
+      register: final_status
+      changed_when: false
+      failed_when: false
+
+    - name: Show final seal status
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.item.split()[0] }}:
+          {{ 'unsealed' if (item.stdout | default('') | from_json).sealed is defined
+             and not (item.stdout | from_json).sealed
+             else 'sealed/unavailable' }}
+      loop: "{{ final_status.results }}"
+      loop_control:
+        label: "{{ item.item.split()[0] }}"
+      when: item.stdout is defined and item.stdout != ''
