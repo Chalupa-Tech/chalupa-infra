@@ -2,7 +2,7 @@ apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: redirect-to-https
-  namespace: openbao
+  namespace: argocd
 spec:
   redirectScheme:
     scheme: https
@@ -11,48 +11,48 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: openbao-tls
-  namespace: openbao
+  name: argocd-tls
+  namespace: argocd
 spec:
-  secretName: openbao-tls
+  secretName: argocd-tls
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-    - openbao.chalupatech.com
+    - argocd.chalupatech.com
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: openbao
-  namespace: openbao
+  name: argocd
+  namespace: argocd
 spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`openbao.chalupatech.com`)
+    - match: Host(`argocd.chalupatech.com`)
       kind: Rule
       middlewares:
         - name: redirect-to-https
       services:
-        - name: openbao-active
-          port: 8200
+        - name: argocd-server
+          port: 80
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: openbao-tls
-  namespace: openbao
+  name: argocd-tls
+  namespace: argocd
   annotations:
     external-dns.alpha.kubernetes.io/target: "tpi2.tailbecff0.ts.net"
 spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`openbao.chalupatech.com`)
+    - match: Host(`argocd.chalupatech.com`)
       kind: Rule
       services:
-        - name: openbao-active
-          port: 8200
+        - name: argocd-server
+          port: 80
   tls:
-    secretName: openbao-tls
+    secretName: argocd-tls

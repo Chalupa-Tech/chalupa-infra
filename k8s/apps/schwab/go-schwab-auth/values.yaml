@@ -9,9 +9,6 @@ vault:
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
 
-tailscale:
-  hostname: go-schwab-auth
-
 service:
   port: 8080
 
