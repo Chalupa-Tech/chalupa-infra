@@ -7,7 +7,7 @@ openbao:
         setNodeId: true
         config: |
           ui = true
-          api_addr = "http://POD_IP:8200"
+          api_addr = "http://HOSTNAME.openbao-internal:8200"
           cluster_addr = "http://HOSTNAME.openbao-internal:8201"
           listener "tcp" {
             tls_disable = 1
