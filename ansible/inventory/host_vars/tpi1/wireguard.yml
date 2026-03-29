@@ -5,7 +5,8 @@ wg_public_key: "s+W6JBIswstz+cFErN4DbvgtSjUhXvwjh7vcjOrfwFY="
 wg_private_key: "{{ vault_wg_private_key }}"
 
 wg_peers:
-  # tpi1 initiates to dpi2's public IP — dustin router forwards UDP 51821 to dpi2.
+  # dpi2 is the hub — carries oracle1 traffic until direct
+  # tpi1↔oracle1 tunnel is established (needs tayven router port forwarding).
   # PersistentKeepalive keeps the tayven NAT mapping alive.
   - name: dpi2
     public_key: "FVQoNWzYqj8Leu307nD/IDcnZcEV/3nhhFB4iWc5VHU="
@@ -13,12 +14,6 @@ wg_peers:
     allowed_ips:
       - "10.100.0.1/32"
       - "192.168.2.0/24"
-    persistent_keepalive: 25
-
-  - name: oracle1
-    public_key: "WTmkrxYt7h/KcuLgsYSrjWAkgvX/fxlAbkEvGV8zX2I="
-    endpoint: "161.153.114.165:51821"
-    allowed_ips:
-      - "10.100.0.3/32"
-      - "10.0.0.0/24"
+      - "10.100.0.3/32"       # hub-and-spoke: oracle1 wg0 via dpi2
+      - "10.0.0.0/24"         # hub-and-spoke: OCI subnet via dpi2
     persistent_keepalive: 25
