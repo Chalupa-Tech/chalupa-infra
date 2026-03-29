@@ -1,0 +1,6 @@
+#!/bin/bash
+# Managed by Ansible — wireguard_tunnel role
+# Routes cross-site traffic via local WireGuard gateway
+{% for subnet in wg_remote_subnets %}
+ip route replace {{ subnet }} via {{ wg_local_gateway }}
+{% endfor %}

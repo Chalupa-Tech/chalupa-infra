@@ -1,0 +1,39 @@
+---
+- name: Template static route script
+  ansible.builtin.template:
+    src: wg-static-routes.sh.j2
+    dest: /usr/local/bin/wg-static-routes.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create systemd service for WireGuard static routes
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/wg-static-routes.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Static routes for WireGuard cross-site connectivity
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/wg-static-routes.sh
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Enable and start wg-static-routes service
+  ansible.builtin.systemd:
+    name: wg-static-routes
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Apply routes immediately
+  ansible.builtin.command: /usr/local/bin/wg-static-routes.sh
+  changed_when: false

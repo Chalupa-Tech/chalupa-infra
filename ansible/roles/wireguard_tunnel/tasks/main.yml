@@ -1,0 +1,17 @@
+---
+- name: Install WireGuard tools
+  ansible.builtin.include_tasks: install.yml
+
+- name: Configure WireGuard gateway
+  ansible.builtin.include_tasks: gateway.yml
+  when: inventory_hostname in groups['wg_gateways']
+
+- name: Configure cross-site static routes on non-gateway nodes
+  ansible.builtin.include_tasks: client.yml
+  when: inventory_hostname not in groups['wg_gateways']
+
+- name: Verify WireGuard connectivity
+  ansible.builtin.include_tasks: verify.yml
+  when:
+    - wg_verify | bool
+    - inventory_hostname in groups['wg_gateways']

@@ -1,0 +1,6 @@
+---
+- name: Configure WireGuard site-to-site tunnels
+  hosts: site_dustin:site_tayven:site_oracle
+  become: true
+  roles:
+    - wireguard_tunnel

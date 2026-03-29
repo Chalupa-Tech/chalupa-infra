@@ -1,0 +1,96 @@
+---
+- name: Determine K3s service name
+  ansible.builtin.set_fact:
+    k3s_service: >-
+      {{ 'k3s' if inventory_hostname in groups.get('k3s_servers', []) + groups.get('k3s_ha_servers', []) + groups.get('k3s_oci_servers', [])
+         else 'k3s-agent' }}
+
+- name: Read current systemd unit
+  ansible.builtin.slurp:
+    src: "/etc/systemd/system/{{ k3s_service }}.service"
+  register: k3s_unit_raw
+
+- name: Decode unit file
+  ansible.builtin.set_fact:
+    k3s_unit_content: "{{ k3s_unit_raw.content | b64decode }}"
+
+- name: Check if migration is needed
+  ansible.builtin.set_fact:
+    needs_migration: "{{ flannel_old_arg in k3s_unit_content }}"
+
+- name: Skip if already migrated
+  ansible.builtin.debug:
+    msg: "Node already migrated — no flannel-iface=tailscale0 found"
+  when: not needs_migration
+
+- name: Migrate flannel configuration
+  when: needs_migration
+  block:
+    - name: Cordon node
+      ansible.builtin.command: "kubectl cordon {{ inventory_hostname }}"
+      delegate_to: "{{ groups['k3s_servers'][0] }}"
+      changed_when: true
+
+    - name: Drain workloads
+      ansible.builtin.command: >-
+        kubectl drain {{ inventory_hostname }}
+        --ignore-daemonsets
+        --delete-emptydir-data
+        --timeout=120s
+      delegate_to: "{{ groups['k3s_servers'][0] }}"
+      changed_when: true
+
+    - name: Stop K3s
+      ansible.builtin.systemd:
+        name: "{{ k3s_service }}"
+        state: stopped
+
+    - name: Replace flannel-iface with flannel-backend in systemd unit
+      ansible.builtin.replace:
+        path: "/etc/systemd/system/{{ k3s_service }}.service"
+        regexp: "\\s*'--flannel-iface=tailscale0'\\s*\\\\?"
+        replace: "\t'{{ flannel_new_arg }}' \\"
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Remove old VXLAN interface
+      ansible.builtin.command: ip link delete flannel.1
+      failed_when: false
+      changed_when: true
+
+    - name: Clean flannel subnet state
+      ansible.builtin.file:
+        path: /var/lib/rancher/k3s/agent/flannel/subnet.env
+        state: absent
+
+    - name: Start K3s
+      ansible.builtin.systemd:
+        name: "{{ k3s_service }}"
+        state: started
+
+    - name: Wait for node to become Ready
+      ansible.builtin.command: "kubectl get node {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type==\"Ready\")].status}'"
+      delegate_to: "{{ groups['k3s_servers'][0] }}"
+      register: node_ready
+      retries: 30
+      delay: 10
+      until: node_ready.stdout == "True"
+      changed_when: false
+
+    - name: Verify flannel backend
+      ansible.builtin.command: ip link show
+      register: ip_link
+      changed_when: false
+
+    - name: Confirm no VXLAN interface
+      ansible.builtin.assert:
+        that: "'flannel.1' not in ip_link.stdout"
+        fail_msg: "flannel.1 VXLAN interface still exists — migration may have failed"
+        success_msg: "No VXLAN interface — wireguard-native backend active"
+
+    - name: Uncordon node
+      ansible.builtin.command: "kubectl uncordon {{ inventory_hostname }}"
+      delegate_to: "{{ groups['k3s_servers'][0] }}"
+      changed_when: true

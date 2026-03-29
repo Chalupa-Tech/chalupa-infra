@@ -1,0 +1,23 @@
+---
+- name: Enable IPv4 forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_set: true
+    state: present
+    reload: true
+
+- name: Template WireGuard configuration
+  ansible.builtin.template:
+    src: wg0.conf.j2
+    dest: "/etc/wireguard/{{ wg_interface }}.conf"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart wg-quick
+
+- name: Enable and start wg-quick service
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wg_interface }}"
+    state: started
+    enabled: true

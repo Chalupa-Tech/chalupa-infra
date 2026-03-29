@@ -1,0 +1,20 @@
+---
+# Flannel VXLAN → wireguard-native migration
+# Run with: ansible-playbook playbooks/k3s-flannel-migrate.yml
+#
+# This is a maintenance window operation. Nodes are drained one at a time.
+# Servers first (to update the flannel backend in the K3s datastore), then agents.
+
+- name: Migrate K3s servers to wireguard-native
+  hosts: k3s_servers:k3s_ha_servers:k3s_oci_servers
+  serial: 1
+  become: true
+  roles:
+    - k3s_flannel_migrate
+
+- name: Migrate K3s agents to wireguard-native
+  hosts: k3s_agents:k3s_vm_agents
+  serial: 1
+  become: true
+  roles:
+    - k3s_flannel_migrate
