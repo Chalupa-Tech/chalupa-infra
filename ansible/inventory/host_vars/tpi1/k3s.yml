@@ -1,0 +1,4 @@
+---
+# Phase 7f: Migrate node-ip from Tailscale to LAN
+# tpi1 is on site_tayven (192.168.1.0/24), agent + WireGuard gateway
+k3s_node_ip: "192.168.1.125"

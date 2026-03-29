@@ -1,0 +1,4 @@
+---
+# Phase 7f: Migrate node-ip from Tailscale to LAN
+# fw1 is on site_dustin (192.168.2.0/24), VM agent on ProxMox
+k3s_node_ip: "192.168.2.51"
