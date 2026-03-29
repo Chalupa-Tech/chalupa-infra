@@ -78,11 +78,11 @@ bash scripts/deploy-core-apps.sh
 | Service | URL |
 |---------|-----|
 | Gitea | `https://gitea.tailbecff0.ts.net` |
-| ArgoCD | `https://pi-k3s.chalupatech.com/argocd` |
-| Grafana | `https://grafana.tailbecff0.ts.net` |
-| OpenBao | `https://openbao.tailbecff0.ts.net` |
+| ArgoCD | `https://argocd.chalupatech.com` |
+| Grafana | `https://grafana.chalupatech.com` |
+| OpenBao | `https://openbao.chalupatech.com` |
 
-All services accessible via Tailscale. Public access via pi-k3s.chalupatech.com (cert-manager + Cloudflare).
+All services accessible via `*.chalupatech.com` domains (cert-manager + Cloudflare DNS).
 
 ## Known Limitations
 

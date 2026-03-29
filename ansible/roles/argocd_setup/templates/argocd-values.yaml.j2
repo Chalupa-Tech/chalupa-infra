@@ -1,10 +1,10 @@
 configs:
   cm:
-    url: https://pi-k3s.chalupatech.com/argocd
+    url: https://argocd.chalupatech.com
     admin.enabled: true
     oidc.config: |
       name: OpenBao
-      issuer: https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default
+      issuer: https://openbao.chalupatech.com/v1/identity/oidc/provider/default
       clientID: {{ argocd_oidc_client_id | default('placeholder', true) }}
       clientSecret: $oidc.openbao.clientSecret
       requestedScopes: ["openid", "user"]
@@ -24,7 +24,6 @@ configs:
     controller.status.processors: "20"
     controller.operation.processors: "10"
     server.insecure: true
-    server.rootpath: /argocd
 
   rbac:
     policy.default: "role:readonly"
@@ -39,4 +38,4 @@ server:
     ingressClassName: traefik
     hosts:
       - argocd.local
-      - pi-k3s.chalupatech.com
+      - argocd.chalupatech.com
