@@ -69,7 +69,7 @@ jobs:
           echo "docker=$DOCKER" >> "$GITHUB_OUTPUT"
 
   deploy-cluster:
-    name: Deploy K3s Cluster (openbao_setup / site.yml)
+    name: Deploy K3s Cluster (bootstrap.yml)
     needs: detect-changes
     if: needs.detect-changes.outputs.run_site == 'true'
     runs-on: ubuntu-latest
@@ -94,12 +94,12 @@ jobs:
       - name: Write vault password
         run: echo "${{ secrets.ANSIBLE_VAULT_PASS }}" > /tmp/vault-pass.txt && chmod 600 /tmp/vault-pass.txt
 
-      - name: Run site.yml (openbao_setup / cluster config)
+      - name: Run bootstrap.yml (k3s_config / openbao_setup / cluster config)
         run: |
           ansible-playbook \
             -i inventory/hosts.yml \
             --vault-password-file /tmp/vault-pass.txt \
-            playbooks/site.yml
+            playbooks/bootstrap.yml
         working-directory: ${{ github.workspace }}/ansible
 
       - name: Cleanup vault password
