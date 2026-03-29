@@ -1,0 +1,4 @@
+---
+# Phase 7f: Migrate node-ip from Tailscale to LAN
+# dpi1 is on site_dustin (192.168.2.0/24), same subnet as control plane dpi2
+k3s_node_ip: "192.168.2.6"

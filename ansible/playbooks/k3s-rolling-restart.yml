@@ -71,6 +71,7 @@
       delay: 10
       until: k3s_api_check.rc == 0
       changed_when: false
+      when: not ansible_check_mode
 
     - name: Wait for node to be Ready
       ansible.builtin.shell: >
@@ -84,6 +85,7 @@
       delay: 10
       until: node_ready.stdout == "True"
       changed_when: false
+      when: not ansible_check_mode
 
     - name: Verify etcd health
       ansible.builtin.command: kubectl get --raw=/healthz/etcd
@@ -95,6 +97,7 @@
       delay: 10
       until: etcd_health.stdout == "ok"
       changed_when: false
+      when: not ansible_check_mode
 
     - name: Uncordon node
       when: k3s_restart_drain | default(true) | bool
@@ -107,6 +110,7 @@
     - name: Pause between servers for stabilization
       ansible.builtin.pause:
         seconds: "{{ 30 if (k3s_restart_reboot | default(true) | bool) else 10 }}"
+      when: not ansible_check_mode
 
 # Phase 3: Rolling restart — agents (one at a time)
 - name: Rolling restart K3s agents
@@ -151,6 +155,7 @@
       delay: 10
       until: node_ready.stdout == "True"
       changed_when: false
+      when: not ansible_check_mode
 
     - name: Uncordon node
       when: k3s_restart_drain | default(true) | bool
@@ -163,3 +168,4 @@
     - name: Pause between agents for stabilization
       ansible.builtin.pause:
         seconds: "{{ 15 if (k3s_restart_reboot | default(true) | bool) else 5 }}"
+      when: not ansible_check_mode
