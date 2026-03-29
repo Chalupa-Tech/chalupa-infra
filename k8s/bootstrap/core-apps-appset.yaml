@@ -79,6 +79,11 @@ spec:
             - .spec.conversion
             - .spec.versions
             - .spec.preserveUnknownFields
+        # PVC specs are immutable after creation. ArgoCD cannot reconcile
+        # changes to storageClassName, accessModes, or volumeName.
+        - kind: PersistentVolumeClaim
+          jqPathExpressions:
+            - .spec
       syncPolicy:
         automated:
           prune: true
