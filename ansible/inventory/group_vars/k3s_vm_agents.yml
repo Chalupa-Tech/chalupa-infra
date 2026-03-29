@@ -2,3 +2,6 @@
 k3s_install_role: agent
 enforce_arm64: false
 pi_prepare_disable_wifi: false
+k3s_compute_class: framework
+k3s_node_taints:
+  - "workload=heavy:NoSchedule"

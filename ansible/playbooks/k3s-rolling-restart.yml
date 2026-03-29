@@ -1,0 +1,141 @@
+---
+# Rolling restart playbook for K3s cluster.
+# Applies config.yaml to all nodes, then reboots one at a time.
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/k3s-rolling-restart.yml \
+#     --vault-password-file vault-password.sh
+#
+# Pre-flight:
+#   - Take an etcd snapshot: k3s etcd-snapshot save --name pre-maintenance
+#   - Verify all nodes are Ready: kubectl get nodes
+#   - Check Longhorn volume health: kubectl get volumes.longhorn.io -n longhorn-system
+
+# Phase 1: Apply config.yaml to ALL nodes (no restart yet)
+- name: Apply K3s config to all servers
+  hosts: k3s_servers:k3s_ha_servers:k3s_oci_servers
+  become: true
+  roles:
+    - k3s_config
+
+- name: Apply K3s config to all agents
+  hosts: k3s_agents:k3s_vm_agents
+  become: true
+  roles:
+    - k3s_config
+
+# Phase 2: Rolling reboot — servers first (one at a time)
+- name: Rolling reboot K3s servers
+  hosts: k3s_servers:k3s_ha_servers:k3s_oci_servers
+  become: true
+  serial: 1
+  tasks:
+    - name: Drain node
+      ansible.builtin.command: >
+        kubectl drain {{ inventory_hostname }}
+        --ignore-daemonsets
+        --delete-emptydir-data
+        --force
+        --timeout=120s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      delegate_to: "{{ groups['k3s_servers'][0] }}"
+      changed_when: true
+
+    - name: Reboot node
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+        msg: "K3s config migration — rolling reboot"
+
+    - name: Wait for K3s API to be ready
+      ansible.builtin.command: kubectl get nodes
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      delegate_to: "{{ groups['k3s_servers'][0] }}"
+      register: k3s_api_check
+      retries: 30
+      delay: 10
+      until: k3s_api_check.rc == 0
+      changed_when: false
+
+    - name: Wait for node to be Ready
+      ansible.builtin.shell: >
+        kubectl get node {{ inventory_hostname }}
+        -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      delegate_to: "{{ groups['k3s_servers'][0] }}"
+      register: node_ready
+      retries: 30
+      delay: 10
+      until: node_ready.stdout == "True"
+      changed_when: false
+
+    - name: Verify etcd health
+      ansible.builtin.command: kubectl get --raw=/healthz/etcd
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      delegate_to: "{{ groups['k3s_servers'][0] }}"
+      register: etcd_health
+      retries: 15
+      delay: 10
+      until: etcd_health.stdout == "ok"
+      changed_when: false
+
+    - name: Uncordon node
+      ansible.builtin.command: kubectl uncordon {{ inventory_hostname }}
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      delegate_to: "{{ groups['k3s_servers'][0] }}"
+      changed_when: true
+
+    - name: Pause between servers for stabilization
+      ansible.builtin.pause:
+        seconds: 30
+
+# Phase 3: Rolling reboot — agents (one at a time)
+- name: Rolling reboot K3s agents
+  hosts: k3s_agents:k3s_vm_agents
+  become: true
+  serial: 1
+  tasks:
+    - name: Drain node
+      ansible.builtin.command: >
+        kubectl drain {{ inventory_hostname }}
+        --ignore-daemonsets
+        --delete-emptydir-data
+        --force
+        --timeout=120s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      delegate_to: "{{ groups['k3s_servers'][0] }}"
+      changed_when: true
+
+    - name: Reboot node
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+        msg: "K3s config migration — rolling reboot"
+
+    - name: Wait for node to be Ready
+      ansible.builtin.shell: >
+        kubectl get node {{ inventory_hostname }}
+        -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      delegate_to: "{{ groups['k3s_servers'][0] }}"
+      register: node_ready
+      retries: 30
+      delay: 10
+      until: node_ready.stdout == "True"
+      changed_when: false
+
+    - name: Uncordon node
+      ansible.builtin.command: kubectl uncordon {{ inventory_hostname }}
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      delegate_to: "{{ groups['k3s_servers'][0] }}"
+      changed_when: true
+
+    - name: Pause between agents for stabilization
+      ansible.builtin.pause:
+        seconds: 15

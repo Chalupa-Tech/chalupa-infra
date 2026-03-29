@@ -1,0 +1,38 @@
+# Managed by Ansible — k3s_config role
+# Do not edit manually. Changes will be overwritten.
+
+{% if k3s_install_role in ['server', 'ha-server'] %}
+# --- Server configuration ---
+flannel-backend: wireguard-native
+disable-network-policy: true
+{% if k3s_install_role == 'server' %}
+cluster-init: true
+{% else %}
+server: "https://{{ k3s_server_url }}:6443"
+{% endif %}
+token: "{{ k3s_token }}"
+tls-san:
+  - "{{ k3s_node_ip }}"
+  - "{{ ansible_host }}"
+  - "{{ k3s_service_fqdn }}"
+{% else %}
+# --- Agent configuration ---
+server: "https://{{ k3s_server_url }}:6443"
+token: "{{ k3s_token }}"
+{% endif %}
+
+# --- Common configuration ---
+node-ip: "{{ k3s_node_ip }}"
+node-external-ip: "{{ k3s_node_ip }}"
+{% if k3s_node_labels | length > 0 %}
+node-label:
+{% for label in k3s_node_labels %}
+  - "{{ label }}"
+{% endfor %}
+{% endif %}
+{% if k3s_node_taints | length > 0 %}
+node-taint:
+{% for taint in k3s_node_taints %}
+  - "{{ taint }}"
+{% endfor %}
+{% endif %}

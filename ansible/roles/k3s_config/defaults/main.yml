@@ -1,0 +1,36 @@
+---
+# K3s config.yaml management
+# All K3s configuration lives in /etc/rancher/k3s/config.yaml.
+# The systemd unit should contain only `k3s server` or `k3s agent` with no flags.
+
+# Tailnet domain (extracted from inventory ansible_host values)
+k3s_tailnet_domain: "tailbecff0.ts.net"
+
+# Tailscale service name for K3s API (used in TLS SAN for servers)
+k3s_service_fqdn: "chalupa-k3s.{{ k3s_tailnet_domain }}"
+
+# Server URL for nodes joining the cluster (agents + HA servers)
+# Uses the Tailscale service FQDN so agents can reach ANY healthy server,
+# not just the primary. Critical for resilience when a server is down.
+k3s_server_url: "chalupa-k3s.{{ k3s_tailnet_domain }}"
+
+# Node metadata (set in site group_vars and role group_vars)
+k3s_node_location: ""
+k3s_zone: ""
+k3s_compute_class: ""
+
+# Assembled node labels (built from metadata above)
+# Override in host_vars for custom labels
+k3s_node_labels: >-
+  {{
+    (['node_location=' + k3s_node_location] if k3s_node_location else []) +
+    (['topology.kubernetes.io/zone=' + k3s_zone] if k3s_zone else []) +
+    (['compute-class=' + k3s_compute_class] if k3s_compute_class else [])
+  }}
+
+# Node taints (override in group_vars/host_vars)
+k3s_node_taints: []
+
+# K3s service name (k3s for servers, k3s-agent for agents)
+k3s_service_name: >-
+  {{ 'k3s' if k3s_install_role in ['server', 'ha-server'] else 'k3s-agent' }}

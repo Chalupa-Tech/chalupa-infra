@@ -1,4 +1,6 @@
 ---
+k3s_node_location: oracle
+k3s_zone: site-oci
 wg_local_gateway: "10.0.0.229"
 wg_remote_subnets:
   - "192.168.1.0/24"

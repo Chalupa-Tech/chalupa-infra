@@ -1,9 +1,20 @@
 ---
+- name: Check if K3s is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Skip install if K3s already present
+  ansible.builtin.debug:
+    msg: "K3s already installed — skipping bootstrap. Use k3s_config role for config changes."
+  when: k3s_binary.stat.exists
+
 - name: Copy K3s install script
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../remote/install.sh"
     dest: /tmp/install.sh
     mode: "0755"
+  when: not k3s_binary.stat.exists
 
 - name: Run K3s installation
   ansible.builtin.shell: >
@@ -13,17 +24,19 @@
   environment:
     TS_AUTHKEY: "{{ ts_authkey }}"
     K3S_TOKEN: "{{ k3s_install_token | default('') }}"
-    TS_SERVICE_NAME: "{{ ts_service_name | default('svc:chalupa-k3s') }}"
   args:
     executable: /bin/bash
   register: k3s_install_result
   changed_when: true
+  when: not k3s_binary.stat.exists
 
 - name: Display K3s installation output
   ansible.builtin.debug:
     var: k3s_install_result.stdout_lines
+  when: k3s_install_result is not skipped
 
 - name: Remove install script
   ansible.builtin.file:
     path: /tmp/install.sh
     state: absent
+  when: not k3s_binary.stat.exists

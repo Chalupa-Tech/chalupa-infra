@@ -153,7 +153,7 @@
 # Phase 2: Uninstall K3s server on target node
 # ---------------------------------------------------------------------------
 - name: Uninstall K3s server
-  hosts: "{{ target_node }}"
+  hosts: "{{ target_node | default('UNDEFINED_RUN_WITH_-e_target_node') }}"
   become: true
   gather_facts: false
   tasks:
@@ -227,13 +227,13 @@
       changed_when: true
 
 - name: Reinstall as K3s agent
-  hosts: "{{ target_node }}"
+  hosts: "{{ target_node | default('UNDEFINED_RUN_WITH_-e_target_node') }}"
   become: true
   roles:
     - role: k3s_install
       vars:
         k3s_install_role: agent
-        k3s_install_server_ip: "tpi2.tailbecff0.ts.net"
+        k3s_install_server_ip: "chalupa-k3s.tailbecff0.ts.net"
         k3s_install_token: "{{ k3s_token }}"
 
 # ---------------------------------------------------------------------------

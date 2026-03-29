@@ -1,0 +1,125 @@
+---
+# Promote a K3s agent node to server (etcd voter).
+#
+# Stops the agent, reinstalls as server, joins etcd cluster.
+# The target node must currently be in k3s_agents (or k3s_vm_agents) in the
+# inventory — this playbook does NOT move inventory entries.
+#
+# Usage:
+#   ansible-playbook playbooks/promote-agent.yml \
+#     -e target_node=dpi3 --ask-vault-pass
+#
+# Prerequisites:
+#   - Target node must be Ready as an agent
+#   - etcd cluster must be healthy (check: kubectl get --raw=/healthz/etcd)
+#   - Odd voter count is preferred (3, 5) for optimal quorum
+
+- name: Validate target_node is provided
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Fail if target_node is not set
+      ansible.builtin.fail:
+        msg: >
+          target_node is required. Usage:
+          ansible-playbook playbooks/promote-agent.yml -e target_node=<hostname>
+      when: target_node is not defined
+
+# ---------------------------------------------------------------------------
+# Phase 1: Stop agent on target node
+# ---------------------------------------------------------------------------
+- name: Stop K3s agent
+  hosts: "{{ target_node | default('UNDEFINED_RUN_WITH_-e_target_node') }}"
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Stop k3s-agent service
+      ansible.builtin.systemd:
+        name: k3s-agent
+        state: stopped
+      ignore_errors: true  # noqa: ignore-errors — may already be stopped
+
+    - name: Disable k3s-agent service
+      ansible.builtin.systemd:
+        name: k3s-agent
+        enabled: false
+      ignore_errors: true  # noqa: ignore-errors
+
+    - name: Detect Tailscale IP
+      ansible.builtin.command: tailscale ip -4
+      register: ts_ip
+      changed_when: false
+
+    - name: Write server config.yaml
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../roles/k3s_config/templates/config.yaml.j2"
+        dest: /etc/rancher/k3s/config.yaml
+        owner: root
+        group: root
+        mode: "0600"
+      vars:
+        k3s_install_role: ha-server
+        k3s_node_ip: "{{ ts_ip.stdout | trim }}"
+
+    - name: Remove stale etcd data (if any from prior attempts)
+      ansible.builtin.file:
+        path: /var/lib/rancher/k3s/server/db/etcd
+        state: absent
+
+    - name: Remove stale CNI interfaces
+      ansible.builtin.command: "ip link delete {{ item }}"
+      loop:
+        - flannel.1
+        - cni0
+      failed_when: false
+      changed_when: true
+
+    - name: Install K3s as server
+      ansible.builtin.shell: >
+        curl -sfL https://get.k3s.io | sh -s - server
+      environment:
+        K3S_URL: "https://{{ k3s_server_url | default('chalupa-k3s.' + k3s_tailnet_domain) }}:6443"
+        K3S_TOKEN: "{{ k3s_token }}"
+      register: k3s_install_result
+      changed_when: true
+
+    - name: Wait for K3s server to be active
+      ansible.builtin.command: systemctl is-active k3s
+      register: k3s_active
+      retries: 30
+      delay: 10
+      until: k3s_active.stdout == "active"
+      changed_when: false
+
+# ---------------------------------------------------------------------------
+# Phase 2: Verify promotion
+# ---------------------------------------------------------------------------
+- name: Verify node promoted to server
+  hosts: k3s_servers:k3s_ha_servers
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Wait for node to show control-plane role
+      ansible.builtin.shell: >
+        k3s kubectl get node {{ target_node | default('UNDEFINED_RUN_WITH_-e_target_node') }}
+        -o jsonpath='{.metadata.labels.node-role\.kubernetes\.io/control-plane}'
+      register: role_check
+      retries: 30
+      delay: 10
+      until: role_check.stdout == "true"
+      changed_when: false
+      run_once: true  # noqa: run-once
+
+    - name: Verify etcd voter count
+      ansible.builtin.shell: >
+        k3s kubectl get nodes
+        -l node-role.kubernetes.io/etcd=true
+        --no-headers | wc -l
+      register: etcd_count
+      changed_when: false
+      run_once: true  # noqa: run-once
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "{{ target_node | default('UNDEFINED_RUN_WITH_-e_target_node') }} promoted to server. etcd voters: {{ etcd_count.stdout | trim }}"
+      run_once: true  # noqa: run-once
