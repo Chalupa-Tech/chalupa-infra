@@ -44,7 +44,7 @@ metadata:
   name: openbao-tls
   namespace: openbao
   annotations:
-    external-dns.alpha.kubernetes.io/target: "tpi2.tailbecff0.ts.net"
+    external-dns.alpha.kubernetes.io/target: "dpi2.tailbecff0.ts.net"
 spec:
   entryPoints:
     - websecure
