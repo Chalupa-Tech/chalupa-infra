@@ -93,8 +93,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Ansible
-        run: pip install ansible-core
+      - name: Install Ansible and collections
+        working-directory: ansible
+        run: |
+          pip install ansible-core
+          ansible-galaxy collection install -r requirements.yml
 
       - name: Syntax check — rolling restart
         working-directory: ansible
