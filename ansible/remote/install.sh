@@ -187,7 +187,7 @@ fi
 # --- 4. Install K3s ---
 echo "Installing K3s ($ROLE)..."
 
-COMMON_ARGS="--node-external-ip=$TS_IP --flannel-backend=wireguard-native --disable-network-policy"
+COMMON_ARGS="--node-ip=$TS_IP --node-external-ip=$TS_IP --flannel-backend=wireguard-native --disable-network-policy"
 
 if [ -n "$NODE_LOCATION_LABEL" ]; then
     COMMON_ARGS="$COMMON_ARGS --node-label $NODE_LOCATION_LABEL"
