@@ -44,7 +44,7 @@ metadata:
   name: grafana-tls
   namespace: observability
   annotations:
-    external-dns.alpha.kubernetes.io/target: "dpi2.tailbecff0.ts.net"
+    external-dns.alpha.kubernetes.io/target: "100.72.211.115"
 spec:
   entryPoints:
     - websecure
