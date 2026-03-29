@@ -21,3 +21,21 @@
     name: "wg-quick@{{ wg_interface }}"
     state: started
     enabled: true
+
+- name: Ensure iptables-persistent is installed (OCI)
+  ansible.builtin.apt:
+    name: iptables-persistent
+    state: present
+  when: "'k3s_oci_servers' in group_names"
+
+- name: Remove OCI default REJECT rules (VCN security list is the perimeter)
+  ansible.builtin.iptables:
+    chain: "{{ item }}"
+    jump: REJECT
+    reject_with: icmp-host-prohibited
+    state: absent
+  loop:
+    - INPUT
+    - FORWARD
+  when: "'k3s_oci_servers' in group_names"
+  notify: Save iptables

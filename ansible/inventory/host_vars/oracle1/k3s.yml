@@ -1,0 +1,4 @@
+---
+# Phase 7g: Migrate node-ip from Tailscale to wg0 tunnel
+# oracle1 is cross-site (OCI), reachable via wg0 at 10.100.0.3
+k3s_node_ip: "10.100.0.3"
