@@ -62,12 +62,17 @@
       ansible.builtin.debug:
         msg: "OpenBao Initialized! Secrets: {{ openbao_setup_init_raw.stdout }}"
 
+### Block 1: Init + Unseal (first bootstrap only) ###
+# This block depends on openbao_init_data.json which is only created during
+# first-ever init. After Raft recovery or manual init, this file won't exist
+# and this block is correctly skipped — unseal is handled by openbao-unseal.yml.
+
 - name: Check for initialization data
   ansible.builtin.stat:
     path: /var/lib/rancher/k3s/server/openbao_init_data.json
   register: openbao_setup_init_stat
 
-- name: Process unsealing and auth
+- name: First-bootstrap unseal (init data file present)
   when:
     - not ansible_check_mode
     - openbao_setup_init_stat.stat.exists
@@ -81,7 +86,6 @@
     - name: Set facts from initialization data
       ansible.builtin.set_fact:
         openbao_setup_unseal_key: "{{ (openbao_setup_init_slurp.content | b64decode | from_json).unseal_keys_b64[0] }}"
-        openbao_setup_root_token: "{{ (openbao_setup_init_slurp.content | b64decode | from_json).root_token }}"
       no_log: true
 
     - name: Unseal OpenBao leader (openbao-0)
@@ -129,6 +133,27 @@
       changed_when: "'Sealed               false' in openbao_setup_unseal_followers.stdout"
       no_log: true
 
+### Block 2: Configuration (always runs) ###
+# Uses root token from Ansible Vault — works after first bootstrap, Raft
+# recovery, or manual unseal. All tasks are idempotent.
+
+- name: Verify OpenBao is unsealed before configuring
+  ansible.builtin.command: kubectl exec -n openbao openbao-0 -- bao status -format=json
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: openbao_setup_seal_check
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+- name: Configure OpenBao (auth, users, apps, OIDC)
+  when:
+    - not ansible_check_mode
+    - openbao_setup_seal_check.stdout is defined
+    - not (openbao_setup_seal_check.stdout | from_json).sealed
+  vars:
+    openbao_setup_root_token: "{{ openbao_root_token }}"
+  block:
     - name: Enable auth methods
       ansible.builtin.shell: |
         set -o pipefail
