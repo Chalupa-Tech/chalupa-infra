@@ -8,7 +8,7 @@ external-dns:
   domainFilters:
     - chalupatech.com
 
-  policy: upsert-only
+  policy: sync
 
   registry: txt
   txtOwnerId: "chalupa-k3s"
