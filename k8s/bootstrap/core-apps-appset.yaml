@@ -84,6 +84,16 @@ spec:
         - kind: PersistentVolumeClaim
           jqPathExpressions:
             - .spec
+        # K8s mutates StatefulSet volumeClaimTemplates after creation,
+        # adding apiVersion, kind, status, and volumeMode. These fields
+        # are immutable — ArgoCD cannot patch them back.
+        - group: apps
+          kind: StatefulSet
+          jqPathExpressions:
+            - .spec.volumeClaimTemplates[]?.apiVersion
+            - .spec.volumeClaimTemplates[]?.kind
+            - .spec.volumeClaimTemplates[]?.status
+            - .spec.volumeClaimTemplates[].spec.volumeMode
       syncPolicy:
         automated:
           prune: true
