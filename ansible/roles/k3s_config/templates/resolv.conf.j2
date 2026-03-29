@@ -1,0 +1,5 @@
+# Managed by Ansible — k3s_config role
+# Stable upstream DNS for CoreDNS (avoids link-local and Tailscale MagicDNS
+# addresses that are unreachable from the pod network namespace).
+nameserver 8.8.8.8
+nameserver 1.1.1.1

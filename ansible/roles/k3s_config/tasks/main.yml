@@ -19,6 +19,14 @@
     group: root
     mode: "0755"
 
+- name: Template stable resolv.conf for CoreDNS upstream
+  ansible.builtin.template:
+    src: resolv.conf.j2
+    dest: /etc/rancher/k3s/resolv.conf
+    owner: root
+    group: root
+    mode: "0644"
+
 - name: Template K3s config.yaml
   ansible.builtin.template:
     src: config.yaml.j2

@@ -1,10 +1,16 @@
 ---
 # Rolling restart playbook for K3s cluster.
-# Applies config.yaml to all nodes, then reboots one at a time.
+# Applies config.yaml to all nodes, then restarts one at a time.
 #
 # Usage:
+#   # Full maintenance (drain + reboot, default):
 #   ansible-playbook -i inventory/hosts.yml playbooks/k3s-rolling-restart.yml \
 #     --vault-password-file vault-password.sh
+#
+#   # Config-only roll (no drain, service restart only):
+#   ansible-playbook -i inventory/hosts.yml playbooks/k3s-rolling-restart.yml \
+#     --vault-password-file vault-password.sh \
+#     -e k3s_restart_drain=false -e k3s_restart_reboot=false
 #
 # Pre-flight:
 #   - Take an etcd snapshot: k3s etcd-snapshot save --name pre-maintenance
@@ -24,13 +30,14 @@
   roles:
     - k3s_config
 
-# Phase 2: Rolling reboot — servers first (one at a time)
-- name: Rolling reboot K3s servers
+# Phase 2: Rolling restart — servers first (one at a time)
+- name: Rolling restart K3s servers
   hosts: k3s_servers:k3s_ha_servers:k3s_oci_servers
   become: true
   serial: 1
   tasks:
     - name: Drain node
+      when: k3s_restart_drain | default(true) | bool
       ansible.builtin.command: >
         kubectl drain {{ inventory_hostname }}
         --ignore-daemonsets
@@ -43,9 +50,16 @@
       changed_when: true
 
     - name: Reboot node
+      when: k3s_restart_reboot | default(true) | bool
       ansible.builtin.reboot:
         reboot_timeout: 300
-        msg: "K3s config migration — rolling reboot"
+        msg: "K3s rolling restart"
+
+    - name: Restart K3s service (no reboot)
+      when: not (k3s_restart_reboot | default(true) | bool)
+      ansible.builtin.systemd:
+        name: k3s
+        state: restarted
 
     - name: Wait for K3s API to be ready
       ansible.builtin.command: kubectl get nodes
@@ -83,6 +97,7 @@
       changed_when: false
 
     - name: Uncordon node
+      when: k3s_restart_drain | default(true) | bool
       ansible.builtin.command: kubectl uncordon {{ inventory_hostname }}
       environment:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -91,15 +106,16 @@
 
     - name: Pause between servers for stabilization
       ansible.builtin.pause:
-        seconds: 30
+        seconds: "{{ 30 if (k3s_restart_reboot | default(true) | bool) else 10 }}"
 
-# Phase 3: Rolling reboot — agents (one at a time)
-- name: Rolling reboot K3s agents
+# Phase 3: Rolling restart — agents (one at a time)
+- name: Rolling restart K3s agents
   hosts: k3s_agents:k3s_vm_agents
   become: true
   serial: 1
   tasks:
     - name: Drain node
+      when: k3s_restart_drain | default(true) | bool
       ansible.builtin.command: >
         kubectl drain {{ inventory_hostname }}
         --ignore-daemonsets
@@ -112,9 +128,16 @@
       changed_when: true
 
     - name: Reboot node
+      when: k3s_restart_reboot | default(true) | bool
       ansible.builtin.reboot:
         reboot_timeout: 300
-        msg: "K3s config migration — rolling reboot"
+        msg: "K3s rolling restart"
+
+    - name: Restart K3s agent service (no reboot)
+      when: not (k3s_restart_reboot | default(true) | bool)
+      ansible.builtin.systemd:
+        name: k3s-agent
+        state: restarted
 
     - name: Wait for node to be Ready
       ansible.builtin.shell: >
@@ -130,6 +153,7 @@
       changed_when: false
 
     - name: Uncordon node
+      when: k3s_restart_drain | default(true) | bool
       ansible.builtin.command: kubectl uncordon {{ inventory_hostname }}
       environment:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -138,4 +162,4 @@
 
     - name: Pause between agents for stabilization
       ansible.builtin.pause:
-        seconds: 15
+        seconds: "{{ 15 if (k3s_restart_reboot | default(true) | bool) else 5 }}"
