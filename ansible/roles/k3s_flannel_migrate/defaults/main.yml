@@ -1,0 +1,6 @@
+---
+# Old flannel arg to remove
+flannel_old_arg: "--flannel-iface=tailscale0"
+
+# New flannel arg (server-only, harmless on agents)
+flannel_new_arg: "--flannel-backend=wireguard-native"

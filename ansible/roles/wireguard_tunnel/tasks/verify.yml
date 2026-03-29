@@ -1,0 +1,26 @@
+---
+- name: Wait for WireGuard interface
+  ansible.builtin.command: "wg show {{ wg_interface }}"
+  register: wg_show
+  retries: 5
+  delay: 3
+  until: wg_show.rc == 0
+  changed_when: false
+
+- name: Display WireGuard status
+  ansible.builtin.debug:
+    var: wg_show.stdout_lines
+
+- name: Ping remote gateway tunnel IPs
+  ansible.builtin.command: "ping -c 2 -W 3 {{ item }}"
+  loop: "{{ wg_transit_peers | difference([wg_tunnel_ip | regex_replace('/.*', '')]) }}"
+  register: wg_ping_results
+  failed_when: false
+  changed_when: false
+
+- name: Report connectivity results
+  ansible.builtin.debug:
+    msg: "Ping {{ item.item }}: {{ 'OK' if item.rc == 0 else 'FAILED (expected if peer not yet configured)' }}"
+  loop: "{{ wg_ping_results.results }}"
+  loop_control:
+    label: "{{ item.item }}"

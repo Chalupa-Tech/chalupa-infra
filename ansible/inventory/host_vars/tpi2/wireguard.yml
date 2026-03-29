@@ -1,0 +1,22 @@
+---
+wg_tunnel_ip: "10.100.0.2/24"
+wg_listen_port: 51820
+wg_public_key: "A1rT3IflVD9OdrlaVgo2OpDqHo9VSSKQ/6rrDUyw7QU="
+wg_private_key: "{{ vault_wg_private_key }}"
+
+wg_peers:
+  - name: dpi2
+    public_key: "FVQoNWzYqj8Leu307nD/IDcnZcEV/3nhhFB4iWc5VHU="
+    endpoint: "73.95.229.48:51820"
+    allowed_ips:
+      - "10.100.0.1/32"
+      - "192.168.2.0/24"
+    persistent_keepalive: 25
+
+  - name: oracle1
+    public_key: "WTmkrxYt7h/KcuLgsYSrjWAkgvX/fxlAbkEvGV8zX2I="
+    endpoint: "161.153.114.165:51820"
+    allowed_ips:
+      - "10.100.0.3/32"
+      - "10.0.0.0/24"
+    persistent_keepalive: 25

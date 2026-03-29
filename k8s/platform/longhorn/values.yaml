@@ -8,10 +8,10 @@ longhorn:
     # Storage reservation: 25% of 234G NVMe (~58G) for OS/K3s/images (actual usage ~15G)
     storageOverProvisioningPercentage: 100
     storageMinimalAvailablePercentage: 25
-    # 2 replicas for cross-site redundancy
+    # 2 replicas within same site (intra-site HA, avoids cross-site MTU issues)
     defaultReplicaCount: 2
-    # Spread replicas across zones (soft anti-affinity)
-    replicaZoneSoftAntiAffinity: true
+    # Allow replicas on same zone (keep storage traffic intra-site)
+    replicaZoneSoftAntiAffinity: false
     # Only schedule on Pi nodes
     systemManagedComponentsNodeSelector: "compute-class:pi5"
     # Guaranteed engine manager CPU (prevents starvation on Pi)

@@ -1,0 +1,18 @@
+# Managed by Ansible — wireguard_tunnel role
+
+[Interface]
+Address = {{ wg_tunnel_ip }}
+ListenPort = {{ wg_listen_port }}
+PrivateKey = {{ wg_private_key }}
+MTU = 1420
+{% for peer in wg_peers %}
+
+[Peer]
+# {{ peer.name }}
+PublicKey = {{ peer.public_key }}
+{% if peer.endpoint is defined and peer.endpoint %}
+Endpoint = {{ peer.endpoint }}
+{% endif %}
+AllowedIPs = {{ peer.allowed_ips | join(', ') }}
+PersistentKeepalive = {{ peer.persistent_keepalive | default(25) }}
+{% endfor %}
