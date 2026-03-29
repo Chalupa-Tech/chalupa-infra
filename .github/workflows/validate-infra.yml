@@ -99,11 +99,17 @@ jobs:
       - name: Syntax check — rolling restart
         working-directory: ansible
         run: ansible-playbook playbooks/k3s-rolling-restart.yml --syntax-check
+        env:
+          ANSIBLE_VAULT_PASSWORD: dummy
 
       - name: Syntax check — bootstrap
         working-directory: ansible
         run: ansible-playbook playbooks/bootstrap.yml --syntax-check
+        env:
+          ANSIBLE_VAULT_PASSWORD: dummy
 
       - name: Syntax check — wireguard
         working-directory: ansible
         run: ansible-playbook playbooks/wireguard.yml --syntax-check
+        env:
+          ANSIBLE_VAULT_PASSWORD: dummy
