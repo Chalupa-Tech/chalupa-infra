@@ -36,6 +36,20 @@
     mode: "0600"
   register: k3s_config_changed
 
+- name: Disable rp_filter for flannel-wg (prevents cross-node pod traffic drops)
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: "0"
+    sysctl_file: /etc/sysctl.d/90-flannel-wg.conf
+    reload: true
+  loop:
+    - net.ipv4.conf.all.rp_filter
+    - net.ipv4.conf.default.rp_filter
+
+- name: Clear Tailscale subnet route advertisements (prevents pod CIDR hijacking)
+  ansible.builtin.command: tailscale set --advertise-routes=
+  changed_when: false
+
 - name: Check current systemd unit for stale CLI flags
   ansible.builtin.shell: >
     grep -cE '\-\-flannel-iface|\-\-flannel-backend|\-\-node-ip|\-\-node-external-ip|\-\-node-label|\-\-node-taint|\-\-disable-network-policy|\-\-tls-san|\-\-cluster-init'
