@@ -62,12 +62,10 @@ gitea_admin_password: "{{ vault_gitea_admin_password }}"
 openbao_oidc_clients:
   - name: grafana
     redirect_uris:
-      - "https://grafana.tailbecff0.ts.net/login/generic_oauth"
-      - "https://pi-k3s.chalupatech.com/grafana/login/generic_oauth"
-      - "http://grafana.local/grafana/login/generic_oauth"
+      - "https://grafana.chalupatech.com/login/generic_oauth"
   - name: argocd
     redirect_uris:
-      - "https://pi-k3s.chalupatech.com/argocd/auth/callback"
+      - "https://argocd.chalupatech.com/auth/callback"
       - "http://localhost:8085/auth/callback"
   - name: gitea
     redirect_uris:
