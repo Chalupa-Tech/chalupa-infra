@@ -9,6 +9,7 @@
     - preflight
     - user_setup
     - pi_prepare
+    - k3s_config
     - k3s_install
     - tailscale_services
   post_tasks:
@@ -33,11 +34,12 @@
     - preflight
     - user_setup
     - pi_prepare
+    - k3s_config
     - role: k3s_install
       vars:
         k3s_install_server_ip: >-
           {{ hostvars[groups['k3s_servers'][0]]['primary_server_ip'] |
-             default('tpi2.tailbecff0.ts.net') }}
+             default('chalupa-k3s.tailbecff0.ts.net') }}
         k3s_install_token: "{{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] }}"
     - tailscale_services
 
@@ -73,9 +75,10 @@
   roles:
     - preflight
     - user_setup
+    - k3s_config
     - role: k3s_install
       vars:
-        k3s_install_server_ip: "tpi2.tailbecff0.ts.net"
+        k3s_install_server_ip: "chalupa-k3s.tailbecff0.ts.net"
         k3s_install_token: >-
           {{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token']
              | default(k3s_token) }}
@@ -93,11 +96,12 @@
     - preflight
     - user_setup
     - pi_prepare
+    - k3s_config
     - role: k3s_install
       vars:
         k3s_install_server_ip: >-
           {{ hostvars[groups['k3s_servers'][0]]['primary_server_ip'] |
-             default('tpi2.tailbecff0.ts.net') }}
+             default('chalupa-k3s.tailbecff0.ts.net') }}
         k3s_install_token: "{{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] }}"
 
 - name: Provision K3s VM Agents
@@ -107,11 +111,12 @@
     - preflight
     - user_setup
     - pi_prepare
+    - k3s_config
     - role: k3s_install
       vars:
         k3s_install_server_ip: >-
           {{ hostvars[groups['k3s_servers'][0]]['primary_server_ip'] |
-             default('tpi2.tailbecff0.ts.net') }}
+             default('chalupa-k3s.tailbecff0.ts.net') }}
         k3s_install_token: "{{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] }}"
 
 - name: Finalize Cluster Configuration (ArgoCD, OpenBao & HA Hardening)

@@ -1,4 +1,6 @@
 ---
+k3s_node_location: tayven
+k3s_zone: site-tpi
 wg_local_gateway: "192.168.1.211"
 wg_remote_subnets:
   - "192.168.2.0/24"

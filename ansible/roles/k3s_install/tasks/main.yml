@@ -13,7 +13,6 @@
   environment:
     TS_AUTHKEY: "{{ ts_authkey }}"
     K3S_TOKEN: "{{ k3s_install_token | default('') }}"
-    TS_SERVICE_NAME: "{{ ts_service_name | default('svc:chalupa-k3s') }}"
   args:
     executable: /bin/bash
   register: k3s_install_result

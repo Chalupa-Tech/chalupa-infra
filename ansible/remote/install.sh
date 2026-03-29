@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# Script to install Tailscale and then K3s with flannel VXLAN over Tailscale.
-# Tailscale provides the node mesh; flannel VXLAN handles the pod overlay.
-# Based on: https://docs.k3s.io/networking/distributed-multicloud
+# Bootstrap script: installs Tailscale and K3s binary/service.
+# All K3s configuration lives in /etc/rancher/k3s/config.yaml,
+# managed by the k3s_config Ansible role. This script only handles
+# binary installation and service creation.
 
 set -e
 
@@ -23,7 +24,9 @@ if [ -z "$1" ]; then
   echo "Environment Variables:"
   echo "  TS_AUTHKEY      (Required) Tailscale Auth Key (must be reusable or valid)"
   echo "  K3S_TOKEN       (Required for joining nodes, Optional for 1st server) Shared secret"
-  echo "  TS_SERVICE_NAME (Optional) Tailscale Service name for K3s API (default: svc:chalupa-k3s)"
+  echo ""
+  echo "K3s configuration (flannel, labels, taints, TLS SANs) is managed via"
+  echo "/etc/rancher/k3s/config.yaml by the k3s_config Ansible role."
   exit 1
 fi
 
@@ -118,129 +121,33 @@ else
     tailscale up --authkey="$TS_AUTHKEY"
 fi
 
-# --- 3. Get Tailscale IP ---
-TS_IP=$(tailscale ip -4)
-echo "Detected Tailscale IP: $TS_IP"
+# --- 3. Install K3s ---
+# All K3s configuration (flannel backend, node-ip, labels, taints, TLS SANs)
+# is managed via /etc/rancher/k3s/config.yaml by the k3s_config Ansible role.
+# This script only installs the binary and creates the systemd service.
 
-# Determine node labels based on hostname
-HOSTNAME=$(hostname)
-NODE_LOCATION_LABEL=""
-ZONE_LABEL=""
-COMPUTE_CLASS_LABEL=""
-TAINT_ARGS=""
-
-if [[ $HOSTNAME == d* ]]; then
-    NODE_LOCATION_LABEL="node_location=dustin"
-    ZONE_LABEL="topology.kubernetes.io/zone=site-dpi"
-    COMPUTE_CLASS_LABEL="compute-class=pi5"
-elif [[ $HOSTNAME == t* ]]; then
-    NODE_LOCATION_LABEL="node_location=tayven"
-    ZONE_LABEL="topology.kubernetes.io/zone=site-tpi"
-    COMPUTE_CLASS_LABEL="compute-class=pi5"
-elif [[ $HOSTNAME == fw* ]]; then
-    NODE_LOCATION_LABEL="node_location=framework"
-    ZONE_LABEL="topology.kubernetes.io/zone=site-dpi"
-    COMPUTE_CLASS_LABEL="compute-class=framework"
-    TAINT_ARGS="--node-taint workload=heavy:NoSchedule"
-elif [[ $HOSTNAME == oracle* ]]; then
-    NODE_LOCATION_LABEL="node_location=oracle"
-    ZONE_LABEL="topology.kubernetes.io/zone=site-oci"
-    COMPUTE_CLASS_LABEL="compute-class=oci-arm"
-    TAINT_ARGS="--node-taint node-role.kubernetes.io/control-plane:NoSchedule"
-fi
-
-if [ -n "$NODE_LOCATION_LABEL" ]; then
-    echo "Detected hostname $HOSTNAME, adding labels: $NODE_LOCATION_LABEL $ZONE_LABEL $COMPUTE_CLASS_LABEL"
-    if [ -n "$TAINT_ARGS" ]; then
-        echo "  Applying taint: $TAINT_ARGS"
-    fi
-fi
-
-# Get Tailscale DNS Name (MagicDNS) for TLS SAN
-# We use python3 to robustly parse the JSON output from tailscale status
-if command -v python3 &> /dev/null; then
-    TS_DNS_NAME=$(tailscale status --json | python3 -c "import sys, json; print(json.load(sys.stdin).get('Self', {}).get('DNSName', '').rstrip('.'))")
-    echo "Detected Tailscale DNS: $TS_DNS_NAME"
-else
-    echo "Warning: python3 not found, cannot auto-detect Tailscale DNS name for TLS SAN."
-    TS_DNS_NAME=""
-fi
-
-# Construct Tailscale Service FQDN
-# The service name defaults to svc:chalupa-k3s.
-# We need to extract the tailnet base domain from the TS_DNS_NAME to build the full service URL.
-SERVICE_NAME="${TS_SERVICE_NAME:-svc:chalupa-k3s}"
-TS_SERVICE_FQDN=""
-
-if [ -n "$TS_DNS_NAME" ]; then
-    # Extract everything after the first dot (e.g., node1.tailnet.ts.net -> tailnet.ts.net)
-    # This assumes the node name doesn't contain dots, which is standard for MagicDNS.
-    TS_BASE_DOMAIN=$(echo "$TS_DNS_NAME" | cut -d. -f2-)
-
-    # Extract the service name part (remove svc: prefix)
-    CLEAN_SVC_NAME=$(echo "$SERVICE_NAME" | sed 's/^svc://')
-
-    TS_SERVICE_FQDN="${CLEAN_SVC_NAME}.${TS_BASE_DOMAIN}"
-    echo "Constructed Service FQDN: $TS_SERVICE_FQDN"
-fi
-
-# --- 4. Install K3s ---
 echo "Installing K3s ($ROLE)..."
 
-COMMON_ARGS="--node-ip=$TS_IP --node-external-ip=$TS_IP --flannel-backend=wireguard-native --disable-network-policy"
-
-if [ -n "$NODE_LOCATION_LABEL" ]; then
-    COMMON_ARGS="$COMMON_ARGS --node-label $NODE_LOCATION_LABEL"
-    COMMON_ARGS="$COMMON_ARGS --node-label $ZONE_LABEL"
-    COMMON_ARGS="$COMMON_ARGS --node-label $COMPUTE_CLASS_LABEL"
-fi
-
-if [ -n "$TAINT_ARGS" ]; then
-    COMMON_ARGS="$COMMON_ARGS $TAINT_ARGS"
-fi
-
 if [ "$ROLE" == "server" ]; then
-
-    # Servers need to include their Tailscale IP in the TLS SAN list so others can verify the cert
-    SERVER_ARGS="$COMMON_ARGS --tls-san=$TS_IP"
-
-    # Add DNS name to SAN if detected
-    if [ -n "$TS_DNS_NAME" ]; then
-        SERVER_ARGS="$SERVER_ARGS --tls-san=$TS_DNS_NAME"
-    fi
-
-    # Add Service FQDN to SAN if constructed
-    if [ -n "$TS_SERVICE_FQDN" ]; then
-        SERVER_ARGS="$SERVER_ARGS --tls-san=$TS_SERVICE_FQDN"
-    fi
 
     if [ -z "$SERVER_IP" ]; then
         # Case A: First Server (Cluster Init)
         echo "Mode: Initializing NEW Cluster..."
 
-        # Use provided token if set, otherwise auto-generate
-        if [ -n "$K3S_TOKEN" ]; then
-            TOKEN_ARG="--token=$K3S_TOKEN"
-        else
-            TOKEN_ARG=""
-        fi
-
-        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --cluster-init $TOKEN_ARG $SERVER_ARGS" sh -
+        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server" K3S_TOKEN="${K3S_TOKEN}" sh -
 
     else
         # Case B: Joining Server (HA)
         echo "Mode: Joining EXISTING Cluster as Server (HA)..."
 
-        # Must have token and server IP (validated above)
-        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --server https://${SERVER_IP}:6443 --token=$K3S_TOKEN $SERVER_ARGS" sh -
+        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server" \
+            K3S_URL="https://${SERVER_IP}:6443" K3S_TOKEN="${K3S_TOKEN}" sh -
     fi
 
 elif [ "$ROLE" == "agent" ]; then
 
-    # For agent, we need the server URL.
-    # Note: The server IP provided must be reachable. If using Tailscale, it should be the Server's Tailscale IP.
-
-    curl -sfL https://get.k3s.io | K3S_URL=https://${SERVER_IP}:6443 K3S_TOKEN=${K3S_TOKEN} INSTALL_K3S_EXEC="agent $COMMON_ARGS" sh -
+    curl -sfL https://get.k3s.io | K3S_URL="https://${SERVER_IP}:6443" \
+        K3S_TOKEN="${K3S_TOKEN}" sh -s - agent
 
 else
     echo "Error: Invalid role '$ROLE'. Use 'server' or 'agent'."

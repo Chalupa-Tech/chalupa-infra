@@ -1,4 +1,6 @@
 ---
+k3s_node_location: dustin
+k3s_zone: site-dpi
 wg_local_gateway: "192.168.2.24"
 wg_remote_subnets:
   - "192.168.1.0/24"

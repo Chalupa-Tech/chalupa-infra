@@ -1,2 +1,3 @@
 ---
 k3s_install_role: server
+k3s_compute_class: pi5
