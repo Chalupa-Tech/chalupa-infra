@@ -1,0 +1,65 @@
+# VMNodeScrape resources for K3s embedded components.
+# K3s bundles etcd, controller-manager, and scheduler into the server binary.
+# These scrape server nodes by label — no hardcoded IPs, auto-discovers new servers.
+#
+# Prerequisites (in K3s config.yaml):
+#   etcd-expose-metrics: true
+#   kube-controller-manager-arg: ["bind-address=0.0.0.0"]
+#   kube-scheduler-arg: ["bind-address=0.0.0.0"]
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMNodeScrape
+metadata:
+  name: k3s-etcd
+  namespace: observability
+spec:
+  scheme: http
+  port: "2381"
+  path: /metrics
+  selector:
+    matchLabels:
+      node-role.kubernetes.io/etcd: "true"
+  metricRelabelConfigs:
+    - sourceLabels: [__name__]
+      regex: ".*_bucket"
+      action: drop
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMNodeScrape
+metadata:
+  name: k3s-controller-manager
+  namespace: observability
+spec:
+  scheme: https
+  port: "10257"
+  path: /metrics
+  bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+  tlsConfig:
+    insecureSkipVerify: true
+  selector:
+    matchLabels:
+      node-role.kubernetes.io/control-plane: "true"
+  metricRelabelConfigs:
+    - sourceLabels: [__name__]
+      regex: ".*_bucket"
+      action: drop
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMNodeScrape
+metadata:
+  name: k3s-scheduler
+  namespace: observability
+spec:
+  scheme: https
+  port: "10259"
+  path: /metrics
+  bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+  tlsConfig:
+    insecureSkipVerify: true
+  selector:
+    matchLabels:
+      node-role.kubernetes.io/control-plane: "true"
+  metricRelabelConfigs:
+    - sourceLabels: [__name__]
+      regex: ".*_bucket"
+      action: drop
