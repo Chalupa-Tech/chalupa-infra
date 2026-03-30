@@ -119,8 +119,19 @@ victoria-metrics-k8s-stack:
         selector:
           matchLabels: {component: apiserver, provider: kubernetes}
 
+  # K3s embeds etcd/controller-manager/scheduler in the server binary.
+  # Metrics require: etcd-expose-metrics + bind-address=0.0.0.0 in K3s config.
+  # Static endpoints point to server node IPs since K3s creates no component pods.
   kubeEtcd:
-    enabled: true   # toggle etcd scraping
+    enabled: true
+    endpoints:
+      - 192.168.2.24    # dpi2
+      - 192.168.2.250   # dpi3
+      - 10.100.0.3      # oracle1
+    service:
+      enabled: true
+      port: 2381
+      targetPort: 2381
     vmScrape:
       spec:
         endpoints:
@@ -130,22 +141,42 @@ victoria-metrics-k8s-stack:
               - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
 
   kubeControllerManager:
-    enabled: true   # toggle controller-manager scraping
+    enabled: true
+    endpoints:
+      - 192.168.2.24
+      - 192.168.2.250
+      - 10.100.0.3
+    service:
+      enabled: true
+      port: 10257
+      targetPort: 10257
     vmScrape:
       spec:
         endpoints:
           - port: http-metrics
-            scheme: http
+            scheme: https
+            tlsConfig:
+              insecureSkipVerify: true
             metricRelabelConfigs:
               - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
 
   kubeScheduler:
-    enabled: true   # toggle scheduler scraping
+    enabled: true
+    endpoints:
+      - 192.168.2.24
+      - 192.168.2.250
+      - 10.100.0.3
+    service:
+      enabled: true
+      port: 10259
+      targetPort: 10259
     vmScrape:
       spec:
         endpoints:
           - port: http-metrics
-            scheme: http
+            scheme: https
+            tlsConfig:
+              insecureSkipVerify: true
             metricRelabelConfigs:
               - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
   # yamllint enable rule:comments-indentation
