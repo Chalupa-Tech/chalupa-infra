@@ -46,6 +46,19 @@ spec:
             path: k8s/apps/schwab/go-schwab-feed
             namespace: schwab-ddowell
             wave: "1"
+          # tbigelow tenant
+          - name: schwab-tbigelow-base
+            path: k8s/apps/schwab/base
+            namespace: schwab-tbigelow
+            wave: "0"
+          - name: schwab-tbigelow-go-notify
+            path: k8s/apps/schwab/go-notify
+            namespace: schwab-tbigelow
+            wave: "1"
+          - name: schwab-tbigelow-go-schwab-auth
+            path: k8s/apps/schwab/go-schwab-auth
+            namespace: schwab-tbigelow
+            wave: "1"
   template:
     metadata:
       name: "{{name}}"
