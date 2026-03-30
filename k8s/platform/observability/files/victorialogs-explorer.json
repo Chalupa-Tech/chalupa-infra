@@ -13,7 +13,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter | stats by (_time:5m, namespace) count() as total"
+          "expr": "$filter | stats by (_time:5m, namespace) count() as total",
+          "queryType": "stats"
         }
       ],
       "fieldConfig": {
@@ -40,7 +41,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter | stats by (namespace) count() as total"
+          "expr": "$filter | stats by (namespace) count() as total",
+          "queryType": "stats"
         }
       ],
       "options": {
@@ -62,7 +64,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter | stats by (node) count() as total"
+          "expr": "$filter | stats by (node) count() as total",
+          "queryType": "stats"
         }
       ],
       "options": {
@@ -84,7 +87,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter _msg:~\"(?i)error|panic|fatal\" | stats by (_time:5m, namespace) count() as errors"
+          "expr": "$filter _msg:~\"(?i)error|panic|fatal\" | stats by (_time:5m, namespace) count() as errors",
+          "queryType": "stats"
         }
       ],
       "fieldConfig": {
