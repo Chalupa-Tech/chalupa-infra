@@ -119,68 +119,15 @@ victoria-metrics-k8s-stack:
         selector:
           matchLabels: {component: apiserver, provider: kubernetes}
 
-  # K3s embeds etcd/controller-manager/scheduler in the server binary.
-  # Metrics require: etcd-expose-metrics + bind-address=0.0.0.0 in K3s config.
-  # Static endpoints point to server node IPs since K3s creates no component pods.
+  # K3s embeds etcd/controller-manager/scheduler — no standalone pods exist.
+  # Disabled here; replaced by VMNodeScrape resources in templates/ that
+  # auto-discover server nodes by label (zero hardcoded IPs).
   kubeEtcd:
-    enabled: true
-    endpoints:
-      - 192.168.2.24    # dpi2
-      - 192.168.2.250   # dpi3
-      - 10.100.0.3      # oracle1
-    service:
-      enabled: true
-      port: 2381
-      targetPort: 2381
-    vmScrape:
-      spec:
-        endpoints:
-          - port: http-metrics
-            scheme: http
-            metricRelabelConfigs:
-              - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
-
+    enabled: false
   kubeControllerManager:
-    enabled: true
-    endpoints:
-      - 192.168.2.24
-      - 192.168.2.250
-      - 10.100.0.3
-    service:
-      enabled: true
-      port: 10257
-      targetPort: 10257
-    vmScrape:
-      spec:
-        endpoints:
-          - port: http-metrics
-            bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
-            scheme: https
-            tlsConfig:
-              insecureSkipVerify: true
-            metricRelabelConfigs:
-              - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
-
+    enabled: false
   kubeScheduler:
-    enabled: true
-    endpoints:
-      - 192.168.2.24
-      - 192.168.2.250
-      - 10.100.0.3
-    service:
-      enabled: true
-      port: 10259
-      targetPort: 10259
-    vmScrape:
-      spec:
-        endpoints:
-          - port: http-metrics
-            bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
-            scheme: https
-            tlsConfig:
-              insecureSkipVerify: true
-            metricRelabelConfigs:
-              - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
+    enabled: false
   # yamllint enable rule:comments-indentation
 
   ## Dashboards
