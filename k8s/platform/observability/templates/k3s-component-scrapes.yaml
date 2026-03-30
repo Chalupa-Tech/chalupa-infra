@@ -19,10 +19,6 @@ spec:
   selector:
     matchLabels:
       node-role.kubernetes.io/etcd: "true"
-  metricRelabelConfigs:
-    - sourceLabels: [__name__]
-      regex: ".*_bucket"
-      action: drop
 ---
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMNodeScrape
@@ -39,10 +35,6 @@ spec:
   selector:
     matchLabels:
       node-role.kubernetes.io/control-plane: "true"
-  metricRelabelConfigs:
-    - sourceLabels: [__name__]
-      regex: ".*_bucket"
-      action: drop
 ---
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMNodeScrape
@@ -59,7 +51,3 @@ spec:
   selector:
     matchLabels:
       node-role.kubernetes.io/control-plane: "true"
-  metricRelabelConfigs:
-    - sourceLabels: [__name__]
-      regex: ".*_bucket"
-      action: drop
