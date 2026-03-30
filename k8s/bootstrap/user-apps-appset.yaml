@@ -25,6 +25,16 @@ spec:
           - name: schwab-ddowell-go-schwab-auth
             path: k8s/apps/schwab/go-schwab-auth
             namespace: schwab-ddowell
+          # tbigelow tenant
+          - name: schwab-tbigelow-base
+            path: k8s/apps/schwab/base
+            namespace: schwab-tbigelow
+          - name: schwab-tbigelow-go-notify
+            path: k8s/apps/schwab/go-notify
+            namespace: schwab-tbigelow
+          - name: schwab-tbigelow-go-schwab-auth
+            path: k8s/apps/schwab/go-schwab-auth
+            namespace: schwab-tbigelow
   template:
     metadata:
       name: "{{name}}"
