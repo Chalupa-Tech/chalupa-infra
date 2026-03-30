@@ -207,7 +207,7 @@
     body:
       allowed_client_ids: >-
         {{ openbao_oidc_creds.values() | map(attribute='client_id') | list }}
-      issuer_host: "https://openbao.chalupatech.com"
+      issuer: "https://openbao.chalupatech.com"
       scopes_supported: ["user"]
     status_code: [200, 204]
     validate_certs: false
