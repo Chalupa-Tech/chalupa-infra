@@ -154,6 +154,7 @@ victoria-metrics-k8s-stack:
       spec:
         endpoints:
           - port: http-metrics
+            bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
             scheme: https
             tlsConfig:
               insecureSkipVerify: true
@@ -174,6 +175,7 @@ victoria-metrics-k8s-stack:
       spec:
         endpoints:
           - port: http-metrics
+            bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
             scheme: https
             tlsConfig:
               insecureSkipVerify: true

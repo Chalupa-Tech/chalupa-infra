@@ -8,10 +8,8 @@ disable-network-policy: true
 etcd-expose-metrics: true
 kube-controller-manager-arg:
   - "bind-address=0.0.0.0"
-  - "authorization-always-allow-paths=/healthz,/readyz,/livez,/metrics"
 kube-scheduler-arg:
   - "bind-address=0.0.0.0"
-  - "authorization-always-allow-paths=/healthz,/readyz,/livez,/metrics"
 {% if k3s_install_role == 'server' %}
 cluster-init: true
 {% else %}
