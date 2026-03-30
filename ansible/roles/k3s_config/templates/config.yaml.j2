@@ -20,6 +20,9 @@ tls-san:
   - "{{ k3s_node_ip }}"
   - "{{ ansible_host }}"
   - "{{ k3s_service_fqdn }}"
+{% if wg_tunnel_ip is defined %}
+  - "{{ wg_tunnel_ip.split('/')[0] }}"
+{% endif %}
 {% else %}
 # --- Agent configuration ---
 server: "https://{{ k3s_server_url }}:6443"
