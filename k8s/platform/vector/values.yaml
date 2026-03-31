@@ -36,11 +36,62 @@ vector:
           .container = .kubernetes.container_name
           .node = .kubernetes.pod_node_name
 
+          # Try parsing _msg as JSON for structured logs (Go services)
+          parsed, err = parse_json(.message)
+          if err == null {
+            .level = downcase(string(parsed.level) ?? "unknown")
+            .service = string(parsed.service) ?? ""
+            .error_msg = string(parsed.error) ?? ""
+            .caller = string(parsed.caller) ?? ""
+            .component = string(parsed.component) ?? ""
+            # Use the inner msg as the display message
+            inner_msg = string(parsed.msg) ?? ""
+            if inner_msg != "" {
+              .message = inner_msg
+            }
+          } else {
+            # logfmt: level=info or level=INFO
+            level_logfmt, err = parse_regex(.message, r'level=(?P<level>\w+)')
+            if err == null {
+              .level = downcase(string(level_logfmt.level) ?? "unknown")
+            } else {
+              # klog: I0330, E0330, W0330, F0330
+              klog_match, err = parse_regex(.message, r'^(?P<level>[IWEF])\d{4}\s')
+              if err == null {
+                klog_char = string(klog_match.level) ?? ""
+                if klog_char == "I" { .level = "info" }
+                else if klog_char == "W" { .level = "warn" }
+                else if klog_char == "E" { .level = "error" }
+                else if klog_char == "F" { .level = "fatal" }
+              } else {
+                # Bracket format: [WARNING], [INFO], [ERROR]
+                bracket_match, err = parse_regex(.message, r'\[(?P<level>DEBUG|INFO|WARN|WARNING|ERROR|FATAL|PANIC)\]')
+                if err == null {
+                  lvl = downcase(string(bracket_match.level) ?? "unknown")
+                  if lvl == "warning" { .level = "warn" }
+                  else { .level = lvl }
+                } else {
+                  .level = "unknown"
+                }
+              }
+            }
+          }
+
+      filter_noise:
+        type: filter
+        inputs:
+          - remap_logs
+        condition: |
+          # Drop kubelet/kube-proxy health check probes
+          !match(string(.message) ?? "", r'(healthz|readyz|livez)\s*\b') &&
+          # Drop Vector's own internal logs
+          .container != "vector"
+
     sinks:
       victorialogs:
         type: elasticsearch
         inputs:
-          - remap_logs
+          - filter_noise
         endpoints:
           - "http://victoria-logs-victoria-logs-single-server.observability.svc.cluster.local:9428/insert/elasticsearch/"
         mode: bulk
@@ -51,6 +102,6 @@ vector:
         query:
           _msg_field: message
           _time_field: timestamp
-          _stream_fields: "pod,namespace,container,node"
+          _stream_fields: "pod,namespace,container,node,level"
         request:
           concurrency: 1
