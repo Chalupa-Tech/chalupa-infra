@@ -89,15 +89,16 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$namespace $pod $level $filter | stats by (pod) count() as total | sort by (total) desc | limit 10",
+          "expr": "* $namespace $pod $level $filter | stats by (pod) count() as total",
           "legendFormat": "{{pod}}",
-          "queryType": "stats"
+          "queryType": "statsRange",
+          "step": "$__interval"
         }
       ],
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/total/" },
+        "reduceOptions": { "calcs": ["sum"] },
         "showUnfilled": true
       },
       "fieldConfig": {
@@ -144,15 +145,16 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$namespace $pod $level $filter | stats by (namespace) count() as total | sort by (total) desc",
+          "expr": "* $namespace $pod $level $filter | stats by (namespace) count() as total",
           "legendFormat": "{{namespace}}",
-          "queryType": "stats"
+          "queryType": "statsRange",
+          "step": "$__interval"
         }
       ],
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/total/" },
+        "reduceOptions": { "calcs": ["sum"] },
         "showUnfilled": true
       },
       "fieldConfig": {
@@ -170,15 +172,16 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$namespace $pod $level $filter | stats by (node) count() as total | sort by (total) desc",
+          "expr": "* $namespace $pod $level $filter | stats by (node) count() as total",
           "legendFormat": "{{node}}",
-          "queryType": "stats"
+          "queryType": "statsRange",
+          "step": "$__interval"
         }
       ],
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/total/" },
+        "reduceOptions": { "calcs": ["sum"] },
         "showUnfilled": true
       },
       "fieldConfig": {
@@ -196,15 +199,16 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$namespace $pod $filter level:error OR level:fatal OR level:panic | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 10",
+          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | stats by (_msg) count() as occurrences",
           "legendFormat": "{{_msg}}",
-          "queryType": "stats"
+          "queryType": "statsRange",
+          "step": "$__interval"
         }
       ],
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/occurrences/" },
+        "reduceOptions": { "calcs": ["sum"] },
         "showUnfilled": true
       },
       "fieldConfig": {
