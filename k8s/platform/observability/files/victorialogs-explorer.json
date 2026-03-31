@@ -13,7 +13,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$namespace $pod $level $filter | stats by (namespace) count() as total",
+          "expr": "* $namespace $pod $level $filter | stats by (namespace) count() as total",
+          "legendFormat": "{{namespace}}",
           "queryType": "statsRange",
           "step": "5m"
         }
@@ -26,8 +27,7 @@
             "stacking": { "mode": "normal" }
           },
           "unit": "short"
-        },
-        "overrides": []
+        }
       },
       "options": {
         "legend": { "displayMode": "table", "placement": "right", "calcs": ["sum"] },
@@ -42,7 +42,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$namespace $pod $level $filter | stats by (level) count() as total",
+          "expr": "* $namespace $pod $level $filter | stats by (level) count() as total",
+          "legendFormat": "{{level}}",
           "queryType": "statsRange",
           "step": "5m"
         }
@@ -58,19 +59,19 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "{level=\"error\"}" },
+            "matcher": { "id": "byName", "options": "error" },
             "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
           },
           {
-            "matcher": { "id": "byName", "options": "{level=\"warn\"}" },
+            "matcher": { "id": "byName", "options": "warn" },
             "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
           },
           {
-            "matcher": { "id": "byName", "options": "{level=\"info\"}" },
+            "matcher": { "id": "byName", "options": "info" },
             "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
           },
           {
-            "matcher": { "id": "byName", "options": "{level=\"debug\"}" },
+            "matcher": { "id": "byName", "options": "debug" },
             "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }]
           }
         ]
@@ -88,7 +89,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$namespace $pod $level $filter | stats by (pod) count() as total | sort by (total) desc | limit 10",
+          "expr": "* $namespace $pod $level $filter | stats by (pod) count() as total | sort by (total) desc | limit 10",
+          "legendFormat": "{{pod}}",
           "queryType": "stats"
         }
       ],
@@ -113,7 +115,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$namespace $pod level:error OR level:fatal OR level:panic $filter | stats by (namespace) count() as errors",
+          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | stats by (namespace) count() as errors",
+          "legendFormat": "{{namespace}}",
           "queryType": "statsRange",
           "step": "5m"
         }
@@ -126,8 +129,7 @@
           },
           "color": { "mode": "palette-classic" },
           "unit": "short"
-        },
-        "overrides": []
+        }
       },
       "options": {
         "legend": { "displayMode": "table", "placement": "bottom" },
@@ -142,7 +144,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$namespace $pod $level $filter | stats by (namespace) count() as total | sort by (total) desc",
+          "expr": "* $namespace $pod $level $filter | stats by (namespace) count() as total | sort by (total) desc",
+          "legendFormat": "{{namespace}}",
           "queryType": "stats"
         }
       ],
@@ -167,7 +170,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$namespace $pod $level $filter | stats by (node) count() as total | sort by (total) desc",
+          "expr": "* $namespace $pod $level $filter | stats by (node) count() as total | sort by (total) desc",
+          "legendFormat": "{{node}}",
           "queryType": "stats"
         }
       ],
@@ -186,30 +190,28 @@
     },
     {
       "title": "Unique Error Messages",
-      "type": "table",
+      "type": "bargauge",
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "$namespace $pod level:error OR level:fatal OR level:panic $filter | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 20",
+          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 10",
+          "legendFormat": "{{_msg}}",
           "queryType": "stats"
         }
       ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/occurrences/" },
+        "showUnfilled": true
+      },
       "fieldConfig": {
         "defaults": {
-          "custom": { "filterable": true }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "_msg" },
-            "properties": [{ "id": "custom.width", "value": 500 }]
-          }
-        ]
-      },
-      "options": {
-        "showHeader": true,
-        "sortBy": [{ "displayName": "occurrences", "desc": true }]
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        }
       }
     },
     {
@@ -220,7 +222,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$namespace $pod $level $filter"
+          "expr": "* $namespace $pod $level $filter | sort by (_time) | limit 500",
+          "queryType": "instant"
         }
       ],
       "options": {

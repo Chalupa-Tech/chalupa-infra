@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-etcd
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  etcd-dashboard.json: |
+{{ .Files.Get "files/etcd-dashboard.json" | indent 4 }}

@@ -3,9 +3,78 @@
   "editable": true,
   "panels": [
     {
-      "title": "Cluster CPU Usage",
-      "type": "gauge",
-      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "title": "Golden Signals",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "title": "Nodes Ready",
+      "description": "Number of nodes in Ready state vs total node count",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})"
+        },
+        {
+          "refId": "B",
+          "expr": "count(kube_node_info)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 6 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Pods Running",
+      "description": "Total pods in Running phase across all namespaces",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(kube_pod_status_phase{phase=\"Running\"} == 1)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Cluster CPU",
+      "description": "Average CPU utilization across all nodes",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
       "targets": [
         {
@@ -16,22 +85,28 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "min": 0, "max": 1,
+          "min": 0,
+          "max": 1,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.7 },
-              { "color": "red", "value": 0.9 }
+              { "color": "yellow", "value": 0.6 },
+              { "color": "red", "value": 0.8 }
             ]
           }
         }
+      },
+      "options": {
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
       }
     },
     {
-      "title": "Cluster Memory Usage",
-      "type": "gauge",
-      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "title": "Cluster Memory",
+      "description": "Cluster-wide memory utilization (used / total)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
       "targets": [
         {
@@ -42,53 +117,63 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "min": 0, "max": 1,
+          "min": 0,
+          "max": 1,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": null },
               { "color": "yellow", "value": 0.7 },
-              { "color": "red", "value": 0.9 }
+              { "color": "red", "value": 0.85 }
             ]
           }
         }
+      },
+      "options": {
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
       }
     },
     {
-      "title": "Pods Running",
+      "title": "API Server p99",
+      "description": "99th percentile API server request latency (read verbs)",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 4, "x": 12, "y": 0 },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "count(kube_pod_status_phase{phase=\"Running\"} == 1)"
+          "expr": "histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds_bucket{verb!~\"WATCH|CONNECT\"}[5m])) by (le))"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "short" } }
-    },
-    {
-      "title": "Nodes Ready",
-      "type": "stat",
-      "gridPos": { "h": 6, "w": 4, "x": 16, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})"
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
         }
-      ],
-      "fieldConfig": { "defaults": { "unit": "short" } }
+      },
+      "options": {
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
     },
     {
-      "title": "VM Series Count",
+      "title": "Active Alerts",
+      "description": "Number of currently firing alerts (excluding watchdog/info severity)",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 4, "x": 20, "y": 0 },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "vm_rows{type=\"indexdb\"}"
+          "expr": "count(ALERTS{alertstate=\"firing\",severity!~\"info|none\"}) OR vector(0)"
         }
       ],
       "fieldConfig": {
@@ -98,17 +183,93 @@
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": null },
-              { "color": "yellow", "value": 200000 },
-              { "color": "red", "value": 400000 }
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
             ]
           }
         }
+      },
+      "options": {
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
       }
     },
     {
+      "title": "Cluster Health",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "collapsed": false
+    },
+    {
+      "title": "Node Status Over Time",
+      "description": "State timeline showing each node's Ready/NotReady transitions",
+      "type": "state-timeline",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "kube_node_status_condition{condition=\"Ready\",status=\"true\"}",
+          "legendFormat": "{{node}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "1": { "text": "Ready", "color": "green" } } },
+            { "type": "value", "options": { "0": { "text": "NotReady", "color": "red" } } }
+          ]
+        }
+      },
+      "options": {
+        "showValue": "auto",
+        "mergeValues": true,
+        "alignValue": "left",
+        "tooltip": { "mode": "single" }
+      }
+    },
+    {
+      "title": "Non-Running Pod Phases",
+      "description": "Pods not in Running state — shows Pending, CrashLoopBackOff, Failed transitions",
+      "type": "state-timeline",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "kube_pod_status_phase{phase!=\"Running\",phase!=\"Succeeded\"} == 1",
+          "legendFormat": "{{namespace}}/{{pod}} ({{phase}})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "yellow", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "showValue": "auto",
+        "mergeValues": true,
+        "tooltip": { "mode": "single" }
+      }
+    },
+    {
+      "title": "Resource Utilization",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 },
+      "collapsed": false
+    },
+    {
       "title": "CPU Usage by Node",
+      "description": "Per-node CPU utilization as stacked area chart",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
       "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
       "targets": [
         {
@@ -121,18 +282,31 @@
         "defaults": {
           "unit": "percentunit",
           "min": 0,
-          "custom": { "fillOpacity": 10 }
+          "custom": {
+            "fillOpacity": 15,
+            "stacking": { "mode": "normal" },
+            "connectNulls": true
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.6 },
+              { "color": "red", "value": 0.8 }
+            ]
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
         "tooltip": { "mode": "multi" }
       }
     },
     {
       "title": "Memory Usage by Node",
+      "description": "Per-node memory utilization as stacked area chart",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
       "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
       "targets": [
         {
@@ -145,55 +319,42 @@
         "defaults": {
           "unit": "percentunit",
           "min": 0,
-          "custom": { "fillOpacity": 10 }
-        }
-      },
-      "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
-      }
-    },
-    {
-      "title": "Disk Usage by Node",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "1 - (node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"})",
-          "legendFormat": "{{instance}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "min": 0,
-          "custom": { "fillOpacity": 10 },
+          "custom": {
+            "fillOpacity": 15,
+            "stacking": { "mode": "normal" },
+            "connectNulls": true
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.8 },
-              { "color": "red", "value": 0.9 }
+              { "color": "yellow", "value": 0.7 },
+              { "color": "red", "value": 0.85 }
             ]
           }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
         "tooltip": { "mode": "multi" }
       }
     },
     {
-      "title": "Pod Restarts (last 1h)",
+      "title": "Top-N Resource Consumers",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+      "collapsed": false
+    },
+    {
+      "title": "Top 10 Pods by CPU",
+      "description": "Pods consuming the most CPU, ranked by current usage",
       "type": "table",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 22 },
       "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, increase(kube_pod_container_status_restarts_total[1h]) > 0)",
+          "expr": "topk(10, sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{container!=\"\",container!=\"POD\"}[5m])))",
           "format": "table",
           "instant": true
         }
@@ -202,81 +363,288 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "__name__": true, "uid": true, "job": true, "instance": true, "endpoint": true, "service": true },
-            "renameByName": { "Value": "Restarts", "namespace": "Namespace", "pod": "Pod", "container": "Container" }
+            "excludeByName": { "Time": true },
+            "renameByName": { "Value": "CPU (cores)", "namespace": "Namespace", "pod": "Pod" },
+            "indexByName": { "namespace": 0, "pod": 1, "Value": 2 }
           }
+        },
+        {
+          "id": "sortBy",
+          "options": { "sort": [{ "field": "CPU (cores)", "desc": true }] }
         }
       ],
       "fieldConfig": {
         "defaults": {
           "custom": { "align": "auto" }
-        }
-      }
-    },
-    {
-      "title": "Network I/O by Node",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "rate(node_network_receive_bytes_total{device!~\"lo|veth.*|cali.*|flannel.*\"}[5m])",
-          "legendFormat": "{{instance}} rx"
-        },
-        {
-          "refId": "B",
-          "expr": "-rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|cali.*|flannel.*\"}[5m])",
-          "legendFormat": "{{instance}} tx"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "custom": { "fillOpacity": 10 }
-        }
-      },
-      "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean"] },
-        "tooltip": { "mode": "multi" }
-      }
-    },
-    {
-      "title": "VMSingle Memory & CPU",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "container_memory_working_set_bytes{namespace=\"observability\",container=\"vmsingle\"}",
-          "legendFormat": "Memory (working set)"
-        },
-        {
-          "refId": "B",
-          "expr": "rate(container_cpu_usage_seconds_total{namespace=\"observability\",container=\"vmsingle\"}[5m])",
-          "legendFormat": "CPU (cores)"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": { "fillOpacity": 10 }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Memory (working set)" },
-            "properties": [{ "id": "unit", "value": "bytes" }, { "id": "custom.axisPlacement", "value": "left" }]
-          },
-          {
             "matcher": { "id": "byName", "options": "CPU (cores)" },
-            "properties": [{ "id": "unit", "value": "short" }, { "id": "custom.axisPlacement", "value": "right" }]
+            "properties": [
+              { "id": "unit", "value": "short" },
+              { "id": "decimals", "value": 3 },
+              { "id": "thresholds", "value": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 0.5 },
+                  { "color": "red", "value": 1 }
+                ]
+              }},
+              { "id": "custom.displayMode", "value": "color-background-solid" }
+            ]
           }
         ]
-      },
-      "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] },
-        "tooltip": { "mode": "multi" }
       }
+    },
+    {
+      "title": "Top 10 Pods by Memory",
+      "description": "Pods consuming the most memory (working set), ranked by current usage",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (namespace, pod) (container_memory_working_set_bytes{container!=\"\",container!=\"POD\"}))",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": { "Value": "Memory", "namespace": "Namespace", "pod": "Pod" },
+            "indexByName": { "namespace": 0, "pod": 1, "Value": 2 }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": { "sort": [{ "field": "Memory", "desc": true }] }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "auto" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Memory" },
+            "properties": [
+              { "id": "unit", "value": "bytes" },
+              { "id": "thresholds", "value": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 268435456 },
+                  { "color": "red", "value": 536870912 }
+                ]
+              }},
+              { "id": "custom.displayMode", "value": "color-background-solid" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Top 10 Pods by Restarts",
+      "description": "Pods with the most container restarts in the last hour",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total[1h])) > 0)",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": { "Value": "Restarts", "namespace": "Namespace", "pod": "Pod", "container": "Container" },
+            "indexByName": { "namespace": 0, "pod": 1, "container": 2, "Value": 3 }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": { "sort": [{ "field": "Restarts", "desc": true }] }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "auto" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Restarts" },
+            "properties": [
+              { "id": "unit", "value": "short" },
+              { "id": "decimals", "value": 0 },
+              { "id": "thresholds", "value": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null }
+                ]
+              }},
+              { "id": "custom.displayMode", "value": "color-background-solid" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Network",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+      "collapsed": true,
+      "panels": [
+        {
+          "title": "Network I/O by Node",
+          "description": "Physical NIC receive/transmit bytes per second per node (excludes virtual interfaces)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+          "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (instance) (rate(node_network_receive_bytes_total{device!~\"lo|veth.*|cali.*|flannel.*|cni.*\"}[5m]))",
+              "legendFormat": "{{instance}} rx"
+            },
+            {
+              "refId": "B",
+              "expr": "-sum by (instance) (rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|cali.*|flannel.*|cni.*\"}[5m]))",
+              "legendFormat": "{{instance}} tx"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": { "fillOpacity": 10, "connectNulls": true }
+            }
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+            "tooltip": { "mode": "multi" }
+          }
+        },
+        {
+          "title": "DNS Query Rate & Errors",
+          "description": "CoreDNS query rate and SERVFAIL/NXDOMAIN error rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+          "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(coredns_dns_requests_total[5m]))",
+              "legendFormat": "Queries/s"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(rate(coredns_dns_responses_total{rcode=~\"SERVFAIL|NXDOMAIN\"}[5m]))",
+              "legendFormat": "Errors/s"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "fillOpacity": 10, "connectNulls": true }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Errors/s" },
+                "properties": [
+                  { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
+            "tooltip": { "mode": "multi" }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Storage",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
+      "collapsed": true,
+      "panels": [
+        {
+          "title": "PVC Usage",
+          "description": "Persistent Volume Claim utilization as percentage of capacity",
+          "type": "gauge",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+          "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes",
+              "legendFormat": "{{namespace}}/{{persistentvolumeclaim}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 0.75 },
+                  { "color": "red", "value": 0.9 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "orientation": "horizontal"
+          }
+        },
+        {
+          "title": "Disk Usage by Node",
+          "description": "Root filesystem usage per node",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+          "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "1 - (node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"})",
+              "legendFormat": "{{instance}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "custom": { "fillOpacity": 10, "connectNulls": true },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 0.75 },
+                  { "color": "red", "value": 0.9 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] },
+            "tooltip": { "mode": "multi" }
+          }
+        }
+      ]
     }
   ],
   "schemaVersion": 39,
