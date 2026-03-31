@@ -62,6 +62,7 @@ victoria-metrics-k8s-stack:
       - victoriametrics-logs-datasource
       - victoriametrics-metrics-datasource
       - grafana-exploretraces-app
+      - yesoreyeram-infinity-datasource
     envFromSecret: "grafana-oidc-secret"
     grafana.ini:
       # NOTE: plugins.preinstall_sync is handled by the Helm chart's `plugins:`
