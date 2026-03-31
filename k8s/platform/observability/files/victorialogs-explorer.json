@@ -151,24 +151,16 @@
       ],
       "transformations": [
         {
-          "id": "labelsToFields",
-          "options": { "mode": "columns" }
+          "id": "seriesToRows",
+          "options": {}
         },
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "__name__": true },
+            "excludeByName": { "Time": true },
             "renameByName": {
-              "_msg": "Error Message",
-              "namespace": "Namespace",
-              "pod": "Pod",
+              "Metric": "Source",
               "Value": "Count"
-            },
-            "indexByName": {
-              "Value": 0,
-              "namespace": 1,
-              "pod": 2,
-              "_msg": 3
             }
           }
         }
@@ -206,23 +198,10 @@
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Error Message" },
+            "matcher": { "id": "byName", "options": "Source" },
             "properties": [
-              { "id": "custom.width", "value": 600 },
               { "id": "custom.cellOptions", "value": { "type": "auto", "wrapText": true } },
               { "id": "custom.inspect", "value": true }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Namespace" },
-            "properties": [
-              { "id": "custom.width", "value": 140 }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Pod" },
-            "properties": [
-              { "id": "custom.width", "value": 250 }
             ]
           }
         ]
