@@ -6,14 +6,14 @@
   "links": [],
   "panels": [
     {
-      "title": "Log Volume",
+      "title": "Log Volume by Namespace",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter | stats by (namespace) count() as total",
+          "expr": "$namespace $pod $level $filter | stats by (namespace) count() as total",
           "queryType": "statsRange",
           "step": "5m"
         }
@@ -35,39 +35,60 @@
       }
     },
     {
-      "title": "Logs by Namespace",
-      "type": "bargauge",
+      "title": "Log Level Distribution",
+      "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter | stats by (namespace) count() as total",
-          "queryType": "stats"
+          "expr": "$namespace $pod $level $filter | stats by (level) count() as total",
+          "queryType": "statsRange",
+          "step": "5m"
         }
       ],
-      "options": {
-        "orientation": "horizontal",
-        "displayMode": "gradient",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/total/" },
-        "showUnfilled": true
-      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 40,
+            "stacking": { "mode": "normal" }
+          },
           "unit": "short"
-        }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "{level=\"error\"}" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "{level=\"warn\"}" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "{level=\"info\"}" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "{level=\"debug\"}" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] },
+        "tooltip": { "mode": "multi" }
       }
     },
     {
-      "title": "Logs by Node",
+      "title": "Top Talkers (by Pod)",
       "type": "bargauge",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter | stats by (node) count() as total",
+          "expr": "$namespace $pod $level $filter | stats by (pod) count() as total | sort by (total) desc | limit 10",
           "queryType": "stats"
         }
       ],
@@ -92,7 +113,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter _msg:~\"(?i)error|panic|fatal\" | stats by (namespace) count() as errors",
+          "expr": "$namespace $pod level:error OR level:fatal OR level:panic $filter | stats by (namespace) count() as errors",
           "queryType": "statsRange",
           "step": "5m"
         }
@@ -114,14 +135,92 @@
       }
     },
     {
-      "title": "Log Search",
-      "type": "logs",
-      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 16 },
+      "title": "Logs by Namespace",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter"
+          "expr": "$namespace $pod $level $filter | stats by (namespace) count() as total | sort by (total) desc",
+          "queryType": "stats"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/total/" },
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "title": "Logs by Node",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "$namespace $pod $level $filter | stats by (node) count() as total | sort by (total) desc",
+          "queryType": "stats"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/total/" },
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "title": "Unique Error Messages",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "$namespace $pod level:error OR level:fatal OR level:panic $filter | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 20",
+          "queryType": "stats"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "filterable": true }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "_msg" },
+            "properties": [{ "id": "custom.width", "value": 500 }]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "occurrences", "desc": true }]
+      }
+    },
+    {
+      "title": "Log Search",
+      "type": "logs",
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 24 },
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "$namespace $pod $level $filter"
         }
       ],
       "options": {
@@ -148,10 +247,60 @@
         "hide": 0
       },
       {
+        "name": "namespace",
+        "type": "custom",
+        "query": "",
+        "current": { "text": "", "value": "" },
+        "label": "Namespace",
+        "description": "Filter by namespace (e.g. namespace:schwab-ddowell)",
+        "options": [
+          { "text": "All", "value": "", "selected": true },
+          { "text": "schwab-ddowell", "value": "namespace:schwab-ddowell" },
+          { "text": "schwab-test", "value": "namespace:schwab-test" },
+          { "text": "argocd", "value": "namespace:argocd" },
+          { "text": "observability", "value": "namespace:observability" },
+          { "text": "kube-system", "value": "namespace:kube-system" },
+          { "text": "cert-manager", "value": "namespace:cert-manager" },
+          { "text": "external-secrets", "value": "namespace:external-secrets" },
+          { "text": "openbao", "value": "namespace:openbao" },
+          { "text": "tailscale-operator", "value": "namespace:tailscale-operator" }
+        ],
+        "includeAll": false,
+        "hide": 0
+      },
+      {
+        "name": "pod",
+        "type": "textbox",
+        "current": { "text": "", "value": "" },
+        "label": "Pod",
+        "description": "Filter by pod name (supports wildcards, e.g. pod:go-schwab*)",
+        "hide": 0
+      },
+      {
+        "name": "level",
+        "type": "custom",
+        "query": "",
+        "current": { "text": "", "value": "" },
+        "label": "Level",
+        "description": "Filter by log level",
+        "multi": true,
+        "options": [
+          { "text": "All", "value": "", "selected": true },
+          { "text": "debug", "value": "level:debug" },
+          { "text": "info", "value": "level:info" },
+          { "text": "warn", "value": "level:warn" },
+          { "text": "error", "value": "level:error" },
+          { "text": "fatal", "value": "level:fatal" }
+        ],
+        "includeAll": false,
+        "hide": 0
+      },
+      {
         "name": "filter",
         "type": "textbox",
-        "current": { "text": "*", "value": "*" },
-        "label": "Log Filter",
+        "current": { "text": "", "value": "" },
+        "label": "Search",
+        "description": "Freetext LogsQL filter",
         "hide": 0
       }
     ]
