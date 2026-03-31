@@ -207,18 +207,13 @@
     },
     {
       "title": "Traces",
-      "description": "Recent traces for this service. Click a trace to view the full waterfall.",
-      "type": "traces",
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 15 },
-      "datasource": { "type": "jaeger", "uid": "${DS_JAEGER}" },
-      "targets": [
-        {
-          "refId": "A",
-          "queryType": "search",
-          "service": "$service",
-          "limit": 20
-        }
-      ]
+      "description": "Open Explore to search and browse traces for this service.",
+      "type": "text",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 15 },
+      "options": {
+        "mode": "markdown",
+        "content": "### Browse Traces\n\nThe Grafana traces panel requires a specific Trace ID. Use **Explore** for search-based trace browsing:\n\n[Open Trace Search for $service in Explore](/explore?schemaVersion=1&panes=%7B%22one%22%3A%7B%22datasource%22%3A%22victoriatraces%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22queryType%22%3A%22search%22%2C%22service%22%3A%22$service%22%2C%22limit%22%3A20%7D%5D%7D%7D)\n\nOr paste a Trace ID on the [Traces / Explorer](/d/traces-explorer) dashboard to view the full waterfall."
+      }
     },
     {
       "title": "Recent Errors",
@@ -281,13 +276,6 @@
   "tags": ["services", "red", "traces", "observability"],
   "templating": {
     "list": [
-      {
-        "name": "DS_JAEGER",
-        "type": "datasource",
-        "query": "jaeger",
-        "current": {},
-        "hide": 0
-      },
       {
         "name": "DS_VICTORIALOGS",
         "type": "datasource",
