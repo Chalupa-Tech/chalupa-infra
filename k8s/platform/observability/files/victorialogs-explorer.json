@@ -151,16 +151,24 @@
       ],
       "transformations": [
         {
-          "id": "seriesToRows",
-          "options": {}
+          "id": "joinByLabels",
+          "options": { "value": "occurrences" }
         },
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true },
+            "excludeByName": { "Time": true, "__name__": true },
             "renameByName": {
-              "Metric": "Source",
-              "Value": "Count"
+              "occurrences": "Count",
+              "_msg": "Error Message",
+              "namespace": "Namespace",
+              "pod": "Pod"
+            },
+            "indexByName": {
+              "occurrences": 0,
+              "namespace": 1,
+              "pod": 2,
+              "_msg": 3
             }
           }
         }
@@ -198,10 +206,22 @@
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Source" },
+            "matcher": { "id": "byName", "options": "Error Message" },
             "properties": [
               { "id": "custom.cellOptions", "value": { "type": "auto", "wrapText": true } },
               { "id": "custom.inspect", "value": true }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Namespace" },
+            "properties": [
+              { "id": "custom.width", "value": 140 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Pod" },
+            "properties": [
+              { "id": "custom.width", "value": 250 }
             ]
           }
         ]
