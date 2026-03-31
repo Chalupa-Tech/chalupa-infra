@@ -224,8 +224,7 @@
           "columns": [
             { "selector": "traceID", "text": "Trace ID", "type": "string" },
             { "selector": "spans.0.operationName", "text": "Operation", "type": "string" },
-            { "selector": "spans.0.duration", "text": "Duration (μs)", "type": "number" },
-            { "selector": "spans.length", "text": "Spans", "type": "number" }
+            { "selector": "spans.0.duration", "text": "Duration (μs)", "type": "number" }
           ]
         }
       ],
