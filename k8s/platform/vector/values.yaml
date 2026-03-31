@@ -47,6 +47,8 @@ vector:
             .error_msg = string(parsed.error) ?? ""
             .caller = string(parsed.caller) ?? ""
             .component = string(parsed.component) ?? ""
+            .trace_id = string(parsed.trace_id) ?? ""
+            .span_id = string(parsed.span_id) ?? ""
             inner_msg = string(parsed.msg) ?? ""
             if inner_msg != "" {
               .message = inner_msg
