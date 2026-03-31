@@ -145,31 +145,30 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | replace_regexp (\"^[EWIFD][0-9]+ [0-9:.]+\\\\s+[0-9]+ [^]]+] \", \"\") | replace_regexp (\"^time=\\\"[^\\\"]+\\\" level=[a-z]+ msg=\", \"\") | collapse_nums | stats by (_msg, namespace, pod) count() as occurrences | sort by (occurrences) desc | limit 25",
+          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | replace_regexp (\"^[EWIFD][0-9]+ [0-9:.]+\\\\s+[0-9]+ [^]]+] \", \"\") | replace_regexp (\"^time=\\\"[^\\\"]+\\\" level=[a-z]+ msg=\", \"\") | collapse_nums | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 25",
           "queryType": "stats"
         }
       ],
       "transformations": [
         {
-          "id": "joinByLabels",
-          "options": { "value": "occurrences" }
+          "id": "seriesToRows",
+          "options": {}
         },
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "__name__": true },
+            "excludeByName": { "Time": true },
             "renameByName": {
-              "occurrences": "Count",
-              "_msg": "Error Message",
-              "namespace": "Namespace",
-              "pod": "Pod"
-            },
-            "indexByName": {
-              "occurrences": 0,
-              "namespace": 1,
-              "pod": 2,
-              "_msg": 3
+              "Metric": "Error Message",
+              "Value": "Count"
             }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "occurrences\\{_msg=\"(.*)\"\\}",
+            "renamePattern": "$1"
           }
         }
       ],
@@ -210,18 +209,6 @@
             "properties": [
               { "id": "custom.cellOptions", "value": { "type": "auto", "wrapText": true } },
               { "id": "custom.inspect", "value": true }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Namespace" },
-            "properties": [
-              { "id": "custom.width", "value": 140 }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Pod" },
-            "properties": [
-              { "id": "custom.width", "value": 250 }
             ]
           }
         ]
