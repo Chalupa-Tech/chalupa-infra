@@ -89,17 +89,16 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $level $filter | stats by (pod) count() as total",
+          "expr": "* $namespace $pod $level $filter | stats by (pod) count() as total | sort by (total) desc | limit 10",
           "legendFormat": "{{pod}}",
-          "queryType": "statsRange",
-          "step": "1h"
+          "queryType": "stats"
         }
       ],
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
         "namePlacement": "left",
-        "reduceOptions": { "calcs": ["sum"] },
+        "reduceOptions": { "calcs": ["lastNotNull"], "values": true },
         "showUnfilled": true
       },
       "fieldConfig": {
@@ -139,6 +138,34 @@
       }
     },
     {
+      "title": "Unique Error Messages",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | collapse_nums | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 10",
+          "legendFormat": "{{_msg}}",
+          "queryType": "stats"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "namePlacement": "left",
+        "reduceOptions": { "calcs": ["lastNotNull"], "values": true },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "continuous-reds" },
+          "unit": "short"
+        }
+      }
+    },
+    {
       "title": "Logs by Namespace",
       "type": "bargauge",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
@@ -146,17 +173,16 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $level $filter | stats by (namespace) count() as total",
+          "expr": "* $namespace $pod $level $filter | stats by (namespace) count() as total | sort by (total) desc",
           "legendFormat": "{{namespace}}",
-          "queryType": "statsRange",
-          "step": "1h"
+          "queryType": "stats"
         }
       ],
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
         "namePlacement": "left",
-        "reduceOptions": { "calcs": ["sum"] },
+        "reduceOptions": { "calcs": ["lastNotNull"], "values": true },
         "showUnfilled": true
       },
       "fieldConfig": {
@@ -174,45 +200,16 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $level $filter | stats by (node) count() as total",
+          "expr": "* $namespace $pod $level $filter | stats by (node) count() as total | sort by (total) desc",
           "legendFormat": "{{node}}",
-          "queryType": "statsRange",
-          "step": "1h"
+          "queryType": "stats"
         }
       ],
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
         "namePlacement": "left",
-        "reduceOptions": { "calcs": ["sum"] },
-        "showUnfilled": true
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "unit": "short"
-        }
-      }
-    },
-    {
-      "title": "Unique Error Messages",
-      "type": "bargauge",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
-      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | collapse_nums | stats by (_msg) count() as occurrences",
-          "legendFormat": "{{_msg}}",
-          "queryType": "statsRange",
-          "step": "1h"
-        }
-      ],
-      "options": {
-        "orientation": "horizontal",
-        "displayMode": "gradient",
-        "namePlacement": "left",
-        "reduceOptions": { "calcs": ["sum"] },
+        "reduceOptions": { "calcs": ["lastNotNull"], "values": true },
         "showUnfilled": true
       },
       "fieldConfig": {
