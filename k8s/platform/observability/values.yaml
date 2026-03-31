@@ -50,6 +50,14 @@ victoria-metrics-k8s-stack:
       storageClassName: longhorn-single
     initChownData:
       enabled: false
+    sidecar:
+      dashboards:
+        enabled: true
+        # Skip the reload API call — Grafana's file provisioner watches
+        # the dashboard directory and reloads on file changes automatically.
+        # The sidecar reload was failing with 401 due to admin password
+        # drift between the Helm secret and Grafana's SQLite DB.
+        skipReload: true
     plugins:
       - victoriametrics-logs-datasource
       - victoriametrics-metrics-datasource

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-scheduler
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  scheduler-dashboard.json: |
+{{ .Files.Get "files/scheduler-dashboard.json" | indent 4 }}

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-controller-manager
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  controller-manager-dashboard.json: |
+{{ .Files.Get "files/controller-manager-dashboard.json" | indent 4 }}
