@@ -145,7 +145,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | collapse_nums | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 10",
+          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | replace_regexp (\"^[EWIFD][0-9]+ [0-9:.]+\\\\s+[0-9]+ [^]]+] \", \"\") | replace_regexp (\"^time=\\\"[^\\\"]+\\\" level=[a-z]+ msg=\", \"\") | collapse_nums | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 10",
           "legendFormat": "{{_msg}}",
           "queryType": "stats"
         }
