@@ -1,6 +1,7 @@
 {
   "annotations": { "list": [] },
   "editable": true,
+  "graphTooltip": 1,
   "panels": [
     {
       "title": "Golden Signals",
@@ -648,7 +649,7 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["cluster", "overview"],
+  "tags": ["kubernetes", "cluster", "overview"],
   "templating": {
     "list": [
       {
