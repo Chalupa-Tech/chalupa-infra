@@ -1,10 +1,11 @@
 {
   "annotations": { "list": [] },
   "editable": true,
+  "graphTooltip": 1,
   "schemaVersion": 39,
   "uid": "controller-manager",
   "title": "Controller Manager",
-  "tags": ["controller-manager", "control-plane"],
+  "tags": ["kubernetes", "controller-manager", "control-plane"],
   "time": { "from": "now-3h", "to": "now" },
   "templating": {
     "list": [

@@ -1,10 +1,11 @@
 {
   "annotations": { "list": [] },
   "editable": true,
+  "graphTooltip": 1,
   "schemaVersion": 39,
   "uid": "scheduler",
   "title": "Scheduler",
-  "tags": ["scheduler", "control-plane"],
+  "tags": ["kubernetes", "scheduler", "control-plane"],
   "time": { "from": "now-3h", "to": "now" },
   "templating": {
     "list": [

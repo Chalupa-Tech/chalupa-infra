@@ -7,6 +7,7 @@
   "panels": [
     {
       "title": "Log Volume by Namespace",
+      "description": "Total log volume over time, broken down by Kubernetes namespace.",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
@@ -36,6 +37,7 @@
     },
     {
       "title": "Log Level Distribution",
+      "description": "Log volume by severity level (debug, info, warn, error, fatal).",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
@@ -83,6 +85,7 @@
     },
     {
       "title": "Top Talkers (by Pod)",
+      "description": "Top 10 pods producing the most log volume.",
       "type": "bargauge",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
@@ -110,6 +113,7 @@
     },
     {
       "title": "Error Log Rate",
+      "description": "Error/fatal/panic log rate by namespace over time.",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
@@ -217,6 +221,7 @@
     },
     {
       "title": "Logs by Namespace",
+      "description": "Total log count by namespace for the selected time range.",
       "type": "bargauge",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
@@ -244,6 +249,7 @@
     },
     {
       "title": "Logs by Node",
+      "description": "Total log count by K3s node for the selected time range.",
       "type": "bargauge",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
@@ -271,6 +277,7 @@
     },
     {
       "title": "Log Search",
+      "description": "Raw log lines matching current filters. Use the Search variable for freetext LogsQL queries.",
       "type": "logs",
       "gridPos": { "h": 14, "w": 24, "x": 0, "y": 36 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
@@ -294,7 +301,7 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["victorialogs", "logs"],
+  "tags": ["kubernetes", "victorialogs", "logs"],
   "templating": {
     "list": [
       {
