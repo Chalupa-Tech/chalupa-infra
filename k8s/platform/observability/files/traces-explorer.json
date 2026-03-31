@@ -28,8 +28,7 @@
           "columns": [
             { "selector": "traceID", "text": "Trace ID", "type": "string" },
             { "selector": "spans.0.operationName", "text": "Operation", "type": "string" },
-            { "selector": "spans.0.duration", "text": "Duration (μs)", "type": "number" },
-            { "selector": "spans.length", "text": "Spans", "type": "number" }
+            { "selector": "spans.0.duration", "text": "Duration (μs)", "type": "number" }
           ]
         }
       ],
@@ -44,8 +43,8 @@
               { "id": "links", "value": [
                 {
                   "title": "View Trace Waterfall",
-                  "url": "/explore?schemaVersion=1&panes={\"one\":{\"datasource\":\"victoriatraces\",\"queries\":[{\"refId\":\"A\",\"queryType\":\"traceID\",\"query\":\"${__data.fields[\\\"Trace ID\\\"]}\"}]}}&orgId=1",
-                  "targetBlank": true
+                  "url": "/d/traces-explorer?var-trace_id=${__data.fields[\"Trace ID\"]}&var-service=${service}&var-limit=${limit}",
+                  "targetBlank": false
                 }
               ]}
             ]
