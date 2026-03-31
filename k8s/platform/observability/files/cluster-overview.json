@@ -380,6 +380,18 @@
         },
         "overrides": [
           {
+            "matcher": { "id": "byName", "options": "Pod" },
+            "properties": [
+              { "id": "links", "value": [
+                {
+                  "title": "View Logs",
+                  "url": "/d/victorialogs-explorer?var-namespace=namespace:${__data.fields.Namespace}&var-pod=pod:${__data.fields.Pod}&from=${__from}&to=${__to}",
+                  "targetBlank": true
+                }
+              ]}
+            ]
+          },
+          {
             "matcher": { "id": "byName", "options": "CPU (cores)" },
             "properties": [
               { "id": "unit", "value": "short" },
@@ -432,6 +444,18 @@
         },
         "overrides": [
           {
+            "matcher": { "id": "byName", "options": "Pod" },
+            "properties": [
+              { "id": "links", "value": [
+                {
+                  "title": "View Logs",
+                  "url": "/d/victorialogs-explorer?var-namespace=namespace:${__data.fields.Namespace}&var-pod=pod:${__data.fields.Pod}&from=${__from}&to=${__to}",
+                  "targetBlank": true
+                }
+              ]}
+            ]
+          },
+          {
             "matcher": { "id": "byName", "options": "Memory" },
             "properties": [
               { "id": "unit", "value": "bytes" },
@@ -482,6 +506,18 @@
           "custom": { "align": "auto" }
         },
         "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Pod" },
+            "properties": [
+              { "id": "links", "value": [
+                {
+                  "title": "View Logs",
+                  "url": "/d/victorialogs-explorer?var-namespace=namespace:${__data.fields.Namespace}&var-pod=pod:${__data.fields.Pod}&from=${__from}&to=${__to}",
+                  "targetBlank": true
+                }
+              ]}
+            ]
+          },
           {
             "matcher": { "id": "byName", "options": "Restarts" },
             "properties": [

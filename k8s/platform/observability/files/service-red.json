@@ -1,0 +1,319 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "Service Summary",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "title": "Error Log Count",
+      "description": "Number of error-level log entries for this service in the selected time range",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "service:$service level:error | stats count() as errors",
+          "queryType": "stats"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Warn Log Count",
+      "description": "Number of warn-level log entries for this service in the selected time range",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "service:$service level:warn | stats count() as warnings",
+          "queryType": "stats"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "orange", "value": 50 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Log Volume",
+      "description": "Total log entries for this service in the selected time range",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "service:$service | stats count() as total",
+          "queryType": "stats"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        }
+      },
+      "options": {
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Trace Search",
+      "description": "Quick link to trace explorer for this service",
+      "type": "text",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "options": {
+        "mode": "markdown",
+        "content": "### Traces\n\n[Open Trace Explorer for $service](/d/traces-explorer?var-service=$service&from=${__from}&to=${__to})"
+      }
+    },
+    {
+      "title": "Log Level Over Time",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "collapsed": false
+    },
+    {
+      "title": "Logs by Level",
+      "description": "Log volume over time broken down by level for this service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "service:$service | stats by (level) count() as total",
+          "legendFormat": "{{level}}",
+          "queryType": "statsRange",
+          "step": "5m"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": { "mode": "normal" }
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "error" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "warn" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "info" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "title": "Error Rate Over Time",
+      "description": "Error log rate for this service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "service:$service level:error | stats count() as errors",
+          "legendFormat": "errors",
+          "queryType": "statsRange",
+          "step": "5m"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          },
+          "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "red" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "title": "Recent Traces",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "collapsed": false
+    },
+    {
+      "title": "Traces",
+      "description": "Recent traces for this service. Click a trace to view the full waterfall.",
+      "type": "traces",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 15 },
+      "datasource": { "type": "jaeger", "uid": "${DS_JAEGER}" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "search",
+          "service": "$service",
+          "limit": 20
+        }
+      ]
+    },
+    {
+      "title": "Recent Errors",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "collapsed": true,
+      "panels": [
+        {
+          "title": "Error Logs",
+          "description": "Recent error-level logs for this service. Logs with trace_id link to the corresponding trace.",
+          "type": "logs",
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 28 },
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "service:$service level:error | sort by (_time) desc | limit 100",
+              "queryType": "instant"
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true,
+            "enableLogDetails": true
+          }
+        }
+      ]
+    },
+    {
+      "title": "All Logs",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "collapsed": true,
+      "panels": [
+        {
+          "title": "Log Stream",
+          "description": "All logs for this service. Use the filter variable to narrow results.",
+          "type": "logs",
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 29 },
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "service:$service $filter | sort by (_time) desc | limit 200",
+              "queryType": "instant"
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true,
+            "enableLogDetails": true
+          }
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["services", "red", "traces", "observability"],
+  "templating": {
+    "list": [
+      {
+        "name": "DS_JAEGER",
+        "type": "datasource",
+        "query": "jaeger",
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "DS_VICTORIALOGS",
+        "type": "datasource",
+        "query": "victoriametrics-logs-datasource",
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "service",
+        "type": "custom",
+        "query": "go-notify,go-schwab-auth,go-telemetry-mesh",
+        "current": { "text": "go-notify", "value": "go-notify" },
+        "hide": 0
+      },
+      {
+        "name": "filter",
+        "type": "textbox",
+        "current": { "text": "", "value": "" },
+        "hide": 0,
+        "label": "Log Filter"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Service / RED Overview",
+  "uid": "service-red"
+}
