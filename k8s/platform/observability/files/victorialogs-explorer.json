@@ -8,7 +8,7 @@
     {
       "title": "Log Volume by Namespace",
       "type": "timeseries",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -37,7 +37,7 @@
     {
       "title": "Log Level Distribution",
       "type": "timeseries",
-      "gridPos": { "h": 10, "w": 8, "x": 0, "y": 11 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -84,7 +84,7 @@
     {
       "title": "Top Talkers (by Pod)",
       "type": "bargauge",
-      "gridPos": { "h": 10, "w": 8, "x": 8, "y": 11 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -98,6 +98,7 @@
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
+        "namePlacement": "left",
         "reduceOptions": { "calcs": ["sum"] },
         "showUnfilled": true
       },
@@ -111,7 +112,7 @@
     {
       "title": "Error Log Rate",
       "type": "timeseries",
-      "gridPos": { "h": 10, "w": 8, "x": 16, "y": 11 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -140,7 +141,7 @@
     {
       "title": "Logs by Namespace",
       "type": "bargauge",
-      "gridPos": { "h": 10, "w": 8, "x": 0, "y": 22 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -154,6 +155,7 @@
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
+        "namePlacement": "left",
         "reduceOptions": { "calcs": ["sum"] },
         "showUnfilled": true
       },
@@ -167,7 +169,7 @@
     {
       "title": "Logs by Node",
       "type": "bargauge",
-      "gridPos": { "h": 10, "w": 8, "x": 8, "y": 22 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -181,6 +183,7 @@
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
+        "namePlacement": "left",
         "reduceOptions": { "calcs": ["sum"] },
         "showUnfilled": true
       },
@@ -192,15 +195,15 @@
       }
     },
     {
-      "title": "Errors by Pod",
+      "title": "Unique Error Messages",
       "type": "bargauge",
-      "gridPos": { "h": 10, "w": 8, "x": 16, "y": 22 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | stats by (pod) count() as errors",
-          "legendFormat": "{{pod}}",
+          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | collapse_nums | stats by (_msg) count() as occurrences",
+          "legendFormat": "{{_msg}}",
           "queryType": "statsRange",
           "step": "1h"
         }
@@ -208,6 +211,7 @@
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
+        "namePlacement": "left",
         "reduceOptions": { "calcs": ["sum"] },
         "showUnfilled": true
       },
@@ -221,7 +225,7 @@
     {
       "title": "Log Search",
       "type": "logs",
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 33 },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 32 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
