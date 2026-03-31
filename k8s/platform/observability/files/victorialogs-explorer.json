@@ -89,7 +89,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $level $filter | stats by (pod) count() as total | sort by (total) desc | limit 10",
+          "expr": "$namespace $pod $level $filter | stats by (pod) count() as total | sort by (total) desc | limit 10",
           "legendFormat": "{{pod}}",
           "queryType": "stats"
         }
@@ -144,7 +144,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $level $filter | stats by (namespace) count() as total | sort by (total) desc",
+          "expr": "$namespace $pod $level $filter | stats by (namespace) count() as total | sort by (total) desc",
           "legendFormat": "{{namespace}}",
           "queryType": "stats"
         }
@@ -170,7 +170,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $level $filter | stats by (node) count() as total | sort by (total) desc",
+          "expr": "$namespace $pod $level $filter | stats by (node) count() as total | sort by (total) desc",
           "legendFormat": "{{node}}",
           "queryType": "stats"
         }
@@ -196,7 +196,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 10",
+          "expr": "$namespace $pod $filter level:error OR level:fatal OR level:panic | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 10",
           "legendFormat": "{{_msg}}",
           "queryType": "stats"
         }
