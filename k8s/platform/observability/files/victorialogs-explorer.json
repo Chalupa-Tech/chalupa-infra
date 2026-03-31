@@ -138,37 +138,106 @@
       }
     },
     {
-      "title": "Unique Error Messages",
-      "type": "bargauge",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "title": "Top Error Messages",
+      "type": "table",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 16 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | replace_regexp (\"^[EWIFD][0-9]+ [0-9:.]+\\\\s+[0-9]+ [^]]+] \", \"\") | replace_regexp (\"^time=\\\"[^\\\"]+\\\" level=[a-z]+ msg=\", \"\") | collapse_nums | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 10",
-          "legendFormat": "{{_msg}}",
+          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | replace_regexp (\"^[EWIFD][0-9]+ [0-9:.]+\\\\s+[0-9]+ [^]]+] \", \"\") | replace_regexp (\"^time=\\\"[^\\\"]+\\\" level=[a-z]+ msg=\", \"\") | collapse_nums | stats by (_msg, namespace, pod) count() as occurrences | sort by (occurrences) desc | limit 25",
           "queryType": "stats"
         }
       ],
-      "options": {
-        "orientation": "horizontal",
-        "displayMode": "gradient",
-        "namePlacement": "left",
-        "reduceOptions": { "calcs": ["lastNotNull"], "values": true },
-        "showUnfilled": true,
-        "valueMode": "color"
-      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": { "mode": "columns" }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true },
+            "renameByName": {
+              "_msg": "Error Message",
+              "namespace": "Namespace",
+              "pod": "Pod",
+              "Value": "Count"
+            },
+            "indexByName": {
+              "Value": 0,
+              "namespace": 1,
+              "pod": 2,
+              "_msg": 3
+            }
+          }
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "continuous-reds" },
-          "unit": "short"
-        }
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Count" },
+            "properties": [
+              { "id": "custom.width", "value": 80 },
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "color-background", "mode": "gradient" }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "super-light-green", "value": null },
+                    { "color": "light-orange", "value": 10 },
+                    { "color": "orange", "value": 50 },
+                    { "color": "red", "value": 100 }
+                  ]
+                }
+              },
+              { "id": "color", "value": { "mode": "thresholds" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Error Message" },
+            "properties": [
+              { "id": "custom.width", "value": 600 },
+              { "id": "custom.cellOptions", "value": { "type": "auto", "wrapText": true } },
+              { "id": "custom.inspect", "value": true }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Namespace" },
+            "properties": [
+              { "id": "custom.width", "value": 140 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Pod" },
+            "properties": [
+              { "id": "custom.width", "value": 250 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md",
+        "footer": { "show": true, "reducer": ["sum"], "countRows": true },
+        "sortBy": [{ "displayName": "Count", "desc": true }]
       }
     },
     {
       "title": "Logs by Namespace",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -195,7 +264,7 @@
     {
       "title": "Logs by Node",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -222,7 +291,7 @@
     {
       "title": "Log Search",
       "type": "logs",
-      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 32 },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 36 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
