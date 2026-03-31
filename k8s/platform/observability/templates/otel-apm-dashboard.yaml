@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-otel-apm
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  otel-apm.json: |
+{{ .Files.Get "files/otel-apm.json" | indent 4 }}

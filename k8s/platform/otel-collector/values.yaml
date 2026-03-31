@@ -1,17 +1,17 @@
 opentelemetry-collector:
   mode: daemonset
 
-  # Core image (~60MB) — contrib is ~200MB and unnecessary for trace forwarding
+  # Contrib image required for spanmetrics connector
   image:
-    repository: otel/opentelemetry-collector
+    repository: otel/opentelemetry-collector-contrib
 
   resources:
     requests:
       cpu: 50m
-      memory: 64Mi
+      memory: 96Mi
     limits:
-      cpu: 200m
-      memory: 128Mi
+      cpu: 300m
+      memory: 256Mi
 
   # Run on all nodes including fw1
   tolerations:
@@ -25,16 +25,30 @@ opentelemetry-collector:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
-      # Disable chart defaults — core image doesn't have these receivers
+      # Disable chart defaults — not needed
       jaeger: null
       zipkin: null
       prometheus: null
 
+    connectors:
+      spanmetrics:
+        metrics_flush_interval: 15s
+        aggregation_cardinality_limit: 500
+        dimensions_cache_size: 512
+        resource_metrics_cache_size: 512
+        dimensions:
+          - name: http.method
+          - name: http.status_code
+          - name: http.route
+          - name: rpc.method
+          - name: rpc.service
+        metrics_expiration: 5m
+
     processors:
       memory_limiter:
         check_interval: 5s
-        limit_mib: 100
-        spike_limit_mib: 20
+        limit_mib: 200
+        spike_limit_mib: 40
       batch:
         timeout: 5s
         send_batch_size: 512
@@ -42,6 +56,10 @@ opentelemetry-collector:
     exporters:
       otlp_http:
         endpoint: http://victoria-traces-vt-single-server.observability.svc.cluster.local:10428/insert/opentelemetry
+        tls:
+          insecure: true
+      prometheusremotewrite:
+        endpoint: http://vmsingle-vmstack.observability.svc.cluster.local:8428/api/v1/write
         tls:
           insecure: true
       # Disable chart default
@@ -52,8 +70,11 @@ opentelemetry-collector:
         traces:
           receivers: [otlp]
           processors: [memory_limiter, batch]
-          exporters: [otlp_http]
-        # Disable default pipelines — traces-only collector
+          exporters: [otlp_http, spanmetrics]
+        metrics/spanmetrics:
+          receivers: [spanmetrics]
+          exporters: [prometheusremotewrite]
+        # Disable default pipelines
         logs: null
         metrics: null
 
