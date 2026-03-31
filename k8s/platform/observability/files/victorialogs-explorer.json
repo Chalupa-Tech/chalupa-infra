@@ -13,8 +13,9 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter | stats by (_time:5m, namespace) count() as total",
-          "queryType": "stats"
+          "expr": "$filter | stats by (namespace) count() as total",
+          "queryType": "statsRange",
+          "step": "5m"
         }
       ],
       "fieldConfig": {
@@ -35,7 +36,7 @@
     },
     {
       "title": "Logs by Namespace",
-      "type": "barchart",
+      "type": "bargauge",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
@@ -47,18 +48,20 @@
       ],
       "options": {
         "orientation": "horizontal",
-        "xTickLabelRotation": 0,
-        "legend": { "displayMode": "hidden" }
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/total/" },
+        "showUnfilled": true
       },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" }
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
         }
       }
     },
     {
       "title": "Logs by Node",
-      "type": "barchart",
+      "type": "bargauge",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
@@ -70,12 +73,14 @@
       ],
       "options": {
         "orientation": "horizontal",
-        "xTickLabelRotation": 0,
-        "legend": { "displayMode": "hidden" }
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/total/" },
+        "showUnfilled": true
       },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" }
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
         }
       }
     },
@@ -87,8 +92,9 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "$filter _msg:~\"(?i)error|panic|fatal\" | stats by (_time:5m, namespace) count() as errors",
-          "queryType": "stats"
+          "expr": "$filter _msg:~\"(?i)error|panic|fatal\" | stats by (namespace) count() as errors",
+          "queryType": "statsRange",
+          "step": "5m"
         }
       ],
       "fieldConfig": {
