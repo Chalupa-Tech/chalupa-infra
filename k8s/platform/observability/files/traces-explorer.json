@@ -4,83 +4,54 @@
   "graphTooltip": 1,
   "panels": [
     {
-      "title": "Overview",
+      "title": "Trace Search",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "collapsed": false
     },
     {
-      "title": "Services Reporting",
-      "description": "Number of services sending traces to VictoriaTraces",
-      "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
-      "datasource": { "type": "jaeger", "uid": "${DS_JAEGER}" },
-      "targets": [
-        {
-          "refId": "A",
-          "queryType": "search",
-          "service": "$service",
-          "limit": 20
-        }
-      ],
-      "transformations": [
-        {
-          "id": "reduce",
-          "options": {
-            "reducers": ["count"]
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null }
-            ]
-          }
-        }
-      },
+      "title": "Search Traces in Explore",
+      "description": "Grafana's Jaeger panel requires a specific Trace ID. Use Explore for search-based trace browsing with waterfall view.",
+      "type": "text",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 1 },
       "options": {
-        "graphMode": "none",
-        "textMode": "value",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "mode": "markdown",
+        "content": "### Trace Search\n\nOpen **Explore** to search traces by service, operation, tags, and duration:\n\n- [go-notify](/explore?schemaVersion=1&panes=%7B%22one%22%3A%7B%22datasource%22%3A%22victoriatraces%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22queryType%22%3A%22search%22%2C%22service%22%3A%22go-notify%22%2C%22limit%22%3A20%7D%5D%7D%7D)\n- [go-schwab-auth](/explore?schemaVersion=1&panes=%7B%22one%22%3A%7B%22datasource%22%3A%22victoriatraces%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22queryType%22%3A%22search%22%2C%22service%22%3A%22go-schwab-auth%22%2C%22limit%22%3A20%7D%5D%7D%7D)\n- [go-telemetry-mesh](/explore?schemaVersion=1&panes=%7B%22one%22%3A%7B%22datasource%22%3A%22victoriatraces%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22queryType%22%3A%22search%22%2C%22service%22%3A%22go-telemetry-mesh%22%2C%22limit%22%3A20%7D%5D%7D%7D)\n\nClick a trace ID in the results to open the waterfall view."
       }
     },
     {
-      "title": "Recent Traces",
-      "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
-      "collapsed": false
-    },
-    {
-      "title": "Trace Search",
-      "description": "Recent traces filtered by service. Click a Trace ID to view the full trace waterfall.",
+      "title": "Trace Lookup by ID",
+      "description": "Paste a trace ID to view the full span waterfall",
       "type": "traces",
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 6 },
+      "gridPos": { "h": 16, "w": 16, "x": 8, "y": 1 },
       "datasource": { "type": "jaeger", "uid": "${DS_JAEGER}" },
       "targets": [
         {
           "refId": "A",
-          "queryType": "search",
-          "service": "$service",
-          "operation": "$operation",
-          "limit": 20
+          "queryType": "traceID",
+          "query": "$trace_id"
         }
       ]
     },
     {
+      "title": "Quick Links",
+      "type": "text",
+      "gridPos": { "h": 10, "w": 8, "x": 0, "y": 7 },
+      "options": {
+        "mode": "markdown",
+        "content": "### Cross-Signal Navigation\n\n**Logs with Traces**\n- [go-notify errors](/d/victorialogs-explorer?var-namespace=namespace:schwab-ddowell&var-level=level:error&var-filter=service:go-notify)\n- [go-schwab-auth errors](/d/victorialogs-explorer?var-namespace=namespace:schwab-ddowell&var-level=level:error&var-filter=service:go-schwab-auth)\n\n**Service Dashboards**\n- [Service / RED Overview](/d/service-red)\n\n**Trace-to-Logs**\n\nWhen viewing a trace waterfall above, click **Logs for this span** to jump to VictoriaLogs filtered by trace ID.\n\n---\n\n*The `trace_id` field in logs enables bidirectional linking between logs and traces.*"
+      }
+    },
+    {
       "title": "Service Map",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
       "collapsed": true,
       "panels": [
         {
           "title": "Service Dependencies",
-          "description": "Service map requires cross-service trace propagation. Currently, Go services produce independent traces. Enable W3C trace context propagation between services to populate this view.",
           "type": "text",
-          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 23 },
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 18 },
           "options": {
             "mode": "markdown",
             "content": "### Service Map Not Yet Available\n\nThe service dependency graph requires **cross-service trace propagation**. Currently, each Go service produces independent traces without shared trace context.\n\n**To enable:**\n1. Add W3C `traceparent` header propagation between services\n2. Ensure HTTP clients inject and servers extract trace context\n3. Once inter-service spans share trace IDs, the dependency graph will populate automatically"
@@ -90,7 +61,7 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["traces", "observability", "jaeger"],
+  "tags": ["traces", "observability", "jaeger", "kubernetes"],
   "templating": {
     "list": [
       {
@@ -101,26 +72,11 @@
         "hide": 0
       },
       {
-        "name": "service",
-        "type": "query",
-        "datasource": { "type": "jaeger", "uid": "${DS_JAEGER}" },
-        "query": "",
-        "queryType": "getServices",
-        "refresh": 1,
-        "includeAll": true,
-        "current": { "text": "All", "value": "$__all" },
-        "hide": 0
-      },
-      {
-        "name": "operation",
-        "type": "query",
-        "datasource": { "type": "jaeger", "uid": "${DS_JAEGER}" },
-        "query": "$service",
-        "queryType": "getOperations",
-        "refresh": 1,
-        "includeAll": true,
-        "current": { "text": "All", "value": "$__all" },
-        "hide": 0
+        "name": "trace_id",
+        "type": "textbox",
+        "current": { "text": "", "value": "" },
+        "hide": 0,
+        "label": "Trace ID"
       }
     ]
   },
