@@ -34,7 +34,6 @@ opentelemetry-collector:
       spanmetrics:
         metrics_flush_interval: 15s
         aggregation_cardinality_limit: 500
-        dimensions_cache_size: 512
         resource_metrics_cache_size: 512
         dimensions:
           - name: http.method
