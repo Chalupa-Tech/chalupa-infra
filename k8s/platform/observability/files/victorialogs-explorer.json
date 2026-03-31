@@ -145,7 +145,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | replace_regexp (\"^[EWIFD][0-9]+ [0-9:.]+\\\\s+[0-9]+ [^]]+] \", \"\") | replace_regexp (\"^time=\\\"[^\\\"]+\\\" level=[a-z]+ msg=\", \"\") | collapse_nums | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 25",
+          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | replace_regexp (\"^[EWIFD][0-9]+ [0-9:.]+\\\\s+[0-9]+ [^]]+] \", \"\") | replace_regexp (\"^time=\\\"[^\\\"]+\\\" level=[a-z]+ msg=\", \"\") | copy _msg as pattern | replace_regexp (\" err=\\\".*\", \"\") at pattern | replace_regexp (\" error=\\\".*\", \"\") at pattern | replace_regexp (\": Get \\\"https?://[^\\\"]*\\\"\", \": Get <URL>\") at pattern | replace_regexp (\": dial tcp [^ ]+\", \": dial tcp <ADDR>\") at pattern | replace_regexp (\"github\\\\.com/[^:]+:\", \"\") at pattern | collapse_nums prettify at pattern | replace_regexp (\"^(.{0,100}).*\", \"$1\") at pattern | stats by (pattern) count() as occurrences | sort by (occurrences) desc | limit 25",
           "queryType": "stats"
         }
       ],
@@ -167,7 +167,7 @@
         {
           "id": "renameByRegex",
           "options": {
-            "regex": "occurrences\\{_msg=\"(.*)\"\\}",
+            "regex": "occurrences\\{pattern=\"(.*)\"\\}",
             "renamePattern": "$1"
           }
         }
