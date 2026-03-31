@@ -8,7 +8,7 @@
     {
       "title": "Log Volume by Namespace",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -37,7 +37,7 @@
     {
       "title": "Log Level Distribution",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "gridPos": { "h": 10, "w": 8, "x": 0, "y": 11 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -84,7 +84,7 @@
     {
       "title": "Top Talkers (by Pod)",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "gridPos": { "h": 10, "w": 8, "x": 8, "y": 11 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -92,7 +92,7 @@
           "expr": "* $namespace $pod $level $filter | stats by (pod) count() as total",
           "legendFormat": "{{pod}}",
           "queryType": "statsRange",
-          "step": "$__interval"
+          "step": "1h"
         }
       ],
       "options": {
@@ -111,7 +111,7 @@
     {
       "title": "Error Log Rate",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "gridPos": { "h": 10, "w": 8, "x": 16, "y": 11 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -140,7 +140,7 @@
     {
       "title": "Logs by Namespace",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "gridPos": { "h": 10, "w": 8, "x": 0, "y": 22 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -148,7 +148,7 @@
           "expr": "* $namespace $pod $level $filter | stats by (namespace) count() as total",
           "legendFormat": "{{namespace}}",
           "queryType": "statsRange",
-          "step": "$__interval"
+          "step": "1h"
         }
       ],
       "options": {
@@ -167,7 +167,7 @@
     {
       "title": "Logs by Node",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "gridPos": { "h": 10, "w": 8, "x": 8, "y": 22 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -175,7 +175,7 @@
           "expr": "* $namespace $pod $level $filter | stats by (node) count() as total",
           "legendFormat": "{{node}}",
           "queryType": "statsRange",
-          "step": "$__interval"
+          "step": "1h"
         }
       ],
       "options": {
@@ -194,7 +194,7 @@
     {
       "title": "Unique Error Messages",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "gridPos": { "h": 10, "w": 8, "x": 16, "y": 22 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
@@ -202,7 +202,7 @@
           "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | stats by (_msg) count() as occurrences",
           "legendFormat": "{{_msg}}",
           "queryType": "statsRange",
-          "step": "$__interval"
+          "step": "1h"
         }
       ],
       "options": {
@@ -221,7 +221,7 @@
     {
       "title": "Log Search",
       "type": "logs",
-      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 24 },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 33 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
