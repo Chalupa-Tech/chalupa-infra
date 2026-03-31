@@ -139,14 +139,16 @@
     },
     {
       "title": "Top Error Messages",
+      "description": "Error/fatal/panic log messages grouped by pattern. Numbers collapsed, URLs/TCP addresses normalized, K8s resource types grouped.",
       "type": "table",
       "gridPos": { "h": 12, "w": 24, "x": 0, "y": 16 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | replace_regexp (\"^[EWIFD][0-9]+ [0-9:.]+\\\\s+[0-9]+ [^]]+] \", \"\") | replace_regexp (\"^time=\\\"[^\\\"]+\\\" level=[a-z]+ msg=\", \"\") | replace_regexp (\" err=\\\".*\", \"\") | replace_regexp (\" error=\\\".*\", \"\") | replace_regexp (\": Get \\\"https?://[^\\\"]*\\\"\", \": Get <URL>\") | replace_regexp (\": dial tcp [^ ]+\", \": dial tcp <ADDR>\") | replace_regexp (\"github\\\\.com/[^:]+:\", \"\") | collapse_nums | replace_regexp (\"^(.{0,100}).*\", \"$1\") | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 25",
-          "queryType": "stats"
+          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | replace_regexp (\"^[EWIFD][0-9]+ [0-9:.]+\\\\s+[0-9]+ [^]]+] \", \"\") | replace_regexp (\"^time=\\\"[^\\\"]+\\\" level=[a-z]+ msg=\", \"\") | replace_regexp (\" err=\\\".*\", \"\") | replace_regexp (\" error=\\\".*\", \"\") | replace_regexp (\": Get \\\"https?://[^\\\"]*\\\"\", \": Get <URL>\") | replace_regexp (\": dial tcp [^ ]+\", \": dial tcp <ADDR>\") | replace_regexp (\"github\\\\.com/[^:]+:\", \"\") | replace_regexp (\"VolumeSnapshot(Content|Class)\", \"VolumeSnapshot*\") | replace_regexp (\"svc\\\\.cluster\\\\.local\\\\.[a-z]+\", \"svc.cluster.local.*\") | collapse_nums | replace_regexp (\"^(.{0,100}).*\", \"$1\") | stats by (_msg) count() as occurrences | sort by (occurrences) desc | limit 25",
+          "queryType": "stats",
+          "legendFormat": "{{_msg}}"
         }
       ],
       "transformations": [
@@ -162,13 +164,6 @@
               "Metric": "Error Message",
               "Value": "Count"
             }
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "occurrences\\{_msg=\"(.*)\"\\}",
-            "renamePattern": "$1"
           }
         }
       ],
