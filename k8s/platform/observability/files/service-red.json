@@ -239,7 +239,7 @@
               { "id": "links", "value": [
                 {
                   "title": "View Trace",
-                  "url": "/d/traces-explorer?var-trace_id=${__data.fields[\"Trace ID\"]}",
+                  "url": "/explore?schemaVersion=1&panes={\"one\":{\"datasource\":\"victoriatraces\",\"queries\":[{\"refId\":\"A\",\"queryType\":\"traceID\",\"traceID\":\"${__value.raw}\"}]}}&orgId=1",
                   "targetBlank": true
                 }
               ]}
