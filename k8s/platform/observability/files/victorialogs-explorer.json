@@ -192,15 +192,15 @@
       }
     },
     {
-      "title": "Unique Error Messages",
+      "title": "Errors by Pod",
       "type": "bargauge",
       "gridPos": { "h": 10, "w": 8, "x": 16, "y": 22 },
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "${DS_VICTORIALOGS}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | stats by (_msg) count() as occurrences",
-          "legendFormat": "{{_msg}}",
+          "expr": "* $namespace $pod $filter level:error OR level:fatal OR level:panic | stats by (pod) count() as errors",
+          "legendFormat": "{{pod}}",
           "queryType": "statsRange",
           "step": "1h"
         }
