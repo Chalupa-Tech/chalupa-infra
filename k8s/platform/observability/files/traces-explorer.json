@@ -11,9 +11,9 @@
     },
     {
       "title": "Recent Traces",
-      "description": "Traces from VictoriaTraces via Jaeger API. Click a Trace ID to view the waterfall below.",
+      "description": "Traces from VictoriaTraces via Jaeger API. Click a Trace ID to open the waterfall in Explore.",
       "type": "table",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 1 },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 1 },
       "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
       "targets": [
         {
@@ -43,8 +43,8 @@
               { "id": "links", "value": [
                 {
                   "title": "View Trace Waterfall",
-                  "url": "/d/traces-explorer?var-trace_id=${__data.fields[\"Trace ID\"]}&var-service=${service}&var-limit=${limit}",
-                  "targetBlank": false
+                  "url": "/explore?schemaVersion=1&panes={\"one\":{\"datasource\":\"victoriatraces\",\"queries\":[{\"refId\":\"A\",\"queryType\":\"traceID\",\"traceID\":\"${__value.raw}\"}]}}&orgId=1",
+                  "targetBlank": true
                 }
               ]}
             ]
@@ -59,35 +59,15 @@
       }
     },
     {
-      "title": "Trace Detail",
-      "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 },
-      "collapsed": false
-    },
-    {
-      "title": "Trace Waterfall",
-      "description": "Paste a Trace ID or click one from the table above to view the span waterfall.",
-      "type": "traces",
-      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 12 },
-      "datasource": { "type": "jaeger", "uid": "victoriatraces" },
-      "targets": [
-        {
-          "refId": "A",
-          "queryType": "traceID",
-          "query": "$trace_id"
-        }
-      ]
-    },
-    {
       "title": "Service Map",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
       "collapsed": true,
       "panels": [
         {
           "title": "Service Dependencies",
           "type": "text",
-          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 27 },
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 16 },
           "options": {
             "mode": "markdown",
             "content": "### Service Map Not Yet Available\n\nThe service dependency graph requires **cross-service trace propagation**. Currently, each Go service produces independent traces.\n\n**To enable:** Add W3C `traceparent` header propagation between services."
@@ -113,13 +93,6 @@
         "query": "20,50,100",
         "current": { "text": "20", "value": "20" },
         "hide": 0
-      },
-      {
-        "name": "trace_id",
-        "type": "textbox",
-        "current": { "text": "", "value": "" },
-        "hide": 0,
-        "label": "Trace ID"
       }
     ]
   },
