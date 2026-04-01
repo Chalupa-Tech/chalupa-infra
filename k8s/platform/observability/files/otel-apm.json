@@ -163,10 +163,10 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\", span_kind=\"SPAN_KIND_SERVER\", http_status_code=~\"^2.*\", http_route=~\"$route\"}) by(http_status_code)",
+          "expr": "sum(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\", span_kind=\"SPAN_KIND_SERVER\", status_code=\"STATUS_CODE_UNSET\"}) by(span_name)",
           "format": "time_series",
           "instant": true,
-          "legendFormat": "Http Status 2XX",
+          "legendFormat": "OK",
           "range": true,
           "refId": "2XX"
         },
@@ -177,11 +177,11 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\", span_kind=\"SPAN_KIND_SERVER\", http_status_code=~\"^3.*\", http_route=~\"$route\"}) by(http_status_code)",
+          "expr": "vector(0)",
           "format": "time_series",
           "hide": false,
           "instant": true,
-          "legendFormat": "Http Status 3XX",
+          "legendFormat": "3xx (N/A)",
           "range": true,
           "refId": "3XX"
         },
@@ -192,11 +192,11 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\", span_kind=\"SPAN_KIND_SERVER\", http_status_code=~\"^4.*\", http_route=~\"$route\"}) by(http_status_code)",
+          "expr": "vector(0)",
           "format": "time_series",
           "hide": false,
           "instant": true,
-          "legendFormat": "Http Status 4XX",
+          "legendFormat": "4xx (N/A)",
           "range": true,
           "refId": "4XX"
         },
@@ -207,11 +207,11 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\", span_kind=\"SPAN_KIND_SERVER\", http_status_code=~\"^5.*\", http_route=~\"$route\"}) by(http_status_code)",
+          "expr": "sum(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\", span_kind=\"SPAN_KIND_SERVER\", status_code=\"STATUS_CODE_ERROR\"}) by(span_name)",
           "format": "time_series",
           "hide": false,
           "instant": true,
-          "legendFormat": "Http Status 5XX",
+          "legendFormat": "Error",
           "range": true,
           "refId": "5XX"
         }
@@ -516,7 +516,7 @@
             "uid": "${DS_VM}"
           },
           "editorMode": "code",
-          "expr": "sum(traces_span_metrics_duration_milliseconds_count{span_kind=\"SPAN_KIND_SERVER\", service_name=\"$app\", http_status_code=~\"5.*|\", http_route=~\"$route\"})/sum(traces_span_metrics_duration_milliseconds_count{span_kind=\"SPAN_KIND_SERVER\", service_name=\"$app\", http_route=~\"$route\"})",
+          "expr": "sum(traces_span_metrics_duration_milliseconds_count{span_kind=\"SPAN_KIND_SERVER\", service_name=\"$app\", status_code=\"STATUS_CODE_ERROR\"}) / sum(traces_span_metrics_duration_milliseconds_count{span_kind=\"SPAN_KIND_SERVER\", service_name=\"$app\"})",
           "instant": false,
           "range": true,
           "refId": "A"
@@ -792,7 +792,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sort_desc(traces_span_metrics_duration_milliseconds_sum{span_kind=\"SPAN_KIND_SERVER\", service_name=\"$app\", http_status_code!=\"\", http_route=~\"$route\"} / traces_span_metrics_duration_milliseconds_count{span_kind=\"SPAN_KIND_SERVER\", service_name=\"$app\", http_status_code!=\"\", http_route=~\"$route\"})",
+          "expr": "sort_desc(traces_span_metrics_duration_milliseconds_sum{span_kind=\"SPAN_KIND_SERVER\", service_name=\"$app\"} / traces_span_metrics_duration_milliseconds_count{span_kind=\"SPAN_KIND_SERVER\", service_name=\"$app\"})",
           "instant": true,
           "legendFormat": "[{{http_status_code}}] {{span_name}}",
           "range": false,
@@ -941,7 +941,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\", http_route=~\"$route\", span_kind=\"SPAN_KIND_SERVER\"}[3m])*60) by(service_name, http_method, http_route)",
+          "expr": "sum(rate(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\", span_kind=\"SPAN_KIND_SERVER\"}[3m])*60) by(service_name, span_name)",
           "format": "time_series",
           "hide": false,
           "instant": false,
@@ -954,7 +954,7 @@
             "uid": "${DS_VM}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"$app\", http_route=~\"$route\", span_kind=\"SPAN_KIND_SERVER\"}[3m])) by (le, service_name, http_method, http_route))",
+          "expr": "histogram_quantile(0.95, sum(rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"$app\", span_kind=\"SPAN_KIND_SERVER\"}[3m])) by (le, service_name, span_name))",
           "hide": false,
           "instant": false,
           "range": true,
@@ -967,7 +967,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\", http_route=~\"$route\", span_kind=\"SPAN_KIND_SERVER\", http_status_code!~\"2.*|3.*\"}) by(service_name, http_method, http_route) / sum(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\", http_route=~\"$route\", span_kind=\"SPAN_KIND_SERVER\"}) by(service_name, http_method, http_route)",
+          "expr": "sum(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\", span_kind=\"SPAN_KIND_SERVER\", status_code=\"STATUS_CODE_ERROR\"}) by(service_name, span_name) / sum(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\", span_kind=\"SPAN_KIND_SERVER\"}) by(service_name, span_name)",
           "format": "time_series",
           "hide": false,
           "instant": false,
@@ -1050,14 +1050,14 @@
           "type": "prometheus",
           "uid": "${DS_VM}"
         },
-        "definition": "label_values(service_name)",
+        "definition": "label_values(traces_span_metrics_duration_milliseconds_count, service_name)",
         "includeAll": false,
         "label": "Application",
         "name": "app",
         "options": [],
         "query": {
-          "query": "label_values(service_name)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+          "query": "label_values(traces_span_metrics_duration_milliseconds_count, service_name)",
+          "refId": "A"
         },
         "refresh": 1,
         "regex": "",
@@ -1069,19 +1069,20 @@
           "type": "prometheus",
           "uid": "${DS_VM}"
         },
-        "definition": "label_values(http_route)",
+        "definition": "label_values(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\"}, http_route)",
         "includeAll": true,
         "label": "Route",
         "multi": true,
         "name": "route",
         "options": [],
         "query": {
-          "query": "label_values(http_route)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+          "query": "label_values(traces_span_metrics_duration_milliseconds_count{service_name=\"$app\"}, http_route)",
+          "refId": "A"
         },
         "refresh": 1,
         "regex": "",
-        "type": "query"
+        "type": "query",
+        "allValue": ".*"
       }
     ]
   },
