@@ -1,20 +1,35 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "graphTooltip": 1,
   "panels": [
     {
       "title": "Golden Signals",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "collapsed": false
     },
     {
       "title": "Nodes Ready",
       "description": "Number of nodes in Ready state vs total node count",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -31,8 +46,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 6 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 6
+              }
             ]
           }
         }
@@ -40,15 +61,27 @@
       "options": {
         "graphMode": "area",
         "textMode": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Pods Running",
       "description": "Total pods in Running phase across all namespaces",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -61,22 +94,37 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         }
       },
       "options": {
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Cluster CPU",
       "description": "Average CPU utilization across all nodes",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -91,24 +139,45 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.6 },
-              { "color": "red", "value": 0.8 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.6
+              },
+              {
+                "color": "red",
+                "value": 0.8
+              }
             ]
           }
         }
       },
       "options": {
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Cluster Memory",
       "description": "Cluster-wide memory utilization (used / total)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -123,24 +192,45 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.7 },
-              { "color": "red", "value": 0.85 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.85
+              }
             ]
           }
         }
       },
       "options": {
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "API Server p99",
       "description": "99th percentile API server request latency (read verbs)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -153,24 +243,45 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 5 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
             ]
           }
         }
       },
       "options": {
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Active Alerts",
       "description": "Number of currently firing alerts (excluding watchdog/info severity)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -183,30 +294,56 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 5 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
             ]
           }
         }
       },
       "options": {
         "graphMode": "none",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Cluster Health",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "collapsed": false
     },
     {
       "title": "Node Status Over Time",
       "description": "State timeline showing each node's Ready/NotReady transitions",
       "type": "state-timeline",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -217,8 +354,24 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "1": { "text": "Ready", "color": "green" } } },
-            { "type": "value", "options": { "0": { "text": "NotReady", "color": "red" } } }
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Ready",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "NotReady",
+                  "color": "red"
+                }
+              }
+            }
           ]
         }
       },
@@ -226,15 +379,25 @@
         "showValue": "auto",
         "mergeValues": true,
         "alignValue": "left",
-        "tooltip": { "mode": "single" }
+        "tooltip": {
+          "mode": "single"
+        }
       }
     },
     {
       "title": "Non-Running Pod Phases",
-      "description": "Pods not in Running state — shows Pending, CrashLoopBackOff, Failed transitions",
+      "description": "Pods not in Running state \u2014 shows Pending, CrashLoopBackOff, Failed transitions",
       "type": "state-timeline",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -244,12 +407,20 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "yellow", "value": null },
-              { "color": "red", "value": 1 }
+              {
+                "color": "yellow",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
           }
         }
@@ -257,26 +428,41 @@
       "options": {
         "showValue": "auto",
         "mergeValues": true,
-        "tooltip": { "mode": "single" }
+        "tooltip": {
+          "mode": "single"
+        }
       }
     },
     {
       "title": "Resource Utilization",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
       "collapsed": false
     },
     {
       "title": "CPU Usage by Node",
       "description": "Per-node CPU utilization as stacked area chart",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
-          "expr": "1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))",
-          "legendFormat": "{{instance}}"
+          "expr": "(1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))) * on(instance) group_left(nodename) node_uname_info",
+          "legendFormat": "{{nodename}}"
         }
       ],
       "fieldConfig": {
@@ -285,35 +471,64 @@
           "min": 0,
           "custom": {
             "fillOpacity": 15,
-            "stacking": { "mode": "normal" },
+            "stacking": {
+              "mode": "normal"
+            },
             "connectNulls": true
           },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.6 },
-              { "color": "red", "value": 0.8 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.6
+              },
+              {
+                "color": "red",
+                "value": 0.8
+              }
             ]
           }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Memory Usage by Node",
       "description": "Per-node memory utilization as stacked area chart",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 13
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
-          "expr": "1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
-          "legendFormat": "{{instance}}"
+          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * on(instance) group_left(nodename) node_uname_info",
+          "legendFormat": "{{nodename}}"
         }
       ],
       "fieldConfig": {
@@ -322,36 +537,70 @@
           "min": 0,
           "custom": {
             "fillOpacity": 15,
-            "stacking": { "mode": "normal" },
+            "stacking": {
+              "mode": "normal"
+            },
             "connectNulls": true
           },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.7 },
-              { "color": "red", "value": 0.85 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.85
+              }
             ]
           }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Top-N Resource Consumers",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
       "collapsed": false
     },
     {
       "title": "Top 10 Pods by CPU",
       "description": "Pods consuming the most CPU, ranked by current usage",
       "type": "table",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 22 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 22
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -364,47 +613,96 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true },
-            "renameByName": { "Value": "CPU (cores)", "namespace": "Namespace", "pod": "Pod" },
-            "indexByName": { "namespace": 0, "pod": 1, "Value": 2 }
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value": "CPU (cores)",
+              "namespace": "Namespace",
+              "pod": "Pod"
+            },
+            "indexByName": {
+              "namespace": 0,
+              "pod": 1,
+              "Value": 2
+            }
           }
         },
         {
           "id": "sortBy",
-          "options": { "sort": [{ "field": "CPU (cores)", "desc": true }] }
+          "options": {
+            "sort": [
+              {
+                "field": "CPU (cores)",
+                "desc": true
+              }
+            ]
+          }
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "custom": { "align": "auto" }
+          "custom": {
+            "align": "auto"
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Pod" },
+            "matcher": {
+              "id": "byName",
+              "options": "Pod"
+            },
             "properties": [
-              { "id": "links", "value": [
-                {
-                  "title": "View Logs",
-                  "url": "/d/victorialogs-explorer?var-namespace=namespace:${__data.fields.Namespace}&var-pod=pod:${__data.fields.Pod}&from=${__from}&to=${__to}",
-                  "targetBlank": true
-                }
-              ]}
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View Logs",
+                    "url": "/d/victorialogs-explorer?var-namespace=namespace:${__data.fields.Namespace}&var-pod=pod:${__data.fields.Pod}&from=${__from}&to=${__to}",
+                    "targetBlank": true
+                  }
+                ]
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "CPU (cores)" },
+            "matcher": {
+              "id": "byName",
+              "options": "CPU (cores)"
+            },
             "properties": [
-              { "id": "unit", "value": "short" },
-              { "id": "decimals", "value": 3 },
-              { "id": "thresholds", "value": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "yellow", "value": 0.5 },
-                  { "color": "red", "value": 1 }
-                ]
-              }},
-              { "id": "custom.displayMode", "value": "color-background-solid" }
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 0.5
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              }
             ]
           }
         ]
@@ -414,8 +712,16 @@
       "title": "Top 10 Pods by Memory",
       "description": "Pods consuming the most memory (working set), ranked by current usage",
       "type": "table",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 22 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 22
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -428,46 +734,92 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true },
-            "renameByName": { "Value": "Memory", "namespace": "Namespace", "pod": "Pod" },
-            "indexByName": { "namespace": 0, "pod": 1, "Value": 2 }
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value": "Memory",
+              "namespace": "Namespace",
+              "pod": "Pod"
+            },
+            "indexByName": {
+              "namespace": 0,
+              "pod": 1,
+              "Value": 2
+            }
           }
         },
         {
           "id": "sortBy",
-          "options": { "sort": [{ "field": "Memory", "desc": true }] }
+          "options": {
+            "sort": [
+              {
+                "field": "Memory",
+                "desc": true
+              }
+            ]
+          }
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "custom": { "align": "auto" }
+          "custom": {
+            "align": "auto"
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Pod" },
+            "matcher": {
+              "id": "byName",
+              "options": "Pod"
+            },
             "properties": [
-              { "id": "links", "value": [
-                {
-                  "title": "View Logs",
-                  "url": "/d/victorialogs-explorer?var-namespace=namespace:${__data.fields.Namespace}&var-pod=pod:${__data.fields.Pod}&from=${__from}&to=${__to}",
-                  "targetBlank": true
-                }
-              ]}
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View Logs",
+                    "url": "/d/victorialogs-explorer?var-namespace=namespace:${__data.fields.Namespace}&var-pod=pod:${__data.fields.Pod}&from=${__from}&to=${__to}",
+                    "targetBlank": true
+                  }
+                ]
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Memory" },
+            "matcher": {
+              "id": "byName",
+              "options": "Memory"
+            },
             "properties": [
-              { "id": "unit", "value": "bytes" },
-              { "id": "thresholds", "value": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "yellow", "value": 268435456 },
-                  { "color": "red", "value": 536870912 }
-                ]
-              }},
-              { "id": "custom.displayMode", "value": "color-background-solid" }
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 268435456
+                    },
+                    {
+                      "color": "red",
+                      "value": 536870912
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              }
             ]
           }
         ]
@@ -477,8 +829,16 @@
       "title": "Top 10 Pods by Restarts",
       "description": "Pods with the most container restarts in the last hour",
       "type": "table",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 22 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 22
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -491,45 +851,90 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true },
-            "renameByName": { "Value": "Restarts", "namespace": "Namespace", "pod": "Pod", "container": "Container" },
-            "indexByName": { "namespace": 0, "pod": 1, "container": 2, "Value": 3 }
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value": "Restarts",
+              "namespace": "Namespace",
+              "pod": "Pod",
+              "container": "Container"
+            },
+            "indexByName": {
+              "namespace": 0,
+              "pod": 1,
+              "container": 2,
+              "Value": 3
+            }
           }
         },
         {
           "id": "sortBy",
-          "options": { "sort": [{ "field": "Restarts", "desc": true }] }
+          "options": {
+            "sort": [
+              {
+                "field": "Restarts",
+                "desc": true
+              }
+            ]
+          }
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "custom": { "align": "auto" }
+          "custom": {
+            "align": "auto"
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Pod" },
+            "matcher": {
+              "id": "byName",
+              "options": "Pod"
+            },
             "properties": [
-              { "id": "links", "value": [
-                {
-                  "title": "View Logs",
-                  "url": "/d/victorialogs-explorer?var-namespace=namespace:${__data.fields.Namespace}&var-pod=pod:${__data.fields.Pod}&from=${__from}&to=${__to}",
-                  "targetBlank": true
-                }
-              ]}
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View Logs",
+                    "url": "/d/victorialogs-explorer?var-namespace=namespace:${__data.fields.Namespace}&var-pod=pod:${__data.fields.Pod}&from=${__from}&to=${__to}",
+                    "targetBlank": true
+                  }
+                ]
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Restarts" },
+            "matcher": {
+              "id": "byName",
+              "options": "Restarts"
+            },
             "properties": [
-              { "id": "unit", "value": "short" },
-              { "id": "decimals", "value": 0 },
-              { "id": "thresholds", "value": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "red", "value": null }
-                ]
-              }},
-              { "id": "custom.displayMode", "value": "color-background-solid" }
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              }
             ]
           }
         ]
@@ -538,15 +943,28 @@
     {
       "title": "Network",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
       "collapsed": true,
       "panels": [
         {
           "title": "Network I/O by Node",
           "description": "Physical NIC receive/transmit bytes per second per node (excludes virtual interfaces)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
-          "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 31
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VM}"
+          },
           "targets": [
             {
               "refId": "A",
@@ -562,20 +980,40 @@
           "fieldConfig": {
             "defaults": {
               "unit": "Bps",
-              "custom": { "fillOpacity": 10, "connectNulls": true }
+              "custom": {
+                "fillOpacity": 10,
+                "connectNulls": true
+              }
             }
           },
           "options": {
-            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-            "tooltip": { "mode": "multi" }
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
           }
         },
         {
           "title": "DNS Query Rate & Errors",
           "description": "CoreDNS query rate and SERVFAIL/NXDOMAIN error rate",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
-          "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 31
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VM}"
+          },
           "targets": [
             {
               "refId": "A",
@@ -591,20 +1029,41 @@
           "fieldConfig": {
             "defaults": {
               "unit": "ops",
-              "custom": { "fillOpacity": 10, "connectNulls": true }
+              "custom": {
+                "fillOpacity": 10,
+                "connectNulls": true
+              }
             },
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Errors/s" },
+                "matcher": {
+                  "id": "byName",
+                  "options": "Errors/s"
+                },
                 "properties": [
-                  { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "red"
+                    }
+                  }
                 ]
               }
             ]
           },
           "options": {
-            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-            "tooltip": { "mode": "multi" }
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "mean",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
           }
         }
       ]
@@ -612,15 +1071,28 @@
     {
       "title": "Storage",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
       "collapsed": true,
       "panels": [
         {
           "title": "PVC Usage",
           "description": "Persistent Volume Claim utilization as percentage of capacity",
           "type": "gauge",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
-          "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 32
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VM}"
+          },
           "targets": [
             {
               "refId": "A",
@@ -636,15 +1108,28 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "yellow", "value": 0.75 },
-                  { "color": "red", "value": 0.9 }
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.75
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.9
+                  }
                 ]
               }
             }
           },
           "options": {
-            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
             "orientation": "horizontal"
           }
         },
@@ -652,8 +1137,16 @@
           "title": "Disk Usage by Node",
           "description": "Root filesystem usage per node",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
-          "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 32
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VM}"
+          },
           "targets": [
             {
               "refId": "A",
@@ -665,27 +1158,51 @@
             "defaults": {
               "unit": "percentunit",
               "min": 0,
-              "custom": { "fillOpacity": 10, "connectNulls": true },
+              "custom": {
+                "fillOpacity": 10,
+                "connectNulls": true
+              },
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "yellow", "value": 0.75 },
-                  { "color": "red", "value": 0.9 }
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.75
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.9
+                  }
                 ]
               }
             }
           },
           "options": {
-            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] },
-            "tooltip": { "mode": "multi" }
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
           }
         }
       ]
     }
   ],
   "schemaVersion": 39,
-  "tags": ["kubernetes", "cluster", "overview"],
+  "tags": [
+    "kubernetes",
+    "cluster",
+    "overview"
+  ],
   "templating": {
     "list": [
       {
@@ -697,7 +1214,10 @@
       }
     ]
   },
-  "time": { "from": "now-3h", "to": "now" },
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "",
   "title": "Cluster Overview",
