@@ -1,20 +1,35 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "graphTooltip": 1,
   "panels": [
     {
       "title": "Trace Search",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "collapsed": false
     },
     {
       "title": "Recent Traces",
       "description": "Traces from VictoriaTraces via Jaeger API. Click a Trace ID to open the waterfall in Explore.",
       "type": "table",
-      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 1 },
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
       "targets": [
         {
           "refId": "A",
@@ -22,37 +37,65 @@
           "source": "url",
           "format": "table",
           "url": "http://victoria-traces-vt-single-server.observability.svc.cluster.local:10428/select/jaeger/api/traces?service=${service}&limit=${limit}",
-          "url_options": { "method": "GET" },
+          "url_options": {
+            "method": "GET"
+          },
           "parser": "backend",
           "root_selector": "data",
           "columns": [
-            { "selector": "traceID", "text": "Trace ID", "type": "string" },
-            { "selector": "spans.0.operationName", "text": "Operation", "type": "string" },
-            { "selector": "spans.0.duration", "text": "Duration (μs)", "type": "number" }
+            {
+              "selector": "traceID",
+              "text": "Trace ID",
+              "type": "string"
+            },
+            {
+              "selector": "spans.0.operationName",
+              "text": "Operation",
+              "type": "string"
+            },
+            {
+              "selector": "spans.0.duration",
+              "text": "Duration (\u03bcs)",
+              "type": "number"
+            }
           ]
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "custom": { "align": "auto" }
+          "custom": {
+            "align": "auto"
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Trace ID" },
+            "matcher": {
+              "id": "byName",
+              "options": "Trace ID"
+            },
             "properties": [
-              { "id": "links", "value": [
-                {
-                  "title": "View Trace Waterfall",
-                  "url": "/explore?schemaVersion=1&panes={\"one\":{\"datasource\":\"victoriatraces\",\"queries\":[{\"refId\":\"A\",\"queryType\":\"traceID\",\"traceID\":\"${__value.raw}\"}]}}&orgId=1",
-                  "targetBlank": true
-                }
-              ]}
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View Trace Waterfall",
+                    "url": "/explore?schemaVersion=1&panes=%7B%22one%22%3A%7B%22datasource%22%3A%22victoriatraces%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22queryType%22%3A%22traceID%22%2C%22traceID%22%3A%22${__value.raw}%22%7D%5D%7D%7D&orgId=1",
+                    "targetBlank": true
+                  }
+                ]
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Duration (μs)" },
+            "matcher": {
+              "id": "byName",
+              "options": "Duration (\u03bcs)"
+            },
             "properties": [
-              { "id": "unit", "value": "µs" }
+              {
+                "id": "unit",
+                "value": "\u00b5s"
+              }
             ]
           }
         ]
@@ -61,13 +104,23 @@
     {
       "title": "Service Map",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
       "collapsed": true,
       "panels": [
         {
           "title": "Service Dependencies",
           "type": "text",
-          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 16 },
+          "gridPos": {
+            "h": 4,
+            "w": 24,
+            "x": 0,
+            "y": 16
+          },
           "options": {
             "mode": "markdown",
             "content": "### Service Map Not Yet Available\n\nThe service dependency graph requires **cross-service trace propagation**. Currently, each Go service produces independent traces.\n\n**To enable:** Add W3C `traceparent` header propagation between services."
@@ -77,26 +130,40 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["traces", "observability", "jaeger", "kubernetes"],
+  "tags": [
+    "traces",
+    "observability",
+    "jaeger",
+    "kubernetes"
+  ],
   "templating": {
     "list": [
       {
         "name": "service",
         "type": "custom",
         "query": "go-notify,go-schwab-auth,go-telemetry-mesh",
-        "current": { "text": "go-telemetry-mesh", "value": "go-telemetry-mesh" },
+        "current": {
+          "text": "go-telemetry-mesh",
+          "value": "go-telemetry-mesh"
+        },
         "hide": 0
       },
       {
         "name": "limit",
         "type": "custom",
         "query": "20,50,100",
-        "current": { "text": "20", "value": "20" },
+        "current": {
+          "text": "20",
+          "value": "20"
+        },
         "hide": 0
       }
     ]
   },
-  "time": { "from": "now-1h", "to": "now" },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "",
   "title": "Traces / Explorer",

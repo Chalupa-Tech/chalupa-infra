@@ -677,7 +677,7 @@
                 "value": [
                   {
                     "title": "View Trace",
-                    "url": "/explore?schemaVersion=1&panes={\"one\":{\"datasource\":\"victoriatraces\",\"queries\":[{\"refId\":\"A\",\"queryType\":\"traceID\",\"traceID\":\"${__value.raw}\"}]}}&orgId=1",
+                    "url": "/explore?schemaVersion=1&panes=%7B%22one%22%3A%7B%22datasource%22%3A%22victoriatraces%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22queryType%22%3A%22traceID%22%2C%22traceID%22%3A%22${__value.raw}%22%7D%5D%7D%7D&orgId=1",
                     "targetBlank": true
                   }
                 ]
