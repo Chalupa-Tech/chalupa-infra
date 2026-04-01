@@ -79,6 +79,19 @@ spec:
             - .spec.conversion
             - .spec.versions
             - .spec.preserveUnknownFields
+        # PVC specs are immutable after creation. ArgoCD cannot reconcile
+        # changes to storageClassName, accessModes, or volumeName.
+        - kind: PersistentVolumeClaim
+          jqPathExpressions:
+            - .spec
+        # StatefulSet volumeClaimTemplates are immutable after creation.
+        # K8s mutates them (adds apiVersion, kind, status, volumeMode),
+        # causing permanent drift. Ignore the entire path so SSA +
+        # RespectIgnoreDifferences strips it before apply.
+        - group: apps
+          kind: StatefulSet
+          jsonPointers:
+            - /spec/volumeClaimTemplates
       syncPolicy:
         automated:
           prune: true

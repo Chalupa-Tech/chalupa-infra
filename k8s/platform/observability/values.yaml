@@ -50,9 +50,19 @@ victoria-metrics-k8s-stack:
       storageClassName: longhorn-single
     initChownData:
       enabled: false
+    sidecar:
+      dashboards:
+        enabled: true
+        # Skip the reload API call — Grafana's file provisioner watches
+        # the dashboard directory and reloads on file changes automatically.
+        # The sidecar reload was failing with 401 due to admin password
+        # drift between the Helm secret and Grafana's SQLite DB.
+        skipReload: true
     plugins:
       - victoriametrics-logs-datasource
       - victoriametrics-metrics-datasource
+      - grafana-exploretraces-app
+      - yesoreyeram-infinity-datasource
     envFromSecret: "grafana-oidc-secret"
     grafana.ini:
       # NOTE: plugins.preinstall_sync is handled by the Helm chart's `plugins:`
@@ -60,17 +70,17 @@ victoria-metrics-k8s-stack:
       # Do NOT add a [plugins] section here; grafana.ini `preinstall` puts
       # plugins in the ASYNC queue which conflicts with the sync env var.
       server:
-        root_url: "https://pi-k3s.chalupatech.com/grafana/"
-        serve_from_sub_path: true
+        root_url: "https://grafana.chalupatech.com/"
+        serve_from_sub_path: false
       auth:
-        signout_redirect_url: "https://pi-k3s.chalupatech.com/ui"
+        signout_redirect_url: "https://grafana.chalupatech.com/"
         disable_brute_force_login_protection: true
       auth.generic_oauth:
         enabled: true
         name: OpenBao
         allow_sign_up: true
         scopes: openid user
-        auth_url: "https://pi-k3s.chalupatech.com/ui/vault/identity/oidc/provider/default/authorize"
+        auth_url: "https://openbao.chalupatech.com/ui/vault/identity/oidc/provider/default/authorize"
         token_url: "http://openbao-active.openbao.svc.cluster.local:8200/v1/identity/oidc/provider/default/token"
         api_url: "http://openbao-active.openbao.svc.cluster.local:8200/v1/identity/oidc/provider/default/userinfo"
         login_attribute_path: username
@@ -85,8 +95,6 @@ victoria-metrics-k8s-stack:
 
   ## ── K8s internal scrapes ──────────────────────────────────────────
   ## Toggle: set enabled: false to disable any scrape entirely.
-  ## Histogram buckets (_bucket series) are dropped to save ~170k series / ~300Mi RAM.
-  ## To restore full histograms: remove the metricRelabelConfigs blocks below.
 
   kubelet:
     enabled: true
@@ -97,7 +105,6 @@ victoria-metrics-k8s-stack:
             regex: (uid)
           - action: labeldrop
             regex: (id|name)
-          - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
 
   # yamllint disable rule:comments-indentation
   kubeApiServer:
@@ -111,43 +118,21 @@ victoria-metrics-k8s-stack:
             tlsConfig:
               caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
               serverName: kubernetes
-            metricRelabelConfigs:
-              - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
         jobLabel: component
         namespaceSelector:
           matchNames: [default]
         selector:
           matchLabels: {component: apiserver, provider: kubernetes}
 
+  # K3s embeds etcd/controller-manager/scheduler — no standalone pods exist.
+  # Disabled here; replaced by VMNodeScrape resources in templates/ that
+  # auto-discover server nodes by label (zero hardcoded IPs).
   kubeEtcd:
-    enabled: true   # toggle etcd scraping
-    vmScrape:
-      spec:
-        endpoints:
-          - port: http-metrics
-            scheme: http
-            metricRelabelConfigs:
-              - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
-
+    enabled: false
   kubeControllerManager:
-    enabled: true   # toggle controller-manager scraping
-    vmScrape:
-      spec:
-        endpoints:
-          - port: http-metrics
-            scheme: http
-            metricRelabelConfigs:
-              - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
-
+    enabled: false
   kubeScheduler:
-    enabled: true   # toggle scheduler scraping
-    vmScrape:
-      spec:
-        endpoints:
-          - port: http-metrics
-            scheme: http
-            metricRelabelConfigs:
-              - {sourceLabels: [__name__], regex: ".*_bucket", action: drop}
+    enabled: false
   # yamllint enable rule:comments-indentation
 
   ## Dashboards

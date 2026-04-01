@@ -41,7 +41,7 @@
   ansible.builtin.command: >
     tailscale up --authkey={{ tailscale_auth_key }} --accept-dns=true --accept-routes=true
     --hostname={{ tailscale_short_hostname | default(inventory_hostname) }}
-    {% if tailscale_advertise_routes is defined %}--advertise-routes={{ tailscale_advertise_routes }}{% endif %}
+    --advertise-routes={{ tailscale_advertise_routes | default('') }}
     {% if tailscale_tags is defined %}--advertise-tags={{ tailscale_tags }}{% endif %}
   when: ts_status.rc != 0
   changed_when: ts_status.rc != 0
@@ -49,9 +49,9 @@
 
 - name: Enforce Tailscale settings (if already authenticated)
   ansible.builtin.command: >
-    tailscale up --accept-dns=true --accept-routes=true
+    tailscale set --accept-dns=true --accept-routes=true
     --hostname={{ tailscale_short_hostname | default(inventory_hostname) }}
-    {% if tailscale_advertise_routes is defined %}--advertise-routes={{ tailscale_advertise_routes }}{% endif %}
+    --advertise-routes={{ tailscale_advertise_routes | default('') }}
     {% if tailscale_tags is defined %}--advertise-tags={{ tailscale_tags }}{% endif %}
   when: ts_status.rc == 0
   changed_when: false

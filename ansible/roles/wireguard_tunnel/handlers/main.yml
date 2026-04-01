@@ -3,3 +3,7 @@
   ansible.builtin.systemd:
     name: "wg-quick@{{ wg_interface }}"
     state: restarted
+
+- name: Save iptables
+  ansible.builtin.shell: iptables-save > /etc/iptables/rules.v4
+  changed_when: true

@@ -13,7 +13,7 @@ data:
         uid: victoriatraces
         type: jaeger
         access: proxy
-        url: http://victoria-traces-vt-single-server.observability.svc.cluster.local:10428
+        url: http://victoria-traces-vt-single-server.observability.svc.cluster.local:10428/select/jaeger
         isDefault: false
         editable: true
         jsonData:

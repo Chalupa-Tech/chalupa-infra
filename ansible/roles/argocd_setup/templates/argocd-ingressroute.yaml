@@ -8,7 +8,7 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`pi-k3s.chalupatech.com`) && PathPrefix(`/argocd`)
+    - match: Host(`argocd.chalupatech.com`)
       kind: Rule
       services:
         - name: argocd-server

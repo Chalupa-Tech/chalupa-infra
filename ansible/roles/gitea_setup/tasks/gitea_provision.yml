@@ -217,7 +217,7 @@
     --provider openidConnect
     --key "{{ gitea_oidc_client_id }}"
     --secret "{{ gitea_oidc_client_secret }}"
-    --auto-discover-url "https://pi-k3s.chalupatech.com/v1/identity/oidc/provider/default/.well-known/openid-configuration"
+    --auto-discover-url "https://openbao.chalupatech.com/v1/identity/oidc/provider/default/.well-known/openid-configuration"
     --scopes "openid user"
   when: "'OpenBao' not in gitea_auth_list.stdout"
   changed_when: true

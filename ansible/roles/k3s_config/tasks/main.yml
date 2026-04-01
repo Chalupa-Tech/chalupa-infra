@@ -2,14 +2,16 @@
 # Manages /etc/rancher/k3s/config.yaml and ensures the systemd unit is clean
 # (no stale CLI flags that would override config.yaml).
 
-- name: Detect Tailscale IP
+- name: Detect Tailscale IP (fallback when k3s_node_ip not set)
   ansible.builtin.command: tailscale ip -4
   register: k3s_config_ts_ip
   changed_when: false
+  when: k3s_node_ip is not defined or k3s_node_ip == ''
 
-- name: Set node IP fact
+- name: Set node IP fact (Tailscale fallback)
   ansible.builtin.set_fact:
     k3s_node_ip: "{{ k3s_config_ts_ip.stdout | trim }}"
+  when: k3s_node_ip is not defined or k3s_node_ip == ''
 
 - name: Ensure K3s config directory exists
   ansible.builtin.file:
@@ -35,6 +37,20 @@
     group: root
     mode: "0600"
   register: k3s_config_changed
+
+- name: Disable rp_filter for flannel-wg (prevents cross-node pod traffic drops)
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: "0"
+    sysctl_file: /etc/sysctl.d/90-flannel-wg.conf
+    reload: true
+  loop:
+    - net.ipv4.conf.all.rp_filter
+    - net.ipv4.conf.default.rp_filter
+
+- name: Clear Tailscale subnet route advertisements (prevents pod CIDR hijacking)
+  ansible.builtin.command: tailscale set --advertise-routes=
+  changed_when: false
 
 - name: Check current systemd unit for stale CLI flags
   ansible.builtin.shell: >
