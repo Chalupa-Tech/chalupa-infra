@@ -139,13 +139,26 @@
   "templating": {
     "list": [
       {
+        "name": "DS_VM",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      },
+      {
         "name": "service",
-        "type": "custom",
-        "query": "go-notify,go-schwab-auth,go-telemetry-mesh",
-        "current": {
-          "text": "go-telemetry-mesh",
-          "value": "go-telemetry-mesh"
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
         },
+        "query": {
+          "query": "label_values(traces_span_metrics_duration_milliseconds_count, service_name)",
+          "refId": "A"
+        },
+        "definition": "label_values(traces_span_metrics_duration_milliseconds_count, service_name)",
+        "refresh": 1,
+        "current": {},
         "hide": 0
       },
       {
