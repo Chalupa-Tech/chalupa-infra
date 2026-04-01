@@ -1,0 +1,47 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "Trace Waterfall",
+      "description": "Trace waterfall view — auto-renders when navigated to with ?var-traceId=<id>",
+      "type": "traces",
+      "gridPos": { "h": 20, "w": 24, "x": 0, "y": 0 },
+      "datasource": {
+        "type": "jaeger",
+        "uid": "victoriatraces"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "jaeger",
+            "uid": "victoriatraces"
+          },
+          "queryType": "traceID",
+          "query": "${traceId}"
+        }
+      ],
+      "options": {}
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["traces", "observability", "jaeger"],
+  "templating": {
+    "list": [
+      {
+        "name": "traceId",
+        "type": "textbox",
+        "current": { "text": "", "value": "" },
+        "hide": 0,
+        "label": "Trace ID"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Trace Detail",
+  "uid": "trace-detail"
+}

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-trace-detail
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  trace-detail.json: |
+{{ .Files.Get "files/trace-detail.json" | indent 4 }}
