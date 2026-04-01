@@ -85,7 +85,7 @@ victoria-metrics-k8s-stack:
         token_url: "http://openbao-active.openbao.svc.cluster.local:8200/v1/identity/oidc/provider/default/token"
         api_url: "http://openbao-active.openbao.svc.cluster.local:8200/v1/identity/oidc/provider/default/userinfo"
         login_attribute_path: username
-        role_attribute_path: "'Admin'"
+        role_attribute_path: grafana_role
         skip_org_role_sync: false
     resources:
       requests:

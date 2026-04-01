@@ -85,4 +85,4 @@ openbao_oidc_clients:
 #
 # Email is stored as entity metadata via managed_users[].email in vars.yml.
 # This is the correct multi-tenant pattern: each entity has its own real email.
-openbao_oidc_user_scope_template: !unsafe '{"preferred_username":{{identity.entity.name}},"username":{{identity.entity.name}},"email":{{identity.entity.metadata.email}},"groups":{{identity.entity.groups.names}}}'
+openbao_oidc_user_scope_template: !unsafe '{"preferred_username":{{identity.entity.name}},"username":{{identity.entity.name}},"email":{{identity.entity.metadata.email}},"groups":{{identity.entity.groups.names}},"grafana_role":"Admin"}'
