@@ -68,6 +68,13 @@ victoria-metrics-k8s-stack:
       # list above — it sets GF_PLUGINS_PREINSTALL_SYNC env var automatically.
       # Do NOT add a [plugins] section here; grafana.ini `preinstall` puts
       # plugins in the ASYNC queue which conflicts with the sync env var.
+      # Disable bundled plugins that require Tempo/Loki backends
+      "plugin.grafana-exploretraces-app":
+        enabled: false
+      "plugin.grafana-lokiexplore-app":
+        enabled: false
+      "plugin.grafana-pyroscope-app":
+        enabled: false
       server:
         root_url: "https://grafana.chalupatech.com/"
         serve_from_sub_path: false
