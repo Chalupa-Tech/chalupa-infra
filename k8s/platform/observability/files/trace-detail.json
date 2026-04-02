@@ -5,7 +5,6 @@
   "panels": [
     {
       "title": "Trace Waterfall",
-      "description": "Trace waterfall view — auto-renders when navigated to with ?var-traceId=<id>",
       "type": "traces",
       "gridPos": { "h": 20, "w": 24, "x": 0, "y": 0 },
       "datasource": {
@@ -20,15 +19,13 @@
             "uid": "victoriatraces"
           },
           "queryType": "traceID",
-          "query": "${traceId}",
-          "traceID": "${traceId}"
+          "query": "${traceId}"
         }
-      ],
-      "options": {}
+      ]
     }
   ],
   "schemaVersion": 39,
-  "tags": ["traces", "observability", "jaeger"],
+  "tags": ["traces", "observability"],
   "templating": {
     "list": [
       {
@@ -40,7 +37,7 @@
       }
     ]
   },
-  "time": { "from": "now-24h", "to": "now" },
+  "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "",
   "title": "Trace Detail",
