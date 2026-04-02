@@ -61,7 +61,6 @@ victoria-metrics-k8s-stack:
     plugins:
       - victoriametrics-logs-datasource
       - victoriametrics-metrics-datasource
-      - grafana-exploretraces-app
       - yesoreyeram-infinity-datasource
     envFromSecret: "grafana-oidc-secret"
     grafana.ini:
