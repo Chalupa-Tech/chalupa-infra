@@ -18,7 +18,6 @@
             "type": "jaeger",
             "uid": "victoriatraces"
           },
-          "queryType": "traceID",
           "query": "${traceId}"
         }
       ]
