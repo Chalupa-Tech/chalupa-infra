@@ -11,6 +11,6 @@ victoria-logs-single:
     persistentVolume:
       enabled: true
       size: 10Gi
-      storageClassName: longhorn
+      storageClassName: longhorn-single
 
     retentionPeriod: 14d

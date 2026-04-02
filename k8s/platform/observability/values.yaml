@@ -9,7 +9,7 @@ victoria-metrics-k8s-stack:
   vmsingle:
     enabled: true
     spec:
-      retentionPeriod: "30d"
+      retentionPeriod: "14d"
       replicaCount: 1
       resources:
         requests:
@@ -21,7 +21,7 @@ victoria-metrics-k8s-stack:
       storage:
         accessModes:
           - ReadWriteOnce
-        storageClassName: longhorn
+        storageClassName: longhorn-single
         resources:
           requests:
             storage: 20Gi
