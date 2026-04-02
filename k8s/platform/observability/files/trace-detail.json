@@ -20,7 +20,8 @@
             "uid": "victoriatraces"
           },
           "queryType": "traceID",
-          "query": "${traceId}"
+          "query": "${traceId}",
+          "traceID": "${traceId}"
         }
       ],
       "options": {}
@@ -39,7 +40,7 @@
       }
     ]
   },
-  "time": { "from": "now-1h", "to": "now" },
+  "time": { "from": "now-24h", "to": "now" },
   "timepicker": {},
   "timezone": "",
   "title": "Trace Detail",
