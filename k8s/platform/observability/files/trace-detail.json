@@ -20,7 +20,8 @@
             "uid": "victoriatraces"
           },
           "queryType": "traceID",
-          "query": "${traceId}"
+          "query": "${traceId}",
+          "traceID": "${traceId}"
         }
       ],
       "options": {}
