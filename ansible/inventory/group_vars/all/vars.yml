@@ -21,6 +21,7 @@ managed_apps:
   - name: schwab-ddowell
     auth_service: true
     auth_sa: go-schwab-auth
+  - name: observability
 
 # Secrets (Now managed via Ansible Vault: vault.yml)
 gitea_ci_read_password: "{{ vault_gitea_ci_read_password }}"
