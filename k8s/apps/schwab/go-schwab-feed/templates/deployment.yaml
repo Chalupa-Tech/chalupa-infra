@@ -48,10 +48,16 @@ spec:
               value: {{ .Values.feed.positionInterval | quote }}
             - name: HISTORY_INTERVAL
               value: {{ .Values.feed.historyInterval | quote }}
+            - name: METRICS_PORT
+              value: {{ .Values.metrics.port | quote }}
             {{- if .Values.feed.watchlist }}
             - name: WATCHLIST
               value: {{ .Values.feed.watchlist | quote }}
             {{- end }}
+          ports:
+            - containerPort: {{ .Values.metrics.port }}
+              name: metrics
+              protocol: TCP
           envFrom:
             - secretRef:
                 name: schwab-secrets

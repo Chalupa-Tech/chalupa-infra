@@ -1,0 +1,408 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "title": "Schwab Market Feed",
+  "uid": "schwab-feed",
+  "tags": ["schwab", "feed", "market"],
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "symbol",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "query": "label_values(schwab_quote_price, symbol)",
+        "multi": true,
+        "includeAll": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "title": "Feed Health",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "title": "Feed Status",
+      "description": "Time since last successful poll by data type",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "expr": "time() - schwab_feed_last_poll_timestamp",
+          "legendFormat": "{{type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 600 },
+              { "color": "red", "value": 1800 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Watchlist Size",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 3, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        { "expr": "schwab_feed_watchlist_size", "legendFormat": "symbols" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "NATS Publishes / min",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "expr": "sum(rate(schwab_feed_nats_publishes_total[5m])) * 60",
+          "legendFormat": "pub/min"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 }
+            ]
+          },
+          "decimals": 1
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Poll Errors / 5m",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "expr": "sum(increase(schwab_feed_errors_total[5m]))",
+          "legendFormat": "errors"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "decimals": 0
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Account Value",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        { "expr": "schwab_account_value", "legendFormat": "total" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          },
+          "decimals": 2
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Poll Duration",
+      "description": "Time to complete each poll cycle",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "expr": "schwab_feed_poll_duration_seconds_sum / schwab_feed_poll_duration_seconds_count",
+          "legendFormat": "{{type}} avg"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "fillOpacity": 10, "lineWidth": 2 }
+        }
+      }
+    },
+    {
+      "title": "NATS Publish Rate",
+      "description": "Messages published to NATS per minute by type",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "expr": "rate(schwab_feed_nats_publishes_total[5m]) * 60",
+          "legendFormat": "{{type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "msg/min",
+          "custom": { "fillOpacity": 20, "lineWidth": 2, "stacking": { "mode": "normal" } }
+        }
+      }
+    },
+    {
+      "title": "Market Data",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 },
+      "collapsed": false
+    },
+    {
+      "title": "Day P&L",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        { "expr": "schwab_account_day_gain_loss", "legendFormat": "day P&L" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          },
+          "decimals": 2
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Quote Prices",
+      "description": "Latest price for each symbol",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 18, "x": 6, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "expr": "schwab_quote_price{symbol=~\"$symbol\"}",
+          "legendFormat": "{{symbol}}",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "schwab_quote_change_pct{symbol=~\"$symbol\"}",
+          "legendFormat": "{{symbol}}",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "schwab_quote_volume{symbol=~\"$symbol\"}",
+          "legendFormat": "{{symbol}}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": { "byField": "symbol" }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "Value #A": "Price",
+              "Value #B": "Change %",
+              "Value #C": "Volume"
+            },
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "__name__": true,
+              "__name__ 1": true,
+              "__name__ 2": true,
+              "instance": true,
+              "instance 1": true,
+              "instance 2": true,
+              "job": true,
+              "job 1": true,
+              "job 2": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Price" },
+            "properties": [{ "id": "unit", "value": "currencyUSD" }, { "id": "decimals", "value": 2 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Change %" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 2 },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "green", "value": 0 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Volume" },
+            "properties": [{ "id": "unit", "value": "short" }, { "id": "decimals", "value": 0 }]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Price History",
+      "description": "Quote prices over time for selected symbols",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "expr": "schwab_quote_price{symbol=~\"$symbol\"}",
+          "legendFormat": "{{symbol}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "custom": { "fillOpacity": 0, "lineWidth": 2, "pointSize": 3 }
+        }
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "title": "Position Day P&L",
+      "description": "Day gain/loss by position",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "expr": "schwab_position_day_gain_loss{symbol=~\"$symbol\"}",
+          "legendFormat": "{{symbol}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Position Values",
+      "description": "Market value of each position",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "targets": [
+        {
+          "expr": "schwab_position_value{symbol=~\"$symbol\"} > 0",
+          "legendFormat": "{{symbol}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 0
+        }
+      },
+      "options": {
+        "legendDisplayMode": "table",
+        "legendPlacement": "right",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}

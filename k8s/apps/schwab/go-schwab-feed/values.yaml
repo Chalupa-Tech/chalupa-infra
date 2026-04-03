@@ -16,6 +16,9 @@ vault:
   secretPath: "secret/data/schwab-ddowell/schwab"
   tokenPath: "secret/data/schwab-ddowell/tokens/individual"
 
+metrics:
+  port: 9090
+
 feed:
   rateLimit: "30"
   quoteInterval: "5m"
