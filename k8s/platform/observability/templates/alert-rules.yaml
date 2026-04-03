@@ -139,35 +139,26 @@ spec:
             summary: "ArgoCD app {{ "{{" }} $labels.name {{ "}}" }} is {{ "{{" }} $labels.health_status {{ "}}" }}"
             description: "App health has been degraded for 15 minutes."
 
-        - alert: CertificateExpiring30d
-          expr: certmanager_certificate_expiration_timestamp_seconds - time() < 30 * 24 * 3600
-          for: 1h
-          labels:
-            severity: warning
-          annotations:
-            summary: "Certificate {{ "{{" }} $labels.name {{ "}}" }} expires in < 30 days"
-            description: "Namespace {{ "{{" }} $labels.namespace {{ "}}" }}, cert {{ "{{" }} $labels.name {{ "}}" }}."
-
         - alert: PodRestarted
-          expr: increase(kube_pod_container_status_restarts_total[1h]) > 0
+          expr: increase(kube_pod_container_status_restarts_total[1h]) > 2
           for: 0m
           labels:
             severity: warning
           annotations:
-            summary: "{{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.pod {{ "}}" }} restarted"
-            description: "Container {{ "{{" }} $labels.container {{ "}}" }} restarted."
+            summary: "{{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.pod {{ "}}" }} restarted {{ "{{" }} $value {{ "}}" }} times"
+            description: "Container {{ "{{" }} $labels.container {{ "}}" }} restarted multiple times in 1 hour (below crash-loop threshold)."
 
     # ── Info ─────────────────────────────────────────────────────────
     - name: info
       rules:
         - alert: CronJobFailed
-          expr: kube_job_status_failed > 0
+          expr: kube_job_status_failed{job_name!~".*-pre-upgrade|.*-post-install"} > 0 and on(job_name, namespace) kube_job_status_start_time > (time() - 3600)
           for: 0m
           labels:
             severity: info
           annotations:
             summary: "Job {{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.job_name {{ "}}" }} failed"
-            description: "A Job has failed."
+            description: "A Job has failed in the last hour."
 
         - alert: LonghornVolumeHealth
           expr: longhorn_volume_robustness == 2
