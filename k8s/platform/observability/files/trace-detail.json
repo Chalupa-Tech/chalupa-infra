@@ -4,9 +4,19 @@
   "graphTooltip": 1,
   "panels": [
     {
+      "title": "",
+      "type": "text",
+      "gridPos": { "h": 2, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "[< Back to Traces Explorer](/d/traces-explorer?from=${__from}&to=${__to}) &nbsp;|&nbsp; [< Back to Service RED](/d/service-red?from=${__from}&to=${__to})"
+      },
+      "transparent": true
+    },
+    {
       "title": "Trace Waterfall",
       "type": "traces",
-      "gridPos": { "h": 20, "w": 24, "x": 0, "y": 0 },
+      "gridPos": { "h": 20, "w": 24, "x": 0, "y": 2 },
       "datasource": {
         "type": "jaeger",
         "uid": "victoriatraces"
@@ -21,6 +31,35 @@
           "query": "${traceId}"
         }
       ]
+    },
+    {
+      "title": "Correlated Logs",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "collapsed": false
+    },
+    {
+      "title": "Logs for this Trace",
+      "description": "Log entries correlated by trace_id from VictoriaLogs",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 23 },
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "trace_id:=\"${traceId}\" | sort by (_time) desc | limit 200",
+          "queryType": "instant"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true,
+        "enableLogDetails": true
+      }
     }
   ],
   "schemaVersion": 39,

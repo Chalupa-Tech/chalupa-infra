@@ -18,7 +18,7 @@
     },
     {
       "title": "Recent Traces",
-      "description": "Traces from VictoriaTraces via Jaeger API. Click a Trace ID to open the waterfall in Explore.",
+      "description": "Traces from VictoriaTraces via Jaeger API. Click a Trace ID to view the trace waterfall.",
       "type": "table",
       "gridPos": {
         "h": 14,

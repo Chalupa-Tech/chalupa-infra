@@ -21,7 +21,24 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "title": "Service RED Overview",
+      "url": "/d/service-red?var-service=$app&from=${__from}&to=${__to}",
+      "tooltip": "View RED metrics, logs, and traces for this service",
+      "icon": "dashboard",
+      "targetBlank": false,
+      "type": "link"
+    },
+    {
+      "title": "Traces Explorer",
+      "url": "/d/traces-explorer?var-service=$app&from=${__from}&to=${__to}",
+      "tooltip": "Search traces for this service",
+      "icon": "dashboard",
+      "targetBlank": false,
+      "type": "link"
+    }
+  ],
   "panels": [
     {
       "datasource": {
@@ -623,7 +640,14 @@
         }
       ],
       "title": "Request Rate",
-      "type": "timeseries"
+      "type": "timeseries",
+      "links": [
+        {
+          "title": "View traces for $app",
+          "url": "/d/traces-explorer?var-service=$app&from=${__from}&to=${__to}",
+          "targetBlank": false
+        }
+      ]
     },
     {
       "datasource": {
@@ -722,7 +746,14 @@
         }
       ],
       "title": "PR95 Latency",
-      "type": "timeseries"
+      "type": "timeseries",
+      "links": [
+        {
+          "title": "View traces for $app",
+          "url": "/d/traces-explorer?var-service=$app&from=${__from}&to=${__to}",
+          "targetBlank": false
+        }
+      ]
     },
     {
       "datasource": {
@@ -800,7 +831,14 @@
         }
       ],
       "title": "Average Latency",
-      "type": "bargauge"
+      "type": "bargauge",
+      "links": [
+        {
+          "title": "View traces for $app",
+          "url": "/d/traces-explorer?var-service=$app&from=${__from}&to=${__to}",
+          "targetBlank": false
+        }
+      ]
     },
     {
       "datasource": {

@@ -23,4 +23,4 @@ data:
             spanEndTimeShift: "1h"
             filterByTraceID: true
             customQuery: true
-            query: "trace_id:${__trace.traceId}"
+            query: "trace_id:=\"${__trace.traceId}\""
