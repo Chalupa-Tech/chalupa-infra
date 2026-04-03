@@ -1,0 +1,33 @@
+---
+image:
+  registry: gitea.tailbecff0.ts.net
+  repository: chalupa-tech/go-schwab-feed
+  tag: v0.1.0
+
+nats:
+  url: "nats://nats.nats.svc.cluster.local:4222"
+
+schwab:
+  registration: "ddowell-individual"
+
+vault:
+  addr: "http://openbao-active.openbao.svc.cluster.local:8200"
+  kubeRole: "schwab-ddowell-role"
+  secretPath: "secret/data/schwab-ddowell/schwab"
+  tokenPath: "secret/data/schwab-ddowell/tokens/individual"
+
+feed:
+  rateLimit: "30"
+  quoteInterval: "5m"
+  optionsInterval: "30m"
+  positionInterval: "15m"
+  historyInterval: "24h"
+  watchlist: ""
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
