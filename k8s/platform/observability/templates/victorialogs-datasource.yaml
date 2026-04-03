@@ -16,3 +16,10 @@ data:
         url: http://victoria-logs-victoria-logs-single-server.observability.svc.cluster.local:9428
         isDefault: false
         editable: true
+        jsonData:
+          derivedFields:
+            - matcherType: label
+              matcherRegex: trace_id
+              name: TraceID
+              url: "/d/trace-detail?var-traceId=${__value.raw}&from=${__from}&to=${__to}"
+              urlDisplayLabel: View Trace

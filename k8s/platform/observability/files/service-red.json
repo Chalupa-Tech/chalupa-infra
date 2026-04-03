@@ -616,7 +616,7 @@
     },
     {
       "title": "Recent Traces",
-      "description": "Recent traces for this service. Click a Trace ID to open the waterfall in Explore.",
+      "description": "Recent traces for this service. Click a Trace ID to view the trace waterfall.",
       "type": "table",
       "gridPos": {
         "h": 8,
@@ -807,18 +807,13 @@
       },
       {
         "name": "service",
-        "type": "query",
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${DS_VM}"
+        "label": "Service",
+        "type": "custom",
+        "query": "go-schwab-auth,go-notify,go-telemetry-mesh",
+        "current": {
+          "text": "go-schwab-auth",
+          "value": "go-schwab-auth"
         },
-        "query": {
-          "query": "label_values(traces_span_metrics_duration_milliseconds_count, service_name)",
-          "refId": "A"
-        },
-        "definition": "label_values(traces_span_metrics_duration_milliseconds_count, service_name)",
-        "refresh": 1,
-        "current": {},
         "hide": 0
       },
       {
