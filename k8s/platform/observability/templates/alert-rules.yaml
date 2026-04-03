@@ -1,0 +1,179 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: cluster-alerts
+spec:
+  groups:
+    # ── Critical ─────────────────────────────────────────────────────
+    - name: critical
+      rules:
+        - alert: NodeDown
+          expr: up{job="kubelet"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node {{ "{{" }} $labels.instance {{ "}}" }} is down"
+            description: "Kubelet on {{ "{{" }} $labels.instance {{ "}}" }} has been unreachable for 2 minutes."
+
+        - alert: NodeNotReady
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node {{ "{{" }} $labels.node {{ "}}" }} is NotReady"
+            description: "Node has been in NotReady state for 3 minutes."
+
+        - alert: DeploymentReplicasUnavailable
+          expr: kube_deployment_status_available_replicas == 0 and kube_deployment_spec_replicas > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.deployment {{ "}}" }} has zero available replicas"
+            description: "All replicas are down for 5 minutes."
+
+        - alert: CertificateExpiringSoon
+          expr: certmanager_certificate_expiration_timestamp_seconds - time() < 7 * 24 * 3600
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate {{ "{{" }} $labels.name {{ "}}" }} expires in < 7 days"
+            description: "Namespace {{ "{{" }} $labels.namespace {{ "}}" }}, cert {{ "{{" }} $labels.name {{ "}}" }}."
+
+    # ── Error ────────────────────────────────────────────────────────
+    - name: error
+      rules:
+        - alert: PodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
+          for: 5m
+          labels:
+            severity: error
+          annotations:
+            summary: "{{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.pod {{ "}}" }} is crash-looping"
+            description: "Container {{ "{{" }} $labels.container {{ "}}" }} has restarted {{ "{{" }} $value {{ "}}" }} times in 15 minutes."
+
+        - alert: PodImagePullBackOff
+          expr: kube_pod_container_status_waiting_reason{reason="ImagePullBackOff"} == 1
+          for: 5m
+          labels:
+            severity: error
+          annotations:
+            summary: "{{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.pod {{ "}}" }} ImagePullBackOff"
+            description: "Container {{ "{{" }} $labels.container {{ "}}" }} cannot pull its image."
+
+        - alert: ContainerOOMKilled
+          expr: increase(kube_pod_container_status_last_terminated_reason{reason="OOMKilled"}[30m]) > 0
+          for: 0m
+          labels:
+            severity: error
+          annotations:
+            summary: "{{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.pod {{ "}}" }} OOMKilled"
+            description: "Container {{ "{{" }} $labels.container {{ "}}" }} was killed due to out-of-memory."
+
+        - alert: PVCPending
+          expr: kube_persistentvolumeclaim_status_phase{phase="Pending"} == 1
+          for: 10m
+          labels:
+            severity: error
+          annotations:
+            summary: "PVC {{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.persistentvolumeclaim {{ "}}" }} stuck Pending"
+            description: "PVC has been pending for 10 minutes."
+
+        - alert: ExternalSecretSyncFailure
+          expr: externalsecret_status_condition{condition="Ready",status="False"} == 1
+          for: 10m
+          labels:
+            severity: error
+          annotations:
+            summary: "ExternalSecret {{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.name {{ "}}" }} sync failed"
+            description: "ExternalSecret has been failing to sync for 10 minutes."
+
+    # ── Warning ──────────────────────────────────────────────────────
+    - name: warning
+      rules:
+        - alert: NodeMemoryPressure
+          expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 80
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ "{{" }} $labels.instance {{ "}}" }} memory > 80%"
+            description: "Memory usage is {{ "{{" }} $value | printf \"%.1f\" {{ "}}" }}%."
+
+        - alert: NodeCPUPressure
+          expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ "{{" }} $labels.instance {{ "}}" }} CPU > 80%"
+            description: "CPU usage is {{ "{{" }} $value | printf \"%.1f\" {{ "}}" }}%."
+
+        - alert: NodeDiskPressure
+          expr: (1 - node_filesystem_avail_bytes{fstype=~"ext4|xfs"} / node_filesystem_size_bytes) * 100 > 85
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ "{{" }} $labels.instance {{ "}}" }} disk > 85%"
+            description: "Filesystem {{ "{{" }} $labels.mountpoint {{ "}}" }} is {{ "{{" }} $value | printf \"%.1f\" {{ "}}" }}% full."
+
+        - alert: ArgoCDOutOfSync
+          expr: argocd_app_info{sync_status!="Synced"} == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ArgoCD app {{ "{{" }} $labels.name {{ "}}" }} is {{ "{{" }} $labels.sync_status {{ "}}" }}"
+            description: "App has been out of sync for 15 minutes."
+
+        - alert: ArgoCDUnhealthy
+          expr: argocd_app_info{health_status!~"Healthy|Progressing"} == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ArgoCD app {{ "{{" }} $labels.name {{ "}}" }} is {{ "{{" }} $labels.health_status {{ "}}" }}"
+            description: "App health has been degraded for 15 minutes."
+
+        - alert: CertificateExpiring30d
+          expr: certmanager_certificate_expiration_timestamp_seconds - time() < 30 * 24 * 3600
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ "{{" }} $labels.name {{ "}}" }} expires in < 30 days"
+            description: "Namespace {{ "{{" }} $labels.namespace {{ "}}" }}, cert {{ "{{" }} $labels.name {{ "}}" }}."
+
+        - alert: PodRestarted
+          expr: increase(kube_pod_container_status_restarts_total[1h]) > 0
+          for: 0m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.pod {{ "}}" }} restarted"
+            description: "Container {{ "{{" }} $labels.container {{ "}}" }} restarted."
+
+    # ── Info ─────────────────────────────────────────────────────────
+    - name: info
+      rules:
+        - alert: CronJobFailed
+          expr: kube_job_status_failed > 0
+          for: 0m
+          labels:
+            severity: info
+          annotations:
+            summary: "Job {{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.job_name {{ "}}" }} failed"
+            description: "A Job has failed."
+
+        - alert: LonghornVolumeHealth
+          expr: longhorn_volume_robustness == 2
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn volume {{ "{{" }} $labels.volume {{ "}}" }} degraded"
+            description: "Volume has been in degraded state for 10 minutes."

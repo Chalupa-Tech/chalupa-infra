@@ -1,0 +1,63 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: alertmanager-config
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: SecretStore
+  target:
+    name: vmalertmanager-config
+    creationPolicy: Owner
+    template:
+      engineVersion: v2
+      data:
+        alertmanager.yaml: |
+          route:
+            receiver: discord-warning
+            group_by: ['alertname', 'namespace']
+            group_wait: 30s
+            group_interval: 5m
+            repeat_interval: 4h
+            routes:
+              - matchers:
+                  - severity = critical
+                receiver: discord-critical
+              - matchers:
+                  - severity = error
+                receiver: discord-error
+              - matchers:
+                  - severity = info
+                receiver: discord-info
+
+          receivers:
+            - name: discord-info
+              discord_configs:
+                - webhook_url: "{{ "{{" }} .webhook_info {{ "}}" }}"
+            - name: discord-warning
+              discord_configs:
+                - webhook_url: "{{ "{{" }} .webhook_warning {{ "}}" }}"
+            - name: discord-error
+              discord_configs:
+                - webhook_url: "{{ "{{" }} .webhook_error {{ "}}" }}"
+            - name: discord-critical
+              discord_configs:
+                - webhook_url: "{{ "{{" }} .webhook_critical {{ "}}" }}"
+  data:
+    - secretKey: webhook_info
+      remoteRef:
+        key: secret/data/observability/discord
+        property: webhook_info
+    - secretKey: webhook_warning
+      remoteRef:
+        key: secret/data/observability/discord
+        property: webhook_warning
+    - secretKey: webhook_error
+      remoteRef:
+        key: secret/data/observability/discord
+        property: webhook_error
+    - secretKey: webhook_critical
+      remoteRef:
+        key: secret/data/observability/discord
+        property: webhook_critical
