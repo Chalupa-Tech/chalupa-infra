@@ -1,0 +1,14 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: go-schwab-feed
+  labels:
+    app: go-schwab-feed
+spec:
+  selector:
+    matchLabels:
+      app: go-schwab-feed
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
