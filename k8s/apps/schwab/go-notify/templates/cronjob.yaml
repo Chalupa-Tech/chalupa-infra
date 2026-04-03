@@ -33,6 +33,8 @@ spec:
                   value: "http://$(HOST_IP):4317"
                 - name: SCHWAB_REGISTRATION
                   value: {{ .Values.schwab.registration | quote }}
+                - name: SCHWAB_AUTH_URL
+                  value: "https://schwab-auth.chalupatech.com/auth/start"
                 - name: VAULT_ADDR
                   value: {{ .Values.vault.addr | quote }}
                 - name: VAULT_KUBE_ROLE
