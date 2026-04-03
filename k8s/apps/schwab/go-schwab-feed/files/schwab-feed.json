@@ -10,10 +10,20 @@
   "templating": {
     "list": [
       {
+        "name": "registration",
+        "type": "query",
+        "datasource": "VictoriaMetrics",
+        "query": "label_values(schwab_account_value, registration)",
+        "multi": true,
+        "includeAll": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2
+      },
+      {
         "name": "symbol",
         "type": "query",
         "datasource": "VictoriaMetrics",
-        "query": "label_values(schwab_quote_price, symbol)",
+        "query": "label_values(schwab_quote_price{registration=~\"$registration\"}, symbol)",
         "multi": true,
         "includeAll": true,
         "current": { "selected": true, "text": "All", "value": "$__all" },
@@ -36,7 +46,7 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "time() - schwab_feed_last_poll_timestamp",
+          "expr": "time() - max by (type) (schwab_feed_last_poll_timestamp{registration=~\"$registration\"})",
           "legendFormat": "{{type}}"
         }
       ],
@@ -65,7 +75,7 @@
       "gridPos": { "h": 4, "w": 3, "x": 6, "y": 1 },
       "datasource": "VictoriaMetrics",
       "targets": [
-        { "expr": "schwab_feed_watchlist_size", "legendFormat": "symbols" }
+        { "expr": "max by (registration) (schwab_feed_watchlist_size{registration=~\"$registration\"})", "legendFormat": "symbols" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -89,7 +99,7 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "sum(rate(schwab_feed_nats_publishes_total[5m])) * 60",
+          "expr": "sum(rate(schwab_feed_nats_publishes_total{registration=~\"$registration\"}[5m])) * 60",
           "legendFormat": "pub/min"
         }
       ],
@@ -117,7 +127,7 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "sum(increase(schwab_feed_errors_total[5m]))",
+          "expr": "sum(increase(schwab_feed_errors_total{registration=~\"$registration\"}[5m]))",
           "legendFormat": "errors"
         }
       ],
@@ -145,7 +155,7 @@
       "gridPos": { "h": 4, "w": 5, "x": 19, "y": 1 },
       "datasource": "VictoriaMetrics",
       "targets": [
-        { "expr": "schwab_account_value", "legendFormat": "total" }
+        { "expr": "max by (registration) (schwab_account_value{registration=~\"$registration\"})", "legendFormat": "total" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -172,7 +182,7 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "schwab_feed_poll_duration_seconds_sum / schwab_feed_poll_duration_seconds_count",
+          "expr": "sum by (type) (schwab_feed_poll_duration_seconds_sum{registration=~\"$registration\"}) / sum by (type) (schwab_feed_poll_duration_seconds_count{registration=~\"$registration\"})",
           "legendFormat": "{{type}} avg"
         }
       ],
@@ -191,7 +201,7 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "rate(schwab_feed_nats_publishes_total[5m]) * 60",
+          "expr": "sum by (type) (rate(schwab_feed_nats_publishes_total{registration=~\"$registration\"}[5m])) * 60",
           "legendFormat": "{{type}}"
         }
       ],
@@ -214,7 +224,7 @@
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 12 },
       "datasource": "VictoriaMetrics",
       "targets": [
-        { "expr": "schwab_account_day_gain_loss", "legendFormat": "day P&L" }
+        { "expr": "max by (registration) (schwab_account_day_gain_loss{registration=~\"$registration\"})", "legendFormat": "day P&L" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -242,19 +252,19 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "schwab_quote_price{symbol=~\"$symbol\"}",
+          "expr": "max by (symbol) (schwab_quote_price{registration=~\"$registration\", symbol=~\"$symbol\"})",
           "legendFormat": "{{symbol}}",
           "instant": true,
           "format": "table"
         },
         {
-          "expr": "schwab_quote_change_pct{symbol=~\"$symbol\"}",
+          "expr": "max by (symbol) (schwab_quote_change_pct{registration=~\"$registration\", symbol=~\"$symbol\"})",
           "legendFormat": "{{symbol}}",
           "instant": true,
           "format": "table"
         },
         {
-          "expr": "schwab_quote_volume{symbol=~\"$symbol\"}",
+          "expr": "max by (symbol) (schwab_quote_volume{registration=~\"$registration\", symbol=~\"$symbol\"})",
           "legendFormat": "{{symbol}}",
           "instant": true,
           "format": "table"
@@ -277,16 +287,7 @@
               "Time": true,
               "Time 1": true,
               "Time 2": true,
-              "Time 3": true,
-              "__name__": true,
-              "__name__ 1": true,
-              "__name__ 2": true,
-              "instance": true,
-              "instance 1": true,
-              "instance 2": true,
-              "job": true,
-              "job 1": true,
-              "job 2": true
+              "Time 3": true
             }
           }
         }
@@ -323,22 +324,30 @@
       }
     },
     {
-      "title": "Price History",
-      "description": "Quote prices over time for selected symbols",
+      "title": "Day Change %",
+      "description": "Percentage change by symbol over time — normalized for comparison",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "schwab_quote_price{symbol=~\"$symbol\"}",
+          "expr": "max by (symbol) (schwab_quote_change_pct{registration=~\"$registration\", symbol=~\"$symbol\"})",
           "legendFormat": "{{symbol}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD",
+          "unit": "percent",
           "decimals": 2,
-          "custom": { "fillOpacity": 0, "lineWidth": 2, "pointSize": 3 }
+          "custom": { "fillOpacity": 0, "lineWidth": 2, "pointSize": 3 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          },
+          "color": { "mode": "palette-classic" }
         }
       },
       "options": {
@@ -353,7 +362,7 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "schwab_position_day_gain_loss{symbol=~\"$symbol\"}",
+          "expr": "max by (symbol) (schwab_position_day_gain_loss{registration=~\"$registration\", symbol=~\"$symbol\"})",
           "legendFormat": "{{symbol}}",
           "instant": true
         }
@@ -385,7 +394,7 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "schwab_position_value{symbol=~\"$symbol\"} > 0",
+          "expr": "max by (symbol) (schwab_position_value{registration=~\"$registration\", symbol=~\"$symbol\"}) > 0",
           "legendFormat": "{{symbol}}",
           "instant": true
         }
@@ -404,5 +413,5 @@
     }
   ],
   "schemaVersion": 39,
-  "version": 1
+  "version": 2
 }
