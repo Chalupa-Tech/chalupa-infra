@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: go-schwab-feed
+description: Market data feed service — polls Schwab APIs and publishes to NATS JetStream
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

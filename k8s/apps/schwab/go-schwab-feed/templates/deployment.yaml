@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-schwab-feed
+  labels:
+    app: go-schwab-feed
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-schwab-feed
+  template:
+    metadata:
+      labels:
+        app: go-schwab-feed
+    spec:
+      containers:
+        - name: go-schwab-feed
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+            - name: APP_VERSION
+              value: {{ .Values.image.tag | quote }}
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://$(HOST_IP):4317"
+            - name: NATS_URL
+              value: {{ .Values.nats.url | quote }}
+            - name: SCHWAB_REGISTRATION
+              value: {{ .Values.schwab.registration | quote }}
+            - name: VAULT_ADDR
+              value: {{ .Values.vault.addr | quote }}
+            - name: VAULT_KUBE_ROLE
+              value: {{ .Values.vault.kubeRole | quote }}
+            - name: VAULT_SECRET_PATH
+              value: {{ .Values.vault.secretPath | quote }}
+            - name: VAULT_TOKEN_PATH
+              value: {{ .Values.vault.tokenPath | quote }}
+            - name: RATE_LIMIT
+              value: {{ .Values.feed.rateLimit | quote }}
+            - name: QUOTE_INTERVAL
+              value: {{ .Values.feed.quoteInterval | quote }}
+            - name: OPTIONS_INTERVAL
+              value: {{ .Values.feed.optionsInterval | quote }}
+            - name: POSITION_INTERVAL
+              value: {{ .Values.feed.positionInterval | quote }}
+            - name: HISTORY_INTERVAL
+              value: {{ .Values.feed.historyInterval | quote }}
+            {{- if .Values.feed.watchlist }}
+            - name: WATCHLIST
+              value: {{ .Values.feed.watchlist | quote }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: schwab-secrets
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
