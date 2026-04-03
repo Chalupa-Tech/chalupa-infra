@@ -12,7 +12,7 @@
       {
         "name": "symbol",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "datasource": "VictoriaMetrics",
         "query": "label_values(schwab_quote_price, symbol)",
         "multi": true,
         "includeAll": true,
@@ -33,7 +33,7 @@
       "description": "Time since last successful poll by data type",
       "type": "stat",
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "datasource": "VictoriaMetrics",
       "targets": [
         {
           "expr": "time() - schwab_feed_last_poll_timestamp",
@@ -63,7 +63,7 @@
       "title": "Watchlist Size",
       "type": "stat",
       "gridPos": { "h": 4, "w": 3, "x": 6, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "datasource": "VictoriaMetrics",
       "targets": [
         { "expr": "schwab_feed_watchlist_size", "legendFormat": "symbols" }
       ],
@@ -86,7 +86,7 @@
       "title": "NATS Publishes / min",
       "type": "stat",
       "gridPos": { "h": 4, "w": 5, "x": 9, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "datasource": "VictoriaMetrics",
       "targets": [
         {
           "expr": "sum(rate(schwab_feed_nats_publishes_total[5m])) * 60",
@@ -114,7 +114,7 @@
       "title": "Poll Errors / 5m",
       "type": "stat",
       "gridPos": { "h": 4, "w": 5, "x": 14, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "datasource": "VictoriaMetrics",
       "targets": [
         {
           "expr": "sum(increase(schwab_feed_errors_total[5m]))",
@@ -143,7 +143,7 @@
       "title": "Account Value",
       "type": "stat",
       "gridPos": { "h": 4, "w": 5, "x": 19, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "datasource": "VictoriaMetrics",
       "targets": [
         { "expr": "schwab_account_value", "legendFormat": "total" }
       ],
@@ -169,7 +169,7 @@
       "description": "Time to complete each poll cycle",
       "type": "timeseries",
       "gridPos": { "h": 6, "w": 12, "x": 0, "y": 5 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "datasource": "VictoriaMetrics",
       "targets": [
         {
           "expr": "schwab_feed_poll_duration_seconds_sum / schwab_feed_poll_duration_seconds_count",
@@ -188,7 +188,7 @@
       "description": "Messages published to NATS per minute by type",
       "type": "timeseries",
       "gridPos": { "h": 6, "w": 12, "x": 12, "y": 5 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "datasource": "VictoriaMetrics",
       "targets": [
         {
           "expr": "rate(schwab_feed_nats_publishes_total[5m]) * 60",
@@ -212,7 +212,7 @@
       "title": "Day P&L",
       "type": "stat",
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 12 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "datasource": "VictoriaMetrics",
       "targets": [
         { "expr": "schwab_account_day_gain_loss", "legendFormat": "day P&L" }
       ],
@@ -239,7 +239,7 @@
       "description": "Latest price for each symbol",
       "type": "table",
       "gridPos": { "h": 10, "w": 18, "x": 6, "y": 12 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "datasource": "VictoriaMetrics",
       "targets": [
         {
           "expr": "schwab_quote_price{symbol=~\"$symbol\"}",
@@ -327,7 +327,7 @@
       "description": "Quote prices over time for selected symbols",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "datasource": "VictoriaMetrics",
       "targets": [
         {
           "expr": "schwab_quote_price{symbol=~\"$symbol\"}",
@@ -350,7 +350,7 @@
       "description": "Day gain/loss by position",
       "type": "bargauge",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "datasource": "VictoriaMetrics",
       "targets": [
         {
           "expr": "schwab_position_day_gain_loss{symbol=~\"$symbol\"}",
@@ -382,7 +382,7 @@
       "description": "Market value of each position",
       "type": "piechart",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "datasource": "VictoriaMetrics",
       "targets": [
         {
           "expr": "schwab_position_value{symbol=~\"$symbol\"} > 0",
