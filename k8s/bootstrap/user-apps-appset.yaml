@@ -25,6 +25,9 @@ spec:
           - name: schwab-ddowell-go-schwab-auth
             path: k8s/apps/schwab/go-schwab-auth
             namespace: schwab-ddowell
+          - name: schwab-ddowell-go-schwab-feed
+            path: k8s/apps/schwab/go-schwab-feed
+            namespace: schwab-ddowell
   template:
     metadata:
       name: "{{name}}"
