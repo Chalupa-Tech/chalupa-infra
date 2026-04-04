@@ -3,12 +3,26 @@
 #
 # Repo URL hardcoded for true GitOps — merge to main and ArgoCD deploys.
 # See core-apps-appset.yaml header for rationale.
+#
+# Sync waves: base (secrets/PVC) deploys before services.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: user-apps
   namespace: argocd
 spec:
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - key: wave
+              operator: In
+              values: ["0"]
+        - matchExpressions:
+            - key: wave
+              operator: In
+              values: ["1"]
   generators:
     - list:
         elements:
@@ -19,18 +33,24 @@ spec:
           - name: schwab-ddowell-base
             path: k8s/apps/schwab/base
             namespace: schwab-ddowell
+            wave: "0"
           - name: schwab-ddowell-go-notify
             path: k8s/apps/schwab/go-notify
             namespace: schwab-ddowell
+            wave: "1"
           - name: schwab-ddowell-go-schwab-auth
             path: k8s/apps/schwab/go-schwab-auth
             namespace: schwab-ddowell
+            wave: "1"
           - name: schwab-ddowell-go-schwab-feed
             path: k8s/apps/schwab/go-schwab-feed
             namespace: schwab-ddowell
+            wave: "1"
   template:
     metadata:
       name: "{{name}}"
+      labels:
+        wave: "{{wave}}"
     spec:
       project: default
       source:

@@ -5,61 +5,113 @@
 # below and merge to main. ArgoCD detects the change and deploys
 # automatically — no scripts, no manual apply, no intervention.
 #
+# Sync waves control rollout ordering. Lower waves deploy first and must
+# be healthy before higher waves start. This prevents cascading failures
+# when a commit touches multiple components (e.g. cluster-wide limit changes).
+#
+# Wave 0: Storage + PKI (foundations everything depends on)
+# Wave 1: Secrets + identity (apps need secrets before starting)
+# Wave 2: Networking (message bus, DNS, ingress)
+# Wave 3: Observability stores (data backends)
+# Wave 4: Observability collectors + agents (scrape/ship layer)
+#
 # The repo URL is intentionally hardcoded rather than templated so that
-# ArgoCD can self-heal this manifest like any other resource. A templated
-# placeholder (e.g. {{REPO_URL}}) would require out-of-band script
-# execution after every change, breaking the GitOps contract.
+# ArgoCD can self-heal this manifest like any other resource.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: core-apps
   namespace: argocd
 spec:
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - key: wave
+              operator: In
+              values: ["0"]
+        - matchExpressions:
+            - key: wave
+              operator: In
+              values: ["1"]
+        - matchExpressions:
+            - key: wave
+              operator: In
+              values: ["2"]
+        - matchExpressions:
+            - key: wave
+              operator: In
+              values: ["3"]
+        - matchExpressions:
+            - key: wave
+              operator: In
+              values: ["4"]
   generators:
     - list:
         elements:
+          # Wave 0: Storage + PKI
           - name: longhorn
             path: k8s/platform/longhorn
             namespace: longhorn-system
+            wave: "0"
           - name: cert-manager
             path: k8s/platform/cert-manager
             namespace: cert-manager
+            wave: "0"
+          # Wave 1: Secrets + identity
           - name: external-secrets
             path: k8s/platform/external-secrets
             namespace: external-secrets
-          - name: observability
-            path: k8s/platform/observability
-            namespace: observability
+            wave: "1"
           - name: openbao
             path: k8s/platform/openbao
             namespace: openbao
-          - name: external-dns
-            path: k8s/platform/external-dns
-            namespace: external-dns
-          - name: argocd-ingress
-            path: k8s/platform/argocd-ingress
-            namespace: argocd
+            wave: "1"
+          # Wave 2: Networking
           - name: nats
             path: k8s/platform/nats
             namespace: nats
+            wave: "2"
+          - name: external-dns
+            path: k8s/platform/external-dns
+            namespace: external-dns
+            wave: "2"
+          - name: argocd-ingress
+            path: k8s/platform/argocd-ingress
+            namespace: argocd
+            wave: "2"
+          # Wave 3: Observability stores
+          - name: observability
+            path: k8s/platform/observability
+            namespace: observability
+            wave: "3"
           - name: victoria-logs
             path: k8s/platform/victoria-logs
             namespace: observability
-          - name: vector
-            path: k8s/platform/vector
-            namespace: observability
+            wave: "3"
           - name: victoria-traces
             path: k8s/platform/victoria-traces
             namespace: observability
+            wave: "3"
+          # Wave 4: Observability collectors + agents
+          - name: vector
+            path: k8s/platform/vector
+            namespace: observability
+            wave: "4"
           - name: otel-collector
             path: k8s/platform/otel-collector
             namespace: observability
+            wave: "4"
           - name: telemetry-mesh
             path: k8s/apps/telemetry-mesh
             namespace: telemetry-mesh
+            wave: "4"
   template:
     metadata:
       name: '{{name}}'
+      labels:
+        wave: '{{wave}}'
     spec:
       project: default
       source:
