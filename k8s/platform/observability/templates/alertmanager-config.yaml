@@ -1,95 +1,66 @@
-apiVersion: external-secrets.io/v1beta1
-kind: ExternalSecret
+apiVersion: v1
+kind: Secret
 metadata:
-  name: alertmanager-config
-spec:
-  refreshInterval: 1h
-  secretStoreRef:
-    name: vault-backend
-    kind: SecretStore
-  target:
-    name: vmalertmanager-config
-    creationPolicy: Owner
-    template:
-      engineVersion: v2
-      data:
-        alertmanager.yaml: |
-          route:
-            receiver: discord-warning
-            group_by: ['alertname', 'namespace']
-            group_wait: 30s
-            group_interval: 5m
-            repeat_interval: 4h
-            routes:
-              - matchers:
-                  - alertname = Watchdog
-                receiver: "null"
-              - matchers:
-                  - alertname =~ "KubeDaemonSet.*"
-                  - daemonset =~ "svclb-traefik-.*"
-                receiver: "null"
-              - matchers:
-                  - severity = critical
-                receiver: discord-critical
-              - matchers:
-                  - severity = error
-                receiver: discord-error
-              - matchers:
-                  - severity = info
-                receiver: discord-info
+  name: vmalertmanager-config
+type: Opaque
+stringData:
+  alertmanager.yaml: |
+    route:
+      receiver: discord-warning
+      group_by: ['alertname', 'namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - matchers:
+            - alertname = Watchdog
+          receiver: "null"
+        - matchers:
+            - alertname =~ "KubeDaemonSet.*"
+            - daemonset =~ "svclb-traefik-.*"
+          receiver: "null"
+        - matchers:
+            - severity = critical
+          receiver: discord-critical
+        - matchers:
+            - severity = error
+          receiver: discord-error
+        - matchers:
+            - severity = info
+          receiver: discord-info
 
-          inhibit_rules:
-            # When a critical alert fires, suppress warning and info for the same alertname+namespace
-            - source_matchers:
-                - severity = critical
-              target_matchers:
-                - severity =~ "warning|info"
-              equal: ['alertname', 'namespace']
-            # When a warning alert fires, suppress info for the same alertname+namespace
-            - source_matchers:
-                - severity = warning
-              target_matchers:
-                - severity = info
-              equal: ['alertname', 'namespace']
-            # InfoInhibitor: when warning/critical fires in a namespace, suppress all info in that namespace
-            - source_matchers:
-                - severity =~ "warning|critical"
-              target_matchers:
-                - severity = info
-              equal: ['namespace']
+    inhibit_rules:
+      - source_matchers:
+          - severity = critical
+        target_matchers:
+          - severity =~ "warning|info"
+        equal: ['alertname', 'namespace']
+      - source_matchers:
+          - severity = warning
+        target_matchers:
+          - severity = info
+        equal: ['alertname', 'namespace']
+      - source_matchers:
+          - severity =~ "warning|critical"
+        target_matchers:
+          - severity = info
+        equal: ['namespace']
 
-          receivers:
-            - name: "null"
-            - name: discord-info
-              discord_configs:
-                - webhook_url: "{{ "{{" }} .webhook_info {{ "}}" }}"
-                  title: 'ℹ️ Info Alert'
-            - name: discord-warning
-              discord_configs:
-                - webhook_url: "{{ "{{" }} .webhook_warning {{ "}}" }}"
-                  title: '⚠️ Warning Alert'
-            - name: discord-error
-              discord_configs:
-                - webhook_url: "{{ "{{" }} .webhook_error {{ "}}" }}"
-                  title: '🔴 Error Alert'
-            - name: discord-critical
-              discord_configs:
-                - webhook_url: "{{ "{{" }} .webhook_critical {{ "}}" }}"
-                  title: '🚨 Critical Alert'
-  data:
-    - secretKey: webhook_info
-      remoteRef:
-        key: secret/data/observability/discord
-        property: webhook_info
-    - secretKey: webhook_warning
-      remoteRef:
-        key: secret/data/observability/discord
-        property: webhook_warning
-    - secretKey: webhook_error
-      remoteRef:
-        key: secret/data/observability/discord
-        property: webhook_error
-    - secretKey: webhook_critical
-      remoteRef:
-        key: secret/data/observability/discord
-        property: webhook_critical
+    receivers:
+      - name: "null"
+      - name: discord-info
+        webhook_configs:
+          - url: "http://alertmanager-discord.observability.svc:8080/info"
+            send_resolved: true
+      - name: discord-warning
+        webhook_configs:
+          - url: "http://alertmanager-discord.observability.svc:8080/warning"
+            send_resolved: true
+      - name: discord-error
+        webhook_configs:
+          - url: "http://alertmanager-discord.observability.svc:8080/error"
+            send_resolved: true
+      - name: discord-critical
+        webhook_configs:
+          - url: "http://alertmanager-discord.observability.svc:8080/critical"
+            send_resolved: true
