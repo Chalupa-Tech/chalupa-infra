@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-schwab-trading
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  schwab-trading.json: |
+{{ .Files.Get "files/schwab-trading.json" | indent 4 }}
