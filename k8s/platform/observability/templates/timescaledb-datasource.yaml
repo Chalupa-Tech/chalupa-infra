@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-ds-timescaledb
+  namespace: observability
+  labels:
+    grafana_datasource: "1"
+data:
+  timescaledb.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: TimescaleDB
+        uid: timescaledb
+        type: postgres
+        access: proxy
+        url: timescaledb.schwab-ddowell.svc.cluster.local:5432
+        database: market
+        user: grafana
+        isDefault: false
+        editable: true
+        jsonData:
+          sslmode: disable
+          timescaledb: true
+          postgresVersion: 1600
+        secureJsonData:
+          password: "$TIMESCALE_GRAFANA_PASSWORD"
