@@ -320,13 +320,119 @@
       }
     },
     {
-      "title": "Cluster Health",
+      "title": "Active Alerts",
       "type": "row",
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 5
+      },
+      "collapsed": false
+    },
+    {
+      "title": "Firing Alerts",
+      "description": "Currently firing alerts across the cluster",
+      "type": "table",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ALERTS{alertstate=\"firing\"}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "alertstate": true,
+              "Value": true
+            },
+            "indexByName": {
+              "severity": 0,
+              "alertname": 1,
+              "namespace": 2,
+              "pod": 3
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "severity"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "critical": {
+                        "color": "red",
+                        "text": "critical"
+                      },
+                      "error": {
+                        "color": "orange",
+                        "text": "error"
+                      },
+                      "warning": {
+                        "color": "yellow",
+                        "text": "warning"
+                      },
+                      "info": {
+                        "color": "blue",
+                        "text": "info"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "title": "Cluster Health",
+      "type": "row",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 12
       },
       "collapsed": false
     },
@@ -338,7 +444,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 6
+        "y": 13
       },
       "datasource": {
         "type": "prometheus",
@@ -392,7 +498,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 6
+        "y": 13
       },
       "datasource": {
         "type": "prometheus",
@@ -440,7 +546,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 19
       },
       "collapsed": false
     },
@@ -452,7 +558,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 13
+        "y": 20
       },
       "datasource": {
         "type": "prometheus",
@@ -518,7 +624,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 13
+        "y": 20
       },
       "datasource": {
         "type": "prometheus",
@@ -583,7 +689,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 21
+        "y": 28
       },
       "collapsed": false
     },
@@ -595,7 +701,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 22
+        "y": 29
       },
       "datasource": {
         "type": "prometheus",
@@ -716,7 +822,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 22
+        "y": 29
       },
       "datasource": {
         "type": "prometheus",
@@ -833,7 +939,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 22
+        "y": 29
       },
       "datasource": {
         "type": "prometheus",
@@ -947,7 +1053,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 37
       },
       "collapsed": true,
       "panels": [
@@ -959,7 +1065,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 31
+            "y": 38
           },
           "datasource": {
             "type": "prometheus",
@@ -1008,7 +1114,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 38
           },
           "datasource": {
             "type": "prometheus",
@@ -1075,7 +1181,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 38
       },
       "collapsed": true,
       "panels": [
@@ -1087,7 +1193,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 32
+            "y": 39
           },
           "datasource": {
             "type": "prometheus",
@@ -1141,7 +1247,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 32
+            "y": 39
           },
           "datasource": {
             "type": "prometheus",
@@ -1195,6 +1301,38 @@
           }
         }
       ]
+    }
+  ],
+  "links": [
+    {
+      "title": "Logs Explorer",
+      "type": "dashboards",
+      "tags": [
+        "logs"
+      ],
+      "icon": "doc"
+    },
+    {
+      "title": "Traces Explorer",
+      "type": "dashboards",
+      "tags": [
+        "traces"
+      ],
+      "icon": "bolt"
+    },
+    {
+      "title": "Service RED",
+      "type": "link",
+      "url": "/d/service-red",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Schwab Feed",
+      "type": "link",
+      "url": "/d/schwab-feed",
+      "icon": "dashboard",
+      "targetBlank": false
     }
   ],
   "schemaVersion": 39,
