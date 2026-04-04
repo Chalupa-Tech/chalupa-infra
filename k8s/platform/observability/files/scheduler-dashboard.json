@@ -1,12 +1,21 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
   "uid": "scheduler",
   "title": "Scheduler",
-  "tags": ["kubernetes", "scheduler", "control-plane"],
-  "time": { "from": "now-3h", "to": "now" },
+  "tags": [
+    "kubernetes",
+    "scheduler",
+    "control-plane"
+  ],
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
   "templating": {
     "list": [
       {
@@ -22,15 +31,28 @@
     {
       "title": "Overview",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "collapsed": false
     },
     {
       "title": "Scheduling Latency p99",
-      "description": "99th percentile scheduling attempt duration — how long it takes the scheduler to find a node for a pod.",
+      "description": "99th percentile scheduling attempt duration \u2014 how long it takes the scheduler to find a node for a pod.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -41,20 +63,40 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Scheduling Attempts",
       "description": "Rate of scheduling attempts by result: scheduled, unschedulable, or error.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -65,40 +107,83 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "error" },
+            "matcher": {
+              "id": "byName",
+              "options": "error"
+            },
             "properties": [
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "unschedulable" },
+            "matcher": {
+              "id": "byName",
+              "options": "unschedulable"
+            },
             "properties": [
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
             ]
           }
         ]
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Queue",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
       "collapsed": false
     },
     {
       "title": "Pending Pods",
       "description": "Number of pending pods in the scheduler queue, broken down by queue type.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -109,28 +194,57 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "custom": { "fillOpacity": 10, "connectNulls": true },
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 5 },
-              { "color": "red", "value": 20 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
             ]
           }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Scheduling Duration by Extension Point",
       "description": "99th percentile scheduling plugin/extension point latency.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -141,20 +255,40 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Preemption Attempts",
-      "description": "Rate of scheduling preemption attempts — when the scheduler evicts lower-priority pods to place higher-priority ones.",
+      "description": "Rate of scheduling preemption attempts \u2014 when the scheduler evicts lower-priority pods to place higher-priority ones.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -165,26 +299,51 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "API Client",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
       "collapsed": false
     },
     {
       "title": "REST Client Requests",
       "description": "Rate of outbound REST client requests from the scheduler to the API server, by status code.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -195,20 +354,40 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Request Duration p99",
       "description": "99th percentile latency of outbound REST client requests from the scheduler to the API server.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -219,13 +398,62 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
+    }
+  ],
+  "links": [
+    {
+      "title": "Cluster Overview",
+      "type": "link",
+      "url": "/d/cluster-overview",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Logs Explorer",
+      "type": "link",
+      "url": "/d/victorialogs",
+      "icon": "doc",
+      "targetBlank": false
+    },
+    {
+      "title": "Traces Explorer",
+      "type": "link",
+      "url": "/d/traces-explorer",
+      "icon": "bolt",
+      "targetBlank": false
+    },
+    {
+      "title": "Service RED",
+      "type": "link",
+      "url": "/d/service-red",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Schwab Feed",
+      "type": "link",
+      "url": "/d/schwab-feed",
+      "icon": "dashboard",
+      "targetBlank": false
     }
   ]
 }

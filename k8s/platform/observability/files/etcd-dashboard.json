@@ -1,12 +1,21 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
   "uid": "etcd-overview",
   "title": "etcd Overview",
-  "tags": ["kubernetes", "etcd", "control-plane"],
-  "time": { "from": "now-3h", "to": "now" },
+  "tags": [
+    "kubernetes",
+    "etcd",
+    "control-plane"
+  ],
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
   "templating": {
     "list": [
       {
@@ -22,15 +31,28 @@
     {
       "title": "Health",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "collapsed": false
     },
     {
       "title": "etcd Members Up",
       "description": "Number of etcd members that currently have a leader. If below cluster size, quorum may be at risk.",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -43,24 +65,45 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 2 },
-              { "color": "green", "value": 3 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 2
+              },
+              {
+                "color": "green",
+                "value": 3
+              }
             ]
           }
         }
       },
       "options": {
         "graphMode": "none",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Leader",
       "description": "Which etcd member is the current Raft leader",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -72,22 +115,42 @@
         "defaults": {
           "unit": "short",
           "mappings": [
-            { "type": "value", "options": { "1": { "text": "Leader", "color": "green" } } }
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Leader",
+                  "color": "green"
+                }
+              }
+            }
           ]
         }
       },
       "options": {
         "graphMode": "none",
         "textMode": "name",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "DB Size",
       "description": "Total etcd database size per member",
       "type": "gauge",
-      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -102,23 +165,44 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 524288000 },
-              { "color": "red", "value": 1073741824 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 524288000
+              },
+              {
+                "color": "red",
+                "value": 1073741824
+              }
             ]
           }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "DB Size In Use",
       "description": "Actual data size in use (after compaction) per member",
       "type": "gauge",
-      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -133,29 +217,55 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 524288000 },
-              { "color": "red", "value": 1073741824 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 524288000
+              },
+              {
+                "color": "red",
+                "value": 1073741824
+              }
             ]
           }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Performance",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
       "collapsed": false
     },
     {
       "title": "WAL Fsync Duration p99",
       "description": "99th percentile write-ahead log fsync latency. High values indicate disk I/O pressure.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -166,20 +276,40 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Backend Commit Duration p99",
       "description": "99th percentile backend commit latency. Sustained high values indicate storage bottleneck.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -190,20 +320,40 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Disk Space Used",
       "description": "etcd database size over time per member",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -214,26 +364,51 @@
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Operations",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
       "collapsed": false
     },
     {
       "title": "Key Count",
       "description": "Total number of keys stored in etcd",
       "type": "stat",
-      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 17 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 17
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -241,19 +416,33 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "short" }
+        "defaults": {
+          "unit": "short"
+        }
       },
       "options": {
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Request Rate by Type",
       "description": "Rate of etcd requests broken down by operation type (range, put, delete, txn)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 9, "x": 6, "y": 17 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 6,
+        "y": 17
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -264,20 +453,40 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Failed gRPC Requests",
       "description": "Rate of gRPC requests with non-OK status codes",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 9, "x": 15, "y": 17 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 15,
+        "y": 17
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -288,26 +497,51 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Cluster",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
       "collapsed": false
     },
     {
       "title": "Peer Traffic",
       "description": "Bytes sent and received between etcd cluster peers",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 26 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 26
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -323,20 +557,40 @@
       "fieldConfig": {
         "defaults": {
           "unit": "Bps",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Raft Proposals",
       "description": "Raft consensus proposals: committed, applied, pending, and failed. Failed proposals indicate cluster health issues.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 26 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 26
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -362,34 +616,72 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "failed/s" },
+            "matcher": {
+              "id": "byName",
+              "options": "failed/s"
+            },
             "properties": [
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "pending" },
+            "matcher": {
+              "id": "byName",
+              "options": "pending"
+            },
             "properties": [
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
             ]
           }
         ]
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Leader Changes",
       "description": "Total number of leader changes seen. Frequent changes indicate instability.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 26 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 26
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -400,21 +692,78 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "custom": { "fillOpacity": 10, "connectNulls": true },
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 2 },
-              { "color": "red", "value": 5 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 2
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
             ]
           }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
+    }
+  ],
+  "links": [
+    {
+      "title": "Cluster Overview",
+      "type": "link",
+      "url": "/d/cluster-overview",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Logs Explorer",
+      "type": "link",
+      "url": "/d/victorialogs",
+      "icon": "doc",
+      "targetBlank": false
+    },
+    {
+      "title": "Traces Explorer",
+      "type": "link",
+      "url": "/d/traces-explorer",
+      "icon": "bolt",
+      "targetBlank": false
+    },
+    {
+      "title": "Service RED",
+      "type": "link",
+      "url": "/d/service-red",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Schwab Feed",
+      "type": "link",
+      "url": "/d/schwab-feed",
+      "icon": "dashboard",
+      "targetBlank": false
     }
   ]
 }

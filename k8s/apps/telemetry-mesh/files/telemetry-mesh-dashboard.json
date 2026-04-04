@@ -1,33 +1,58 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "title": "Telemetry Mesh",
   "uid": "telemetry-mesh",
-  "tags": ["telemetry", "mesh", "network"],
+  "tags": [
+    "telemetry",
+    "mesh",
+    "network"
+  ],
   "templating": {
     "list": [
       {
         "name": "DS_VM",
         "type": "datasource",
         "query": "prometheus",
-        "current": { "text": "VictoriaMetrics", "value": "VictoriaMetrics" }
+        "current": {
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
+        }
       }
     ]
   },
-  "time": { "from": "now-1h", "to": "now" },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "refresh": "30s",
   "panels": [
     {
       "title": "Overview",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "collapsed": false
     },
     {
       "title": "Cluster Health",
       "type": "gauge",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -36,16 +61,33 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "min": 0, "max": 1,
+          "min": 0,
+          "max": 1,
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           },
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "Unhealthy" }, "1": { "text": "Healthy" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Unhealthy"
+                },
+                "1": {
+                  "text": "Healthy"
+                }
+              }
+            }
           ]
         }
       }
@@ -53,21 +95,41 @@
     {
       "title": "Total Nodes",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "count(telemetry_mesh_peers_discovered) + 1"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "short" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
     },
     {
       "title": "Avg Latency",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -80,9 +142,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.001 },
-              { "color": "red", "value": 0.005 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.001
+              },
+              {
+                "color": "red",
+                "value": 0.005
+              }
             ]
           }
         }
@@ -91,8 +162,16 @@
     {
       "title": "Probe Success Rate",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -102,13 +181,23 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "min": 0, "max": 1,
+          "min": 0,
+          "max": 1,
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 0.9 },
-              { "color": "green", "value": 0.99 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.9
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
             ]
           }
         }
@@ -117,8 +206,16 @@
     {
       "title": "Error Rate",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -131,9 +228,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.1 },
-              { "color": "red", "value": 1 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.1
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
           }
         }
@@ -142,28 +248,53 @@
     {
       "title": "Peers Discovered",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "avg(telemetry_mesh_peers_discovered)"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "short" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
     },
     {
       "title": "Site Latency",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "collapsed": false
     },
     {
       "title": "Intra-site: tpi",
       "description": "Avg latency between tpi nodes (site-tpi)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -176,9 +307,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.001 },
-              { "color": "red", "value": 0.005 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.001
+              },
+              {
+                "color": "red",
+                "value": 0.005
+              }
             ]
           }
         }
@@ -188,8 +328,16 @@
       "title": "Intra-site: dpi",
       "description": "Avg latency between dpi/fw nodes (site-dpi)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -202,9 +350,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.001 },
-              { "color": "red", "value": 0.005 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.001
+              },
+              {
+                "color": "red",
+                "value": 0.005
+              }
             ]
           }
         }
@@ -214,8 +371,16 @@
       "title": "Cross-site Avg",
       "description": "Avg latency between site-tpi and site-dpi",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -228,9 +393,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.001 },
-              { "color": "red", "value": 0.005 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.001
+              },
+              {
+                "color": "red",
+                "value": 0.005
+              }
             ]
           }
         }
@@ -240,8 +414,16 @@
       "title": "Cross-site P99",
       "description": "P99 latency between site-tpi and site-dpi",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -254,9 +436,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.002 },
-              { "color": "red", "value": 0.01 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.002
+              },
+              {
+                "color": "red",
+                "value": 0.01
+              }
             ]
           }
         }
@@ -266,8 +457,16 @@
       "title": "Site Latency Over Time",
       "description": "Avg latency by path: intra-tpi, intra-dpi, cross-site",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -288,20 +487,39 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "fillOpacity": 10 }
+          "custom": {
+            "fillOpacity": 10
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Cross-site Latency Distribution",
       "description": "Histogram heatmap of latency between site-tpi and site-dpi",
       "type": "heatmap",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -323,15 +541,28 @@
     {
       "title": "Mesh Topology",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
       "collapsed": false
     },
     {
-      "title": "Cluster Mesh — Node Graph",
+      "title": "Cluster Mesh \u2014 Node Graph",
       "description": "Force-directed mesh topology. Edge weight = avg latency. Nodes show avg outbound latency.",
       "type": "nodeGraph",
-      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 19 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "nodes",
@@ -350,8 +581,17 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "source_node": true, "target_node": true },
-            "renameByName": { "Value #nodes": "mainStat", "Value #edges": "mainStat" }
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "source_node": true,
+              "target_node": true
+            },
+            "renameByName": {
+              "Value #nodes": "mainStat",
+              "Value #edges": "mainStat"
+            }
           }
         }
       ],
@@ -361,10 +601,19 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "mainStat" },
+            "matcher": {
+              "id": "byName",
+              "options": "mainStat"
+            },
             "properties": [
-              { "id": "unit", "value": "s" },
-              { "id": "decimals", "value": 4 }
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 4
+              }
             ]
           }
         ]
@@ -381,14 +630,27 @@
     {
       "title": "Node-to-Node Latency Matrix",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
       "collapsed": false
     },
     {
-      "title": "Avg Latency — Source x Target",
+      "title": "Avg Latency \u2014 Source x Target",
       "type": "table",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 34 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -401,33 +663,68 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true },
-            "renameByName": { "source_node": "Source", "target_node": "Target", "Value": "Latency (s)" }
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "source_node": "Source",
+              "target_node": "Target",
+              "Value": "Latency (s)"
+            }
           }
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "align": "center" },
+          "custom": {
+            "align": "center"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.001 },
-              { "color": "red", "value": 0.005 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.001
+              },
+              {
+                "color": "red",
+                "value": 0.005
+              }
             ]
           },
-          "color": { "mode": "thresholds" }
+          "color": {
+            "mode": "thresholds"
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Source" },
-            "properties": [{ "id": "custom.width", "value": 150 }]
+            "matcher": {
+              "id": "byName",
+              "options": "Source"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
           },
           {
-            "matcher": { "id": "byName", "options": "Target" },
-            "properties": [{ "id": "custom.width", "value": 150 }]
+            "matcher": {
+              "id": "byName",
+              "options": "Target"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
           }
         ]
       }
@@ -435,89 +732,164 @@
     {
       "title": "Timeseries",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
       "collapsed": false
     },
     {
       "title": "Latency by Node Pair",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 45 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 45
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "avg by (source_node, target_node) (rate(telemetry_mesh_probe_duration_seconds_sum[5m]) / rate(telemetry_mesh_probe_duration_seconds_count[5m]))",
-          "legendFormat": "{{source_node}} → {{target_node}}"
+          "legendFormat": "{{source_node}} \u2192 {{target_node}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "fillOpacity": 10 }
+          "custom": {
+            "fillOpacity": 10
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Error Rate by Pair",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 45 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 45
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "sum by (source_node, target_node) (rate(telemetry_mesh_probe_errors_total[5m]))",
-          "legendFormat": "{{source_node}} → {{target_node}}"
+          "legendFormat": "{{source_node}} \u2192 {{target_node}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "fillOpacity": 10 }
+          "custom": {
+            "fillOpacity": 10
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Deep Dive",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 53 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 53
+      },
       "collapsed": false
     },
     {
       "title": "P99 Latency by Node Pair",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 54 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 54
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
           "expr": "histogram_quantile(0.99, sum by (source_node, target_node, le) (rate(telemetry_mesh_probe_duration_seconds_bucket[5m])))",
-          "legendFormat": "{{source_node}} → {{target_node}}"
+          "legendFormat": "{{source_node}} \u2192 {{target_node}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "fillOpacity": 10 }
+          "custom": {
+            "fillOpacity": 10
+          }
         }
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       }
     },
     {
       "title": "Node Health State",
       "type": "state-timeline",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 54 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 54
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -528,18 +900,73 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "Unhealthy", "color": "red" }, "1": { "text": "Healthy", "color": "green" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Unhealthy",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Healthy",
+                  "color": "green"
+                }
+              }
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           }
         }
       }
     }
   ],
-  "schemaVersion": 39
+  "schemaVersion": 39,
+  "links": [
+    {
+      "title": "Cluster Overview",
+      "type": "link",
+      "url": "/d/cluster-overview",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Logs Explorer",
+      "type": "link",
+      "url": "/d/victorialogs",
+      "icon": "doc",
+      "targetBlank": false
+    },
+    {
+      "title": "Traces Explorer",
+      "type": "link",
+      "url": "/d/traces-explorer",
+      "icon": "bolt",
+      "targetBlank": false
+    },
+    {
+      "title": "Service RED",
+      "type": "link",
+      "url": "/d/service-red",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Schwab Feed",
+      "type": "link",
+      "url": "/d/schwab-feed",
+      "icon": "dashboard",
+      "targetBlank": false
+    }
+  ]
 }
