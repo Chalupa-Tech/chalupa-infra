@@ -1,0 +1,21 @@
+---
+image:
+  registry: gitea.tailbecff0.ts.net
+  repository: chalupa-tech/go-market-store
+  tag: v0.1.0
+
+nats:
+  url: "nats://nats.nats.svc.cluster.local:4222"
+
+database:
+  host: "timescaledb.schwab-ddowell.svc.cluster.local"
+  port: 5432
+  name: market
+  user: marketstore
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
