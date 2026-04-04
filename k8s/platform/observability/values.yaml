@@ -11,13 +11,16 @@ victoria-metrics-k8s-stack:
     spec:
       retentionPeriod: "14d"
       replicaCount: 1
+      extraArgs:
+        search.maxConcurrentRequests: "4"
+        search.maxQueueDuration: "30s"
       resources:
         requests:
-          cpu: 50m
-          memory: 256Mi
+          cpu: 100m
+          memory: 512Mi
         limits:
-          cpu: 500m
-          memory: 1Gi
+          cpu: "1"
+          memory: 2Gi
       storage:
         accessModes:
           - ReadWriteOnce
@@ -163,6 +166,28 @@ victoria-metrics-k8s-stack:
           cpu: 50m
           memory: 128Mi
 
+  ## VMAgent — scrapes targets and forwards to VMSingle
+  vmagent:
+    spec:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 200Mi
+        limits:
+          cpu: 500m
+          memory: 500Mi
+
+  ## VMAlert — evaluates alert rules and sends to Alertmanager
+  vmalert:
+    spec:
+      extraArgs:
+        external.url: "https://grafana.chalupatech.com"
+
+  ## Default alert rules — disable noisy defaults
+  defaultRules:
+    rules:
+      vmoperator: false
+
   ## Node Exporter
   prometheus-node-exporter:
     enabled: true
@@ -171,7 +196,7 @@ victoria-metrics-k8s-stack:
         cpu: 10m
         memory: 16Mi
       limits:
-        cpu: 100m
+        cpu: 250m
         memory: 64Mi
 
   ## Kube State Metrics
