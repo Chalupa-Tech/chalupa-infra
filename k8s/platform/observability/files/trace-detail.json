@@ -1,12 +1,19 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "graphTooltip": 1,
   "panels": [
     {
       "title": "",
       "type": "text",
-      "gridPos": { "h": 2, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "options": {
         "mode": "markdown",
         "content": "[< Back to Traces Explorer](/d/traces-explorer?from=${__from}&to=${__to}) &nbsp;|&nbsp; [< Back to Service RED](/d/service-red?from=${__from}&to=${__to})"
@@ -16,7 +23,12 @@
     {
       "title": "Trace Waterfall",
       "type": "traces",
-      "gridPos": { "h": 20, "w": 24, "x": 0, "y": 2 },
+      "gridPos": {
+        "h": 20,
+        "w": 24,
+        "x": 0,
+        "y": 2
+      },
       "datasource": {
         "type": "jaeger",
         "uid": "victoriatraces"
@@ -35,14 +47,24 @@
     {
       "title": "Correlated Logs",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
       "collapsed": false
     },
     {
       "title": "Logs for this Trace",
       "description": "Log entries correlated by trace_id from VictoriaLogs",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 23 },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
       "datasource": {
         "type": "victoriametrics-logs-datasource",
         "uid": "victorialogs"
@@ -63,21 +85,67 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["traces", "observability"],
+  "tags": [
+    "traces",
+    "observability"
+  ],
   "templating": {
     "list": [
       {
         "name": "traceId",
         "type": "textbox",
-        "current": { "text": "", "value": "" },
+        "current": {
+          "text": "",
+          "value": ""
+        },
         "hide": 0,
         "label": "Trace ID"
       }
     ]
   },
-  "time": { "from": "now-1h", "to": "now" },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "",
   "title": "Trace Detail",
-  "uid": "trace-detail"
+  "uid": "trace-detail",
+  "links": [
+    {
+      "title": "Cluster Overview",
+      "type": "link",
+      "url": "/d/cluster-overview",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Logs Explorer",
+      "type": "link",
+      "url": "/d/victorialogs",
+      "icon": "doc",
+      "targetBlank": false
+    },
+    {
+      "title": "Traces Explorer",
+      "type": "link",
+      "url": "/d/traces-explorer",
+      "icon": "bolt",
+      "targetBlank": false
+    },
+    {
+      "title": "Service RED",
+      "type": "link",
+      "url": "/d/service-red",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Schwab Feed",
+      "type": "link",
+      "url": "/d/schwab-feed",
+      "icon": "dashboard",
+      "targetBlank": false
+    }
+  ]
 }
