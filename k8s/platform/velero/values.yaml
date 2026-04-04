@@ -20,7 +20,7 @@ velero:
         config:
           region: us-east-1
           s3ForcePathStyle: true
-          s3Url: https://fw1.tailbecff0.ts.net:9000
+          s3Url: https://192.168.2.51:9000
 
     volumeSnapshotLocation:
       - name: default
