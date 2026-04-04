@@ -26,7 +26,7 @@ spec:
                 receiver: "null"
               - matchers:
                   - alertname =~ "KubeDaemonSet.*"
-                  - daemonset = svclb-traefik-6a1e5a65
+                  - daemonset =~ "svclb-traefik-.*"
                 receiver: "null"
               - matchers:
                   - severity = critical
