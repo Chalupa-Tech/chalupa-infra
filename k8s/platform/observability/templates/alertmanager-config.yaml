@@ -38,6 +38,26 @@ spec:
                   - severity = info
                 receiver: discord-info
 
+          inhibit_rules:
+            # When a critical alert fires, suppress warning and info for the same alertname+namespace
+            - source_matchers:
+                - severity = critical
+              target_matchers:
+                - severity =~ "warning|info"
+              equal: ['alertname', 'namespace']
+            # When a warning alert fires, suppress info for the same alertname+namespace
+            - source_matchers:
+                - severity = warning
+              target_matchers:
+                - severity = info
+              equal: ['alertname', 'namespace']
+            # InfoInhibitor: when warning/critical fires in a namespace, suppress all info in that namespace
+            - source_matchers:
+                - severity =~ "warning|critical"
+              target_matchers:
+                - severity = info
+              equal: ['namespace']
+
           receivers:
             - name: "null"
             - name: discord-info
