@@ -43,7 +43,10 @@ spec:
             resolved:
               emoji: ":white_check_mark:"
               color: 3066993
-          severitiesToMention: []
+          severitiesToMention:
+            - critical
+          severitiesToIgnoreWhenAlone:
+            - info
           channels:
             info:
               name: alerts-info
