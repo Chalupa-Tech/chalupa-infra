@@ -11,13 +11,16 @@ victoria-metrics-k8s-stack:
     spec:
       retentionPeriod: "14d"
       replicaCount: 1
+      extraArgs:
+        search.maxConcurrentRequests: "4"
+        search.maxQueueDuration: "30s"
       resources:
         requests:
-          cpu: 50m
-          memory: 256Mi
+          cpu: 100m
+          memory: 512Mi
         limits:
-          cpu: 500m
-          memory: 1Gi
+          cpu: "1"
+          memory: 2Gi
       storage:
         accessModes:
           - ReadWriteOnce
