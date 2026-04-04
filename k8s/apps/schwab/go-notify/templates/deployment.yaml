@@ -24,6 +24,10 @@ spec:
       containers:
         - name: go-notify-subscriber
           image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.metrics.port }}
+              name: metrics
+              protocol: TCP
           env:
             - name: APP_VERSION
               value: {{ .Values.image.tag | quote }}
@@ -49,8 +53,22 @@ spec:
               value: {{ .Values.vault.secretPath | quote }}
             - name: VAULT_TOKEN_PATH
               value: {{ .Values.vault.tokenPath | quote }}
+            - name: METRICS_PORT
+              value: {{ .Values.metrics.port | quote }}
           envFrom:
             - secretRef:
                 name: schwab-secrets
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.metrics.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ .Values.metrics.port }}
+            initialDelaySeconds: 3
+            periodSeconds: 10
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
