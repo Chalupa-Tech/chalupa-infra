@@ -324,14 +324,14 @@
       }
     },
     {
-      "title": "Day Change %",
-      "description": "Percentage change by symbol over time — normalized for comparison",
+      "title": "Price Change % (15m rolling)",
+      "description": "Percentage price change over a rolling 15-minute window",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "max by (symbol) (schwab_quote_change_pct{registration=~\"$registration\", symbol=~\"$symbol\"})",
+          "expr": "100 * (max by (symbol) (schwab_quote_price{registration=~\"$registration\", symbol=~\"$symbol\"}) / max by (symbol) (schwab_quote_price{registration=~\"$registration\", symbol=~\"$symbol\"} offset 15m) - 1)",
           "legendFormat": "{{symbol}}"
         }
       ],
@@ -339,7 +339,7 @@
         "defaults": {
           "unit": "percent",
           "decimals": 2,
-          "custom": { "fillOpacity": 0, "lineWidth": 2, "pointSize": 3 },
+          "custom": { "fillOpacity": 0, "lineWidth": 2, "pointSize": 4, "showPoints": "always" },
           "thresholds": {
             "mode": "absolute",
             "steps": [
