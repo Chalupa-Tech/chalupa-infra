@@ -11,6 +11,11 @@ velero:
       cpu: 500m
       memory: 512Mi
 
+  # -- Override kubectl image — bitnami/kubectl:1.34 doesn't exist yet
+  kubectl:
+    image:
+      tag: "1.32"
+
   # -- S3-compatible backup storage (MinIO on fw1)
   configuration:
     backupStorageLocation:
