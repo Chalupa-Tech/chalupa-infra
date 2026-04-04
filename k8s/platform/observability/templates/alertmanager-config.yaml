@@ -16,6 +16,9 @@ stringData:
             - alertname = Watchdog
           receiver: "null"
         - matchers:
+            - alertname = InfoInhibitor
+          receiver: "null"
+        - matchers:
             - alertname =~ "KubeDaemonSet.*"
             - daemonset =~ "svclb-traefik-.*"
           receiver: "null"
