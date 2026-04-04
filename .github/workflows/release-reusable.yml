@@ -78,6 +78,7 @@ jobs:
     uses: Chalupa-Tech/chalupa-infra/.github/workflows/build-push-reusable.yml@main
     with:
       image_name: ${{ inputs.image_name }}
+      version: ${{ needs.release.outputs.version }}
     secrets:
       TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
       TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
@@ -96,6 +97,34 @@ jobs:
         with:
           repository: Chalupa-Tech/chalupa-infra
           token: ${{ secrets.GH_PAT }}
+
+      - name: Join Tailscale network
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+          args: "--accept-dns=false"
+
+      - name: Add Gitea to /etc/hosts
+        run: |
+          GITEA_IP=$(tailscale ip -4 gitea.tailbecff0.ts.net 2>/dev/null || tailscale status --json | jq -r '.Peer[] | select(.HostName=="gitea") | .TailscaleIPs[0]')
+          echo "${GITEA_IP} gitea.tailbecff0.ts.net" | sudo tee -a /etc/hosts
+
+      - name: Verify image exists in registry
+        run: |
+          VERSION="v${{ needs.release.outputs.version }}"
+          IMAGE="gitea.tailbecff0.ts.net/chalupa-tech/${{ inputs.image_name }}:${VERSION}"
+          echo "Verifying image: $IMAGE"
+          # Use curl to check the registry API (no docker login needed for existence check)
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -u "${{ secrets.GITEA_REGISTRY_USER }}:${{ secrets.GITEA_REGISTRY_PASSWORD }}" \
+            "https://gitea.tailbecff0.ts.net/v2/chalupa-tech/${{ inputs.image_name }}/manifests/${VERSION}")
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::Image $IMAGE not found in registry (HTTP $HTTP_STATUS). Aborting deploy."
+            exit 1
+          fi
+          echo "Image verified (HTTP $HTTP_STATUS)."
 
       - name: Update image tag
         run: |
