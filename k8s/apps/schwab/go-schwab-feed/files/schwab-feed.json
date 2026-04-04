@@ -1,11 +1,20 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "graphTooltip": 1,
   "title": "Schwab Market Feed",
   "uid": "schwab-feed",
-  "tags": ["schwab", "feed", "market"],
-  "time": { "from": "now-6h", "to": "now" },
+  "tags": [
+    "schwab",
+    "feed",
+    "market"
+  ],
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
   "refresh": "30s",
   "templating": {
     "list": [
@@ -16,7 +25,11 @@
         "query": "label_values(schwab_account_value, registration)",
         "multi": true,
         "includeAll": true,
-        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
         "refresh": 2
       },
       {
@@ -26,7 +39,11 @@
         "query": "label_values(schwab_quote_price{registration=~\"$registration\"}, symbol)",
         "multi": true,
         "includeAll": true,
-        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
         "refresh": 2
       }
     ]
@@ -35,14 +52,24 @@
     {
       "title": "Feed Health",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "collapsed": false
     },
     {
       "title": "Feed Status",
       "description": "Time since last successful poll by data type",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -56,9 +83,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 600 },
-              { "color": "red", "value": 1800 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 600
+              },
+              {
+                "color": "red",
+                "value": 1800
+              }
             ]
           }
         }
@@ -66,36 +102,60 @@
       "options": {
         "colorMode": "background",
         "textMode": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Watchlist Size",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 3, "x": 6, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 6,
+        "y": 1
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
-        { "expr": "max by (registration) (schwab_feed_watchlist_size{registration=~\"$registration\"})", "legendFormat": "symbols" }
+        {
+          "expr": "max by (registration) (schwab_feed_watchlist_size{registration=~\"$registration\"})",
+          "legendFormat": "symbols"
+        }
       ],
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "blue", "value": null }
+              {
+                "color": "blue",
+                "value": null
+              }
             ]
           }
         }
       },
       "options": {
         "colorMode": "background",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "NATS Publishes / min",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 9,
+        "y": 1
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -108,8 +168,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.1 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.1
+              }
             ]
           },
           "decimals": 1
@@ -117,13 +183,22 @@
       },
       "options": {
         "colorMode": "background",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Poll Errors / 5m",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 14,
+        "y": 1
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -136,9 +211,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 5 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
             ]
           },
           "decimals": 0
@@ -146,16 +230,28 @@
       },
       "options": {
         "colorMode": "background",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Account Value",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 19,
+        "y": 1
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
-        { "expr": "max by (registration) (schwab_account_value{registration=~\"$registration\"})", "legendFormat": "total" }
+        {
+          "expr": "max by (registration) (schwab_account_value{registration=~\"$registration\"})",
+          "legendFormat": "total"
+        }
       ],
       "fieldConfig": {
         "defaults": {
@@ -163,7 +259,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "blue", "value": null }
+              {
+                "color": "blue",
+                "value": null
+              }
             ]
           },
           "decimals": 2
@@ -171,14 +270,23 @@
       },
       "options": {
         "colorMode": "background",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Poll Duration",
       "description": "Time to complete each poll cycle",
       "type": "timeseries",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -189,7 +297,10 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "fillOpacity": 10, "lineWidth": 2 }
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          }
         }
       }
     },
@@ -197,7 +308,12 @@
       "title": "NATS Publish Rate",
       "description": "Messages published to NATS per minute by type",
       "type": "timeseries",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 5 },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -208,23 +324,42 @@
       "fieldConfig": {
         "defaults": {
           "unit": "msg/min",
-          "custom": { "fillOpacity": 20, "lineWidth": 2, "stacking": { "mode": "normal" } }
+          "custom": {
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
         }
       }
     },
     {
       "title": "Market Data",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
       "collapsed": false
     },
     {
       "title": "Day P&L",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 12 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 12
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
-        { "expr": "max by (registration) (schwab_account_day_gain_loss{registration=~\"$registration\"})", "legendFormat": "day P&L" }
+        {
+          "expr": "max by (registration) (schwab_account_day_gain_loss{registration=~\"$registration\"})",
+          "legendFormat": "day P&L"
+        }
       ],
       "fieldConfig": {
         "defaults": {
@@ -232,8 +367,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 0 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
             ]
           },
           "decimals": 2
@@ -241,14 +382,23 @@
       },
       "options": {
         "colorMode": "background",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Quote Prices",
       "description": "Latest price for each symbol",
       "type": "table",
-      "gridPos": { "h": 10, "w": 18, "x": 6, "y": 12 },
+      "gridPos": {
+        "h": 10,
+        "w": 18,
+        "x": 6,
+        "y": 12
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -273,7 +423,9 @@
       "transformations": [
         {
           "id": "seriesToColumns",
-          "options": { "byField": "symbol" }
+          "options": {
+            "byField": "symbol"
+          }
         },
         {
           "id": "organize",
@@ -295,30 +447,74 @@
       "fieldConfig": {
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Price" },
-            "properties": [{ "id": "unit", "value": "currencyUSD" }, { "id": "decimals", "value": 2 }]
+            "matcher": {
+              "id": "byName",
+              "options": "Price"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
           },
           {
-            "matcher": { "id": "byName", "options": "Change %" },
+            "matcher": {
+              "id": "byName",
+              "options": "Change %"
+            },
             "properties": [
-              { "id": "unit", "value": "percent" },
-              { "id": "decimals", "value": 2 },
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
               {
                 "id": "thresholds",
                 "value": {
                   "mode": "absolute",
                   "steps": [
-                    { "color": "red", "value": null },
-                    { "color": "green", "value": 0 }
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
                   ]
                 }
               },
-              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Volume" },
-            "properties": [{ "id": "unit", "value": "short" }, { "id": "decimals", "value": 0 }]
+            "matcher": {
+              "id": "byName",
+              "options": "Volume"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
           }
         ]
       }
@@ -327,7 +523,12 @@
       "title": "Price Change % (15m rolling)",
       "description": "Percentage price change over a rolling 15-minute window",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -339,26 +540,47 @@
         "defaults": {
           "unit": "percent",
           "decimals": 2,
-          "custom": { "fillOpacity": 0, "lineWidth": 2, "pointSize": 4, "showPoints": "always" },
+          "custom": {
+            "fillOpacity": 0,
+            "lineWidth": 2,
+            "pointSize": 4,
+            "showPoints": "always"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 0 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
             ]
           },
-          "color": { "mode": "palette-classic" }
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "options": {
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
       "title": "Position Day P&L",
       "description": "Day gain/loss by position",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 30
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -374,8 +596,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 0 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
             ]
           }
         }
@@ -383,14 +611,23 @@
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Position Values",
       "description": "Market value of each position",
       "type": "piechart",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 30
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -408,10 +645,44 @@
       "options": {
         "legendDisplayMode": "table",
         "legendPlacement": "right",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     }
   ],
   "schemaVersion": 39,
-  "version": 2
+  "version": 2,
+  "links": [
+    {
+      "title": "Cluster Overview",
+      "type": "link",
+      "url": "/d/cluster-overview",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Logs Explorer",
+      "type": "link",
+      "url": "/d/victorialogs",
+      "icon": "doc",
+      "targetBlank": false
+    },
+    {
+      "title": "Traces Explorer",
+      "type": "link",
+      "url": "/d/traces-explorer",
+      "icon": "bolt",
+      "targetBlank": false
+    },
+    {
+      "title": "Service RED",
+      "type": "link",
+      "url": "/d/service-red",
+      "icon": "dashboard",
+      "targetBlank": false
+    }
+  ]
 }

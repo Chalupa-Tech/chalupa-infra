@@ -1,12 +1,21 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
   "uid": "controller-manager",
   "title": "Controller Manager",
-  "tags": ["kubernetes", "controller-manager", "control-plane"],
-  "time": { "from": "now-3h", "to": "now" },
+  "tags": [
+    "kubernetes",
+    "controller-manager",
+    "control-plane"
+  ],
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
   "templating": {
     "list": [
       {
@@ -22,15 +31,28 @@
     {
       "title": "Overview",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "collapsed": false
     },
     {
       "title": "Work Queue Depth",
       "description": "Current depth of each controller work queue. High values indicate controllers falling behind processing.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -40,20 +62,40 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
       }
     },
     {
       "title": "Work Queue Latency p99",
       "description": "99th percentile latency items spend waiting in work queues before being processed.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -64,26 +106,51 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
       }
     },
     {
       "title": "API Requests",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
       "collapsed": false
     },
     {
       "title": "Request Duration p99",
       "description": "99th percentile latency of outbound REST client requests from the controller manager to the API server.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -94,20 +161,40 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
       }
     },
     {
       "title": "REST Client Requests by Code",
       "description": "Rate of outbound REST client requests broken down by HTTP status code and method.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -118,26 +205,51 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
       }
     },
     {
       "title": "Controller Sync",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
       "collapsed": false
     },
     {
       "title": "Controller Sync Rate",
       "description": "Rate at which items are being added to each controller work queue, indicating reconciliation activity.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -148,20 +260,40 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
       }
     },
     {
       "title": "Work Queue Retries",
       "description": "Rate of work queue item retries per controller. Sustained retries may indicate failing reconciliation loops.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VM}"
+      },
       "targets": [
         {
           "refId": "A",
@@ -172,13 +304,62 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "fillOpacity": 10, "connectNulls": true }
+          "custom": {
+            "fillOpacity": 10,
+            "connectNulls": true
+          }
         }
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
       }
+    }
+  ],
+  "links": [
+    {
+      "title": "Cluster Overview",
+      "type": "link",
+      "url": "/d/cluster-overview",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Logs Explorer",
+      "type": "link",
+      "url": "/d/victorialogs",
+      "icon": "doc",
+      "targetBlank": false
+    },
+    {
+      "title": "Traces Explorer",
+      "type": "link",
+      "url": "/d/traces-explorer",
+      "icon": "bolt",
+      "targetBlank": false
+    },
+    {
+      "title": "Service RED",
+      "type": "link",
+      "url": "/d/service-red",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Schwab Feed",
+      "type": "link",
+      "url": "/d/schwab-feed",
+      "icon": "dashboard",
+      "targetBlank": false
     }
   ]
 }

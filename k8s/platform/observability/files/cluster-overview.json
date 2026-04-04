@@ -1359,5 +1359,35 @@
   "timepicker": {},
   "timezone": "",
   "title": "Cluster Overview",
-  "uid": "cluster-overview"
+  "uid": "cluster-overview",
+  "links": [
+    {
+      "title": "Logs Explorer",
+      "type": "link",
+      "url": "/d/victorialogs",
+      "icon": "doc",
+      "targetBlank": false
+    },
+    {
+      "title": "Traces Explorer",
+      "type": "link",
+      "url": "/d/traces-explorer",
+      "icon": "bolt",
+      "targetBlank": false
+    },
+    {
+      "title": "Service RED",
+      "type": "link",
+      "url": "/d/service-red",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Schwab Feed",
+      "type": "link",
+      "url": "/d/schwab-feed",
+      "icon": "dashboard",
+      "targetBlank": false
+    }
+  ]
 }
