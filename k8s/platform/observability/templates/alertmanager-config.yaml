@@ -22,6 +22,13 @@ spec:
             repeat_interval: 4h
             routes:
               - matchers:
+                  - alertname = Watchdog
+                receiver: "null"
+              - matchers:
+                  - alertname =~ "KubeDaemonSet.*"
+                  - daemonset = svclb-traefik-6a1e5a65
+                receiver: "null"
+              - matchers:
                   - severity = critical
                 receiver: discord-critical
               - matchers:
@@ -32,6 +39,7 @@ spec:
                 receiver: discord-info
 
           receivers:
+            - name: "null"
             - name: discord-info
               discord_configs:
                 - webhook_url: "{{ "{{" }} .webhook_info {{ "}}" }}"

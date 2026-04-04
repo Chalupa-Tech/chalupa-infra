@@ -3,7 +3,7 @@ kind: PodDisruptionBudget
 metadata:
   name: vmsingle
 spec:
-  minAvailable: 1
+  maxUnavailable: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: vmsingle
@@ -14,7 +14,7 @@ kind: PodDisruptionBudget
 metadata:
   name: victoria-logs
 spec:
-  minAvailable: 1
+  maxUnavailable: 1
   selector:
     matchLabels:
       app: victoria-logs-single-server
@@ -24,7 +24,7 @@ kind: PodDisruptionBudget
 metadata:
   name: victoria-traces
 spec:
-  minAvailable: 1
+  maxUnavailable: 1
   selector:
     matchLabels:
       app: vt-single-server
