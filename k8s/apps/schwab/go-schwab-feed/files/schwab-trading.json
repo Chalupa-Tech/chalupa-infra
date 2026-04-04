@@ -1,0 +1,571 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "title": "Schwab Trading Dashboard",
+  "uid": "schwab-trading",
+  "tags": [
+    "schwab",
+    "trading",
+    "market"
+  ],
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "refresh": "5m",
+  "templating": {
+    "list": [
+      {
+        "name": "registration",
+        "type": "query",
+        "datasource": "VictoriaMetrics",
+        "query": "label_values(schwab_account_value, registration)",
+        "multi": false,
+        "includeAll": false,
+        "current": {},
+        "refresh": 2
+      },
+      {
+        "name": "symbol",
+        "type": "query",
+        "datasource": "TimescaleDB",
+        "query": "SELECT DISTINCT symbol FROM candles ORDER BY symbol",
+        "multi": false,
+        "includeAll": false,
+        "current": {},
+        "refresh": 2
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Schwab Market Feed",
+      "url": "/d/schwab-feed",
+      "type": "link",
+      "icon": "bolt"
+    }
+  ],
+  "panels": [
+    {
+      "title": "Portfolio Summary",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "title": "Account Value",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "schwab_account_value{registration=~\"$registration\"}",
+          "legendFormat": "Total Value"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Day P&L",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "schwab_account_day_gain_loss{registration=~\"$registration\"}",
+          "legendFormat": "Day P&L"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Buying Power",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "schwab_account_buying_power{registration=~\"$registration\"}",
+          "legendFormat": "Buying Power"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "purple", "value": null }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Unrealized P&L",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "sum(schwab_position_unrealized_pl{registration=~\"$registration\"})",
+          "legendFormat": "Unrealized P&L"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "title": "Price Chart",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "collapsed": false
+    },
+    {
+      "title": "$symbol Candlestick",
+      "type": "candlestick",
+      "gridPos": { "h": 14, "w": 18, "x": 0, "y": 6 },
+      "datasource": "TimescaleDB",
+      "targets": [
+        {
+          "rawSql": "SELECT time, open, high, low, close, volume FROM candles WHERE symbol = '$symbol' AND $__timeFilter(time) ORDER BY time",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "includeAllFields": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "volume" },
+            "properties": [
+              { "id": "custom.axisSoftMax", "value": 0 },
+              { "id": "custom.fillOpacity", "value": 30 },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "mode": "candles",
+        "includeAllFields": false,
+        "colors": {
+          "up": "green",
+          "down": "red",
+          "flat": "gray"
+        }
+      }
+    },
+    {
+      "title": "Quote Details",
+      "type": "table",
+      "gridPos": { "h": 14, "w": 6, "x": 18, "y": 6 },
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "schwab_quote_open{registration=~\"$registration\", symbol=~\"$symbol\"}",
+          "legendFormat": "Open",
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "expr": "schwab_quote_high{registration=~\"$registration\", symbol=~\"$symbol\"}",
+          "legendFormat": "High",
+          "refId": "B",
+          "instant": true
+        },
+        {
+          "expr": "schwab_quote_low{registration=~\"$registration\", symbol=~\"$symbol\"}",
+          "legendFormat": "Low",
+          "refId": "C",
+          "instant": true
+        },
+        {
+          "expr": "schwab_quote_price{registration=~\"$registration\", symbol=~\"$symbol\"}",
+          "legendFormat": "Close",
+          "refId": "D",
+          "instant": true
+        },
+        {
+          "expr": "schwab_quote_volume{registration=~\"$registration\", symbol=~\"$symbol\"}",
+          "legendFormat": "Volume",
+          "refId": "E",
+          "instant": true
+        },
+        {
+          "expr": "schwab_quote_52wk_high{registration=~\"$registration\", symbol=~\"$symbol\"}",
+          "legendFormat": "52w High",
+          "refId": "F",
+          "instant": true
+        },
+        {
+          "expr": "schwab_quote_52wk_low{registration=~\"$registration\", symbol=~\"$symbol\"}",
+          "legendFormat": "52w Low",
+          "refId": "G",
+          "instant": true
+        },
+        {
+          "expr": "schwab_quote_change_pct{registration=~\"$registration\", symbol=~\"$symbol\"}",
+          "legendFormat": "Change %",
+          "refId": "H",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": {}
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Volume" },
+            "properties": [
+              { "id": "unit", "value": "short" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Change %" },
+            "properties": [
+              { "id": "unit", "value": "percent" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Positions",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 },
+      "collapsed": false
+    },
+    {
+      "title": "Positions",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 21 },
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "schwab_quote_price{registration=~\"$registration\"}",
+          "legendFormat": "{{symbol}}",
+          "refId": "price",
+          "instant": true
+        },
+        {
+          "expr": "schwab_position_avg_price{registration=~\"$registration\"}",
+          "legendFormat": "{{symbol}}",
+          "refId": "avgPrice",
+          "instant": true
+        },
+        {
+          "expr": "schwab_position_value{registration=~\"$registration\"}",
+          "legendFormat": "{{symbol}}",
+          "refId": "value",
+          "instant": true
+        },
+        {
+          "expr": "schwab_position_unrealized_pl{registration=~\"$registration\"}",
+          "legendFormat": "{{symbol}}",
+          "refId": "unrealized",
+          "instant": true
+        },
+        {
+          "expr": "schwab_position_day_gain_loss{registration=~\"$registration\"}",
+          "legendFormat": "{{symbol}}",
+          "refId": "dayPL",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": { "byField": "symbol" }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "Time 4": true },
+            "renameByName": {
+              "symbol": "Symbol",
+              "Value #price": "Current Price",
+              "Value #avgPrice": "Avg Cost",
+              "Value #value": "Market Value",
+              "Value #unrealized": "Unrealized P&L",
+              "Value #dayPL": "Day P&L"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Symbol" },
+            "properties": [
+              { "id": "unit", "value": "string" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Unrealized P&L" },
+            "properties": [
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 0 }] } },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Day P&L" },
+            "properties": [
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 0 }] } },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Allocation & Performance",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 },
+      "collapsed": false
+    },
+    {
+      "title": "Position Allocation",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "schwab_position_value{registration=~\"$registration\"}",
+          "legendFormat": "{{symbol}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "pieType": "donut",
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": ["value", "percent"]
+        }
+      }
+    },
+    {
+      "title": "Day P&L by Position",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "schwab_position_day_gain_loss{registration=~\"$registration\"}",
+          "legendFormat": "{{symbol}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "showUnfilled": true
+      }
+    },
+    {
+      "title": "Market Overview",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 },
+      "collapsed": false
+    },
+    {
+      "title": "Market Overview",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 39 },
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "schwab_quote_price{registration=~\"$registration\"}",
+          "legendFormat": "{{symbol}}",
+          "refId": "price",
+          "instant": true
+        },
+        {
+          "expr": "schwab_quote_change_pct{registration=~\"$registration\"}",
+          "legendFormat": "{{symbol}}",
+          "refId": "changePct",
+          "instant": true
+        },
+        {
+          "expr": "schwab_quote_volume{registration=~\"$registration\"}",
+          "legendFormat": "{{symbol}}",
+          "refId": "volume",
+          "instant": true
+        },
+        {
+          "expr": "schwab_quote_52wk_high{registration=~\"$registration\"}",
+          "legendFormat": "{{symbol}}",
+          "refId": "high52",
+          "instant": true
+        },
+        {
+          "expr": "schwab_quote_52wk_low{registration=~\"$registration\"}",
+          "legendFormat": "{{symbol}}",
+          "refId": "low52",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": { "byField": "symbol" }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "Time 4": true },
+            "renameByName": {
+              "symbol": "Symbol",
+              "Value #price": "Price",
+              "Value #changePct": "Change %",
+              "Value #volume": "Volume",
+              "Value #high52": "52wk High",
+              "Value #low52": "52wk Low"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Symbol" },
+            "properties": [
+              { "id": "unit", "value": "string" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Change %" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 0 }] } },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Volume" },
+            "properties": [
+              { "id": "unit", "value": "short" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Options",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 47 },
+      "collapsed": true,
+      "panels": [
+        {
+          "title": "Options Greeks — $symbol",
+          "description": "Delta, Gamma, Theta, Vega, Rho for selected symbol's option chain. Data populates when options polling is active.",
+          "type": "table",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 48 },
+          "datasource": "VictoriaMetrics",
+          "targets": [
+            {
+              "expr": "schwab_quote_price{registration=~\"$registration\", symbol=~\"$symbol\"}",
+              "legendFormat": "Placeholder — options metrics coming in future release",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {}
+          },
+          "options": {
+            "showHeader": true
+          }
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}
