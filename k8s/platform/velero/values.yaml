@@ -8,7 +8,6 @@ velero:
       cpu: 50m
       memory: 128Mi
     limits:
-      cpu: 500m
       memory: 512Mi
 
   # -- Override kubectl image — bitnami/kubectl:1.34 doesn't exist yet
@@ -38,14 +37,10 @@ velero:
     features: EnableCSI
 
   # -- AWS (S3) plugin for MinIO connectivity
+  # CSI plugin removed — integrated into Velero core since v1.14
   initContainers:
     - name: velero-plugin-for-aws
       image: velero/velero-plugin-for-aws:v1.11.1
-      volumeMounts:
-        - mountPath: /target
-          name: plugins
-    - name: velero-plugin-for-csi
-      image: velero/velero-plugin-for-csi:v0.8.1
       volumeMounts:
         - mountPath: /target
           name: plugins
@@ -80,5 +75,4 @@ velero:
         cpu: 20m
         memory: 64Mi
       limits:
-        cpu: 500m
         memory: 512Mi
