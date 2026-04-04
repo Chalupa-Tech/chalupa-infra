@@ -202,6 +202,9 @@ victoria-metrics-k8s-stack:
       vmoperator: false
 
   ## Node Exporter
+  # CPU limit intentionally omitted — causes CFS throttling on low-overhead
+  # collectors. Memory limit retained to catch actual leaks.
+  # Ref: https://home.robusta.dev/blog/stop-using-cpu-limits
   prometheus-node-exporter:
     enabled: true
     resources:
@@ -209,7 +212,6 @@ victoria-metrics-k8s-stack:
         cpu: 10m
         memory: 16Mi
       limits:
-        cpu: 250m
         memory: 64Mi
 
   ## Kube State Metrics
