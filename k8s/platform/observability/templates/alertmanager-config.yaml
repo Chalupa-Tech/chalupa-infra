@@ -63,15 +63,19 @@ spec:
             - name: discord-info
               discord_configs:
                 - webhook_url: "{{ "{{" }} .webhook_info {{ "}}" }}"
+                  title: 'ℹ️ Info Alert'
             - name: discord-warning
               discord_configs:
                 - webhook_url: "{{ "{{" }} .webhook_warning {{ "}}" }}"
+                  title: '⚠️ Warning Alert'
             - name: discord-error
               discord_configs:
                 - webhook_url: "{{ "{{" }} .webhook_error {{ "}}" }}"
+                  title: '🔴 Error Alert'
             - name: discord-critical
               discord_configs:
                 - webhook_url: "{{ "{{" }} .webhook_critical {{ "}}" }}"
+                  title: '🚨 Critical Alert'
   data:
     - secretKey: webhook_info
       remoteRef:
