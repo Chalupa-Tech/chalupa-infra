@@ -1,0 +1,21 @@
+---
+# etcd snapshot offload to MinIO S3
+# Included separately from main.yml so it can target all server nodes
+
+- name: Ensure K3s config drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/rancher/k3s/config.yaml.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy etcd S3 snapshot configuration
+  ansible.builtin.template:
+    src: etcd-snapshots.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml.d/etcd-snapshots.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  when: k3s_etcd_snapshot_enabled
+  notify: Restart k3s
