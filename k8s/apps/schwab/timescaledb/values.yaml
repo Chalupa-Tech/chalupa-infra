@@ -1,0 +1,28 @@
+---
+image:
+  repository: timescale/timescaledb-ha
+  tag: pg16-ts2.17.2
+  pullPolicy: IfNotPresent
+
+database:
+  name: market
+  appUser: marketstore
+  grafanaUser: grafana
+
+storage:
+  size: 10Gi
+  storageClass: longhorn-single
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
+
+service:
+  port: 5432
+
+vault:
+  addr: "http://openbao-active.openbao.svc.cluster.local:8200"
+  secretPath: "secret/data/schwab-ddowell/timescaledb"

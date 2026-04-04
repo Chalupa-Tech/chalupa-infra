@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: timescaledb
+description: TimescaleDB — time-series storage for Schwab market data (candles, quotes)
+type: application
+version: 0.1.0
+appVersion: "2.17"
