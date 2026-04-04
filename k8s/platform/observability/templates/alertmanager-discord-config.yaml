@@ -1,0 +1,76 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: alertmanager-discord-config
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: SecretStore
+  target:
+    name: alertmanager-discord-config
+    creationPolicy: Owner
+    template:
+      engineVersion: v2
+      data:
+        config.yaml: |
+          username: K3s Alertmanager
+          prometheusURL: "https://grafana.chalupatech.com"
+          messageType: severity
+          severity:
+            label: severity
+            values:
+              info:
+                color: 3447003
+                emoji: ":information_source:"
+                priority: 0
+              warning:
+                color: 16027660
+                emoji: ":warning:"
+                priority: 1
+              error:
+                color: 15158332
+                emoji: ":x:"
+                priority: 2
+              critical:
+                color: 10038562
+                emoji: ":fire:"
+                priority: 3
+          status:
+            firing:
+              emoji: ":rotating_light:"
+              color: 15158332
+            resolved:
+              emoji: ":white_check_mark:"
+              color: 3066993
+          severitiesToMention: []
+          channels:
+            info:
+              name: alerts-info
+              webhookURL: "{{ "{{" }} .webhook_info {{ "}}" }}"
+            warning:
+              name: alerts-warning
+              webhookURL: "{{ "{{" }} .webhook_warning {{ "}}" }}"
+            error:
+              name: alerts-error
+              webhookURL: "{{ "{{" }} .webhook_error {{ "}}" }}"
+            critical:
+              name: alerts-critical
+              webhookURL: "{{ "{{" }} .webhook_critical {{ "}}" }}"
+  data:
+    - secretKey: webhook_info
+      remoteRef:
+        key: secret/data/observability/discord
+        property: webhook_info
+    - secretKey: webhook_warning
+      remoteRef:
+        key: secret/data/observability/discord
+        property: webhook_warning
+    - secretKey: webhook_error
+      remoteRef:
+        key: secret/data/observability/discord
+        property: webhook_error
+    - secretKey: webhook_critical
+      remoteRef:
+        key: secret/data/observability/discord
+        property: webhook_critical

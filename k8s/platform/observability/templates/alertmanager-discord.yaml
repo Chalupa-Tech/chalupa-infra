@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager-discord
+  labels:
+    app: alertmanager-discord
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager-discord
+  template:
+    metadata:
+      labels:
+        app: alertmanager-discord
+    spec:
+      containers:
+        - name: alertmanager-discord
+          image: gitea.tailbecff0.ts.net/chalupa-tech/alertmanager-discord:v1.0.0
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /config.yaml
+              subPath: config.yaml
+          args: ["-config", "/config.yaml"]
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              memory: 32Mi
+      volumes:
+        - name: config
+          secret:
+            secretName: alertmanager-discord-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-discord
+spec:
+  selector:
+    app: alertmanager-discord
+  ports:
+    - port: 8080
+      targetPort: http
+      name: http
