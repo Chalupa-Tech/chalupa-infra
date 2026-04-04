@@ -19,7 +19,6 @@ victoria-metrics-k8s-stack:
           cpu: 100m
           memory: 512Mi
         limits:
-          cpu: "1"
           memory: 2Gi
       storage:
         accessModes:
@@ -115,7 +114,6 @@ victoria-metrics-k8s-stack:
         cpu: 20m
         memory: 64Mi
       limits:
-        cpu: 200m
         memory: 256Mi
 
   ## ── K8s internal scrapes ──────────────────────────────────────────
@@ -188,7 +186,6 @@ victoria-metrics-k8s-stack:
           cpu: 10m
           memory: 32Mi
         limits:
-          cpu: 50m
           memory: 128Mi
 
   ## VMAgent — scrapes targets and forwards to VMSingle
@@ -199,7 +196,6 @@ victoria-metrics-k8s-stack:
           cpu: 50m
           memory: 200Mi
         limits:
-          cpu: 500m
           memory: 500Mi
 
   ## VMAlert — evaluates alert rules and sends to Alertmanager
@@ -234,5 +230,4 @@ victoria-metrics-k8s-stack:
         cpu: 10m
         memory: 32Mi
       limits:
-        cpu: 100m
         memory: 128Mi
