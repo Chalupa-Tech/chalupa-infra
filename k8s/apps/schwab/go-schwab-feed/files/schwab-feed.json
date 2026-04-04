@@ -666,7 +666,7 @@
     {
       "title": "Logs Explorer",
       "type": "link",
-      "url": "/d/victorialogs",
+      "url": "/d/victorialogs-explorer",
       "icon": "doc",
       "targetBlank": false
     },

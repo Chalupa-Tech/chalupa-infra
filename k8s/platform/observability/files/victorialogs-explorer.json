@@ -14,13 +14,6 @@
       "targetBlank": false
     },
     {
-      "title": "Logs Explorer",
-      "type": "link",
-      "url": "/d/victorialogs",
-      "icon": "doc",
-      "targetBlank": false
-    },
-    {
       "title": "Traces Explorer",
       "type": "link",
       "url": "/d/traces-explorer",
