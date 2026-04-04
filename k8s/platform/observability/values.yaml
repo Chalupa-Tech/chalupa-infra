@@ -163,7 +163,9 @@ victoria-metrics-k8s-stack:
   ## Dashboards
   defaultDashboards:
     enabled: true
-    nodeExporterFull: false
+    dashboards:
+      node-exporter-full:
+        enabled: false
 
   ## Alertmanager
   alertmanager:
