@@ -80,6 +80,8 @@ victoria-metrics-k8s-stack:
         enabled: false
       "plugin.grafana-metricsdrilldown-app":
         enabled: false
+      unified_alerting:
+        enabled: true
       server:
         root_url: "https://grafana.chalupatech.com/"
         serve_from_sub_path: false
@@ -147,6 +149,16 @@ victoria-metrics-k8s-stack:
   kubeScheduler:
     enabled: false
   # yamllint enable rule:comments-indentation
+
+  ## Datasource overrides
+  defaultDatasources:
+    alertmanager:
+      datasources:
+        - name: Alertmanager
+          access: proxy
+          jsonData:
+            implementation: prometheus
+            handleGrafanaManagedAlerts: true
 
   ## Dashboards
   defaultDashboards:
