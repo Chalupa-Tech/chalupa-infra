@@ -3,3 +3,4 @@ k3s_install_role: ha-server
 k3s_compute_class: oci-arm
 k3s_node_taints:
   - "node-role.kubernetes.io/control-plane:NoSchedule"
+  - "node-role.kubernetes.io/tiebreaker=true:NoExecute"
