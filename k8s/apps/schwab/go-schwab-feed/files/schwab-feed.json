@@ -331,7 +331,7 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "((max by (symbol) (schwab_quote_price{registration=~\"$registration\", symbol=~\"$symbol\"})) - (max by (symbol) (schwab_quote_price{registration=~\"$registration\", symbol=~\"$symbol\"} offset 15m))) / (max by (symbol) (schwab_quote_price{registration=~\"$registration\", symbol=~\"$symbol\"} offset 15m)) * 100",
+          "expr": "100 * (max by (symbol) (schwab_quote_price{registration=~\"$registration\", symbol=~\"$symbol\"}) / max by (symbol) (schwab_quote_price{registration=~\"$registration\", symbol=~\"$symbol\"} offset 15m) - 1)",
           "legendFormat": "{{symbol}}"
         }
       ],
