@@ -58,18 +58,6 @@ spec:
             - containerPort: {{ .Values.metrics.port }}
               name: metrics
               protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: {{ .Values.metrics.port }}
-            initialDelaySeconds: 5
-            periodSeconds: 30
-          readinessProbe:
-            httpGet:
-              path: /readyz
-              port: {{ .Values.metrics.port }}
-            initialDelaySeconds: 3
-            periodSeconds: 10
           envFrom:
             - secretRef:
                 name: schwab-secrets
