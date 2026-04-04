@@ -75,6 +75,8 @@ victoria-metrics-k8s-stack:
       - victoriametrics-metrics-datasource
       - yesoreyeram-infinity-datasource
     envFromSecret: "grafana-oidc-secret"
+    env:
+      GF_DEFAULT_APP_TITLE: "Chalupa Infra"
     grafana.ini:
       # NOTE: plugins.preinstall_sync is handled by the Helm chart's `plugins:`
       # list above — it sets GF_PLUGINS_PREINSTALL_SYNC env var automatically.
@@ -89,6 +91,12 @@ victoria-metrics-k8s-stack:
         enabled: false
       "plugin.grafana-metricsdrilldown-app":
         enabled: false
+      analytics:
+        reporting_enabled: false
+        check_for_updates: false
+        check_for_plugin_updates: false
+      dashboards:
+        default_home_dashboard_path: /var/lib/grafana/dashboards/default/cluster-overview.json
       unified_alerting:
         enabled: true
       server:
@@ -208,6 +216,9 @@ victoria-metrics-k8s-stack:
   defaultRules:
     rules:
       vmoperator: false
+      etcd: false                  # K3s-embedded — custom VMNodeScrape handles monitoring
+      kubeScheduler: false         # K3s-embedded — custom VMNodeScrape handles monitoring
+      kubeControllerManager: false # K3s-embedded — custom VMNodeScrape handles monitoring
 
   ## Node Exporter
   # CPU limit intentionally omitted — causes CFS throttling on low-overhead
