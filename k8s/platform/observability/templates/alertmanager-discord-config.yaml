@@ -43,6 +43,8 @@ spec:
             resolved:
               emoji: ":white_check_mark:"
               color: 3066993
+          rolesToMention:
+            - "<@&1490051594203435159>"
           severitiesToMention:
             - critical
           severitiesToIgnoreWhenAlone:
