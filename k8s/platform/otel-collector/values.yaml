@@ -41,6 +41,8 @@ opentelemetry-collector:
           - name: http.route
           - name: rpc.method
           - name: rpc.service
+          - name: messaging.system
+          - name: messaging.destination
         metrics_expiration: 5m
 
     processors:
