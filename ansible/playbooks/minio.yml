@@ -1,0 +1,9 @@
+---
+# Configure MinIO on fw1
+# Usage: ansible-playbook playbooks/minio.yml -l fw1
+- name: Configure MinIO S3 storage
+  hosts: k3s_vm_agents
+  become: true
+  roles:
+    - role: minio_server
+      tags: [minio]

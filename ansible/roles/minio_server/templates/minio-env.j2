@@ -1,0 +1,5 @@
+# MinIO environment — managed by Ansible
+MINIO_ROOT_USER={{ minio_access_key }}
+MINIO_ROOT_PASSWORD={{ minio_secret_key }}
+MINIO_VOLUMES={{ minio_volumes }}
+MINIO_OPTS="--address {{ minio_bind_address }}:{{ minio_api_port }} --console-address {{ minio_bind_address }}:{{ minio_console_port }}"

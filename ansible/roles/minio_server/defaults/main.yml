@@ -1,0 +1,13 @@
+---
+minio_bind_address: "0.0.0.0"
+minio_api_port: 9000
+minio_console_port: 9001
+minio_volumes: /mnt/nas-backups/minio
+minio_user: minio
+minio_group: minio
+
+# NAS mount for MinIO storage
+minio_nas_source: "192.168.2.18:/volume/6b052579-611b-4ae6-bbab-bdcc54f095eb/.srv/.unifi-drive/k3sbackups/.data"
+minio_nas_mountpoint: /mnt/nas-backups
+minio_nas_fstype: nfs
+minio_nas_opts: "nfsvers=3,soft,timeo=30,retrans=3,nolock,_netdev"
