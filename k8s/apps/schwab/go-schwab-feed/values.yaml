@@ -21,7 +21,7 @@ metrics:
 
 feed:
   rateLimit: "30"
-  quoteInterval: "5m"
+  quoteInterval: "30s"
   optionsInterval: "30m"
   positionInterval: "15m"
   historyInterval: "24h"
