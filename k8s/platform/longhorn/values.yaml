@@ -35,7 +35,7 @@ longhorn:
         cpu: 20m
         memory: 128Mi
       limits:
-        memory: 256Mi
+        memory: 512Mi
 
   longhornDriver:
     nodeSelector:
@@ -45,6 +45,12 @@ longhorn:
     replicas: 1
     nodeSelector:
       compute-class: pi5
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
 
   # -- Ingress (disabled — access via kubectl port-forward if needed)
   ingress:
