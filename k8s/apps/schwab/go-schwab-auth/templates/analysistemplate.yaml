@@ -18,9 +18,10 @@ spec:
         prometheus:
           address: http://vmsingle-vmstack.observability.svc.cluster.local:8428
           query: |
-            min(up{job="go-schwab-auth", namespace="schwab-ddowell"})
+            min(up{namespace="schwab-ddowell", pod=~"go-schwab-auth-.*-{{`{{args.pod-hash}}`}}.*"})
       successCondition: "len(result) > 0 && result[0] >= 1"
-      failureCondition: "len(result) == 0 || result[0] < 1"
+      failureCondition: "len(result) > 0 && result[0] < 1"
+      inconclusiveLimit: 2
 
     # No crash loops — canary pod restarts must be zero.
     - name: no-restarts
@@ -37,5 +38,6 @@ spec:
                 pod=~"go-schwab-auth-.*-{{`{{args.pod-hash}}`}}.*"
               }
             )
-      successCondition: "len(result) == 0 || result[0] == 0"
+      successCondition: "len(result) > 0 && result[0] == 0"
       failureCondition: "len(result) > 0 && result[0] > 0"
+      inconclusiveLimit: 2
