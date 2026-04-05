@@ -1,10 +1,10 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-schwab-auth
-  tag: v0.4.0
+  tag: v0.0.0-does-not-exist
 
 vault:
-  addr: "http://bogus-vault:8200"
+  addr: "http://openbao-active.openbao.svc.cluster.local:8200"
 
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
