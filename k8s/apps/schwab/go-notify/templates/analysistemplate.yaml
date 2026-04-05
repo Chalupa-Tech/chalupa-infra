@@ -17,8 +17,8 @@ spec:
         prometheus:
           address: http://vmsingle-vmstack.observability.svc.cluster.local:8428
           query: |
-            count(up{job="go-notify-subscriber", namespace="schwab-ddowell"} == 1)
-      successCondition: result[0] >= 1
+            min(up{job="go-notify-subscriber", namespace="schwab-ddowell"})
+      successCondition: result >= 1
 
     # No crash loops — canary pod restarts must be zero.
     - name: no-restarts
@@ -35,4 +35,4 @@ spec:
                 pod=~"go-notify-subscriber-.*-{{`{{args.pod-hash}}`}}.*"
               }
             )
-      successCondition: result[0] == 0 || isNaN(result[0])
+      successCondition: result == 0 || isNaN(result)
