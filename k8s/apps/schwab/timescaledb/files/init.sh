@@ -53,6 +53,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
         max(volume) AS volume,
         'quote_agg' AS source
     FROM quotes
+    WHERE price > 0 AND low_price > 0
     GROUP BY time_bucket('5 minutes', time), symbol
     WITH NO DATA;
     SELECT add_continuous_aggregate_policy('candles_5m',
@@ -75,6 +76,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
         max(volume) AS volume,
         'quote_agg_1h' AS source
     FROM quotes
+    WHERE price > 0 AND low_price > 0
     GROUP BY time_bucket('1 hour', time), symbol
     WITH NO DATA;
     SELECT add_continuous_aggregate_policy('candles_1h',
