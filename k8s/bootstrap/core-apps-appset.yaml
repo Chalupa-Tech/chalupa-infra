@@ -59,6 +59,10 @@ spec:
             path: k8s/platform/cert-manager
             namespace: cert-manager
             wave: "0"
+          - name: argo-rollouts
+            path: k8s/platform/argo-rollouts
+            namespace: argo-rollouts
+            wave: "0"
           # Wave 1: Secrets + identity
           - name: external-secrets
             path: k8s/platform/external-secrets
