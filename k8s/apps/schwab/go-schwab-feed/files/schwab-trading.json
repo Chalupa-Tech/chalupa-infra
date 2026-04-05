@@ -219,7 +219,7 @@
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
       "targets": [
         {
-          "rawSql": "SELECT time_bucket($__interval, time) AS time, first(price, time) AS open, max(price) AS high, min(price) AS low, last(price, time) AS close FROM quotes WHERE symbol = '$symbol' AND $__timeFilter(time) AND price > 0 GROUP BY 1 UNION ALL SELECT time_bucket($__interval, time) AS time, first(open, time) AS open, max(high) AS high, min(low) AS low, last(close, time) AS close FROM candles WHERE symbol = '$symbol' AND $__timeFilter(time) AND time < (SELECT coalesce(min(time), 'infinity'::timestamptz) FROM quotes WHERE symbol = '$symbol' AND $__timeFilter(time)) GROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT time_bucket(make_interval(secs => $__interval_ms::double precision / 1000), time) AS time, first(price, time) AS open, max(price) AS high, min(price) AS low, last(price, time) AS close FROM quotes WHERE symbol = '$symbol' AND $__timeFilter(time) AND price > 0 GROUP BY 1 UNION ALL SELECT time_bucket(make_interval(secs => $__interval_ms::double precision / 1000), time) AS time, first(open, time) AS open, max(high) AS high, min(low) AS low, last(close, time) AS close FROM candles WHERE symbol = '$symbol' AND $__timeFilter(time) AND time < (SELECT coalesce(min(time), 'infinity'::timestamptz) FROM quotes WHERE symbol = '$symbol' AND $__timeFilter(time)) GROUP BY 1 ORDER BY 1",
           "format": "table",
           "refId": "A"
         }
