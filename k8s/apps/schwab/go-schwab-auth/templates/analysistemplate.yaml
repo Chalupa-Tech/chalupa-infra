@@ -17,10 +17,8 @@ spec:
         prometheus:
           address: http://vmsingle-vmstack.observability.svc.cluster.local:8428
           query: |
-            scalar(
-              up{job="go-schwab-auth", namespace="schwab-ddowell"}
-            )
-      successCondition: result >= 1
+            count(up{job="go-schwab-auth", namespace="schwab-ddowell"} == 1)
+      successCondition: result[0] >= 1
 
     # No crash loops — canary pod restarts must be zero.
     - name: no-restarts
@@ -31,12 +29,10 @@ spec:
         prometheus:
           address: http://vmsingle-vmstack.observability.svc.cluster.local:8428
           query: |
-            scalar(
-              max(
-                kube_pod_container_status_restarts_total{
-                  namespace="schwab-ddowell",
-                  pod=~"go-schwab-auth-.*-{{`{{args.pod-hash}}`}}.*"
-                }
-              )
+            max(
+              kube_pod_container_status_restarts_total{
+                namespace="schwab-ddowell",
+                pod=~"go-schwab-auth-.*-{{`{{args.pod-hash}}`}}.*"
+              }
             )
-      successCondition: result == 0 || isNaN(result)
+      successCondition: result[0] == 0 || isNaN(result[0])
