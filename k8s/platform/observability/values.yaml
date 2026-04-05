@@ -220,6 +220,19 @@ victoria-metrics-k8s-stack:
       kubeScheduler: false         # K3s-embedded — custom VMNodeScrape handles monitoring
       kubeControllerManager: false # K3s-embedded — custom VMNodeScrape handles monitoring
 
+      # Tune vmagent alerts — defaults fire on >0 errors which is too sensitive
+      # during canary rollouts / pod churn. Thresholds set to tolerate a single
+      # bad canary's scrape failures through the 10min progressDeadlineSeconds.
+      TooManyScrapeErrors:
+        spec:
+          expr: increase(vm_promscrape_scrapes_failed_total[5m]) > 50
+          for: 20m
+      TooManyLogs:
+        spec:
+          expr: >-
+            sum(increase(vm_log_messages_total{level!="info"}[5m])) without(app_version,location,is_printed) > 30
+          for: 20m
+
   ## Node Exporter
   # CPU limit intentionally omitted — causes CFS throttling on low-overhead
   # collectors. Memory limit retained to catch actual leaks.
