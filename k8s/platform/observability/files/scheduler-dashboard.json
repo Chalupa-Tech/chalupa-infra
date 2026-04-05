@@ -454,6 +454,13 @@
       "url": "/d/schwab-feed",
       "icon": "dashboard",
       "targetBlank": false
+    },
+    {
+      "title": "Trading Dashboard",
+      "type": "link",
+      "url": "/d/schwab-trading",
+      "icon": "graph-bar",
+      "targetBlank": false
     }
   ]
 }

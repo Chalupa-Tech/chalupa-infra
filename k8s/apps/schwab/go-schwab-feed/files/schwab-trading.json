@@ -31,12 +31,17 @@
       {
         "name": "symbol",
         "type": "query",
-        "datasource": "TimescaleDB",
+        "datasource": {
+          "type": "postgres",
+          "uid": "timescaledb"
+        },
         "query": "SELECT DISTINCT symbol FROM candles ORDER BY symbol",
+        "definition": "SELECT DISTINCT symbol FROM candles ORDER BY symbol",
         "multi": false,
         "includeAll": false,
         "current": {},
-        "refresh": 2
+        "refresh": 2,
+        "sort": 1
       }
     ]
   },
@@ -45,7 +50,36 @@
       "title": "Schwab Market Feed",
       "url": "/d/schwab-feed",
       "type": "link",
-      "icon": "bolt"
+      "icon": "bolt",
+      "targetBlank": false
+    },
+    {
+      "title": "Cluster Overview",
+      "url": "/d/cluster-overview",
+      "type": "link",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Logs Explorer",
+      "url": "/d/victorialogs-explorer",
+      "type": "link",
+      "icon": "doc",
+      "targetBlank": false
+    },
+    {
+      "title": "Traces Explorer",
+      "url": "/d/traces-explorer",
+      "type": "link",
+      "icon": "bolt",
+      "targetBlank": false
+    },
+    {
+      "title": "Service RED",
+      "url": "/d/service-red",
+      "type": "link",
+      "icon": "dashboard",
+      "targetBlank": false
     }
   ],
   "panels": [
@@ -175,7 +209,7 @@
       "title": "$symbol Candlestick",
       "type": "candlestick",
       "gridPos": { "h": 14, "w": 18, "x": 0, "y": 6 },
-      "datasource": "TimescaleDB",
+      "datasource": {"type": "postgres", "uid": "timescaledb"},
       "targets": [
         {
           "rawSql": "SELECT time, open, high, low, close, volume FROM candles WHERE symbol = '$symbol' AND $__timeFilter(time) ORDER BY time",
