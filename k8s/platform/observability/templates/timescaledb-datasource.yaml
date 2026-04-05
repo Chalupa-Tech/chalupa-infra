@@ -23,4 +23,4 @@ data:
           timescaledb: true
           postgresVersion: 1600
         secureJsonData:
-          password: "$TIMESCALE_GRAFANA_PASSWORD"
+          password: "97ee0745384f2bbf0afcce7e7ae40d0d68ad0f3dae4edb2c"
