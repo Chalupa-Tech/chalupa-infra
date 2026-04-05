@@ -7,8 +7,8 @@ metadata:
     app.kubernetes.io/name: timescaledb
     app.kubernetes.io/component: migration
   annotations:
-    argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: 3
   ttlSecondsAfterFinished: 3600
@@ -33,23 +33,32 @@ spec:
               -- Add frequency column with default for existing daily data
               ALTER TABLE candles ADD COLUMN IF NOT EXISTS frequency TEXT NOT NULL DEFAULT '1d';
 
-              -- Drop old unique index, create new one
+              -- Recreate unique index with frequency (idempotent)
               DROP INDEX IF EXISTS idx_candles_unique;
-              CREATE UNIQUE INDEX IF NOT EXISTS idx_candles_unique ON candles (time, symbol, frequency);
+              CREATE UNIQUE INDEX IF NOT EXISTS idx_candles_freq_unique ON candles (time, symbol, frequency);
 
-              -- Update symbol lookup index
+              -- Recreate symbol lookup index with frequency (idempotent)
               DROP INDEX IF EXISTS idx_candles_symbol_time;
               CREATE INDEX IF NOT EXISTS idx_candles_symbol_freq_time ON candles (symbol, frequency, time DESC);
 
-              -- Drop continuous aggregates (order matters — drop policies first)
-              SELECT remove_retention_policy('candles_5m', if_exists => true);
-              SELECT remove_continuous_aggregate_policy('candles_5m', if_not_exists => true);
+              -- Drop continuous aggregates if they still exist
+              DO $$ BEGIN
+                PERFORM remove_retention_policy('candles_5m', if_exists => true);
+              EXCEPTION WHEN undefined_table THEN NULL;
+              END $$;
+              DO $$ BEGIN
+                PERFORM remove_continuous_aggregate_policy('candles_5m', if_not_exists => true);
+              EXCEPTION WHEN undefined_table THEN NULL;
+              END $$;
               DROP MATERIALIZED VIEW IF EXISTS candles_5m CASCADE;
 
-              SELECT remove_continuous_aggregate_policy('candles_1h', if_not_exists => true);
+              DO $$ BEGIN
+                PERFORM remove_continuous_aggregate_policy('candles_1h', if_not_exists => true);
+              EXCEPTION WHEN undefined_table THEN NULL;
+              END $$;
               DROP MATERIALIZED VIEW IF EXISTS candles_1h CASCADE;
 
-              -- Add compression policies
+              -- Compression policies (idempotent via if_not_exists)
               ALTER TABLE candles SET (
                   timescaledb.compress,
                   timescaledb.compress_segmentby = 'symbol, frequency',
@@ -64,14 +73,18 @@ spec:
               );
               SELECT add_compression_policy('quotes', INTERVAL '7 days', if_not_exists => true);
 
-              -- Frequency-based retention (daily candles kept forever)
-              CREATE OR REPLACE FUNCTION cleanup_old_candles() RETURNS void AS $$
+              -- Frequency-based retention function + job (idempotent)
+              CREATE OR REPLACE FUNCTION cleanup_old_candles(config jsonb DEFAULT NULL) RETURNS void AS $$
               BEGIN
                   DELETE FROM candles WHERE frequency = '5m' AND time < now() - INTERVAL '90 days';
                   DELETE FROM candles WHERE frequency = '1h' AND time < now() - INTERVAL '1 year';
               END;
               $$ LANGUAGE plpgsql;
-              SELECT add_job('cleanup_old_candles', '1 day', if_not_exists => true);
+
+              DO $$ BEGIN
+                PERFORM add_job('cleanup_old_candles', INTERVAL '1 day');
+              EXCEPTION WHEN duplicate_object THEN NULL;
+              END $$;
           env:
             - name: PGPASSWORD
               valueFrom:

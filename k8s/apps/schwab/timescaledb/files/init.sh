@@ -58,13 +58,18 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     SELECT add_compression_policy('quotes', INTERVAL '7 days', if_not_exists => true);
 
     -- Frequency-based retention (daily candles kept forever)
-    CREATE OR REPLACE FUNCTION cleanup_old_candles() RETURNS void AS \$func\$
+    CREATE OR REPLACE FUNCTION cleanup_old_candles(config jsonb DEFAULT NULL) RETURNS void AS \$func\$
     BEGIN
         DELETE FROM candles WHERE frequency = '5m' AND time < now() - INTERVAL '90 days';
         DELETE FROM candles WHERE frequency = '1h' AND time < now() - INTERVAL '1 year';
     END;
     \$func\$ LANGUAGE plpgsql;
-    SELECT add_job('cleanup_old_candles', '1 day', if_not_exists => true);
+    DO \$\$
+    BEGIN
+        PERFORM add_job('cleanup_old_candles', INTERVAL '1 day');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END
+    \$\$;
 
     -- App user for go-market-store
     DO \$\$
