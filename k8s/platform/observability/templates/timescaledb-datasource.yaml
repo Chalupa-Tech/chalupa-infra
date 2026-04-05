@@ -19,8 +19,10 @@ data:
         isDefault: false
         editable: true
         jsonData:
+          database: market
           sslmode: disable
           timescaledb: true
           postgresVersion: 1600
+          maxOpenConns: 5
         secureJsonData:
           password: "97ee0745384f2bbf0afcce7e7ae40d0d68ad0f3dae4edb2c"
