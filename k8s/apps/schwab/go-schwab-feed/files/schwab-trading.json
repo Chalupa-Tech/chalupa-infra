@@ -99,7 +99,7 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "schwab_account_value{registration=~\"$registration\"}",
+          "expr": "max by (registration) (schwab_account_value{registration=~\"$registration\"})",
           "legendFormat": "Total Value"
         }
       ],
@@ -126,7 +126,7 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "schwab_account_day_gain_loss{registration=~\"$registration\"}",
+          "expr": "max by (registration) (schwab_account_day_gain_loss{registration=~\"$registration\"})",
           "legendFormat": "Day P&L"
         }
       ],
@@ -154,7 +154,7 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "schwab_account_buying_power{registration=~\"$registration\"}",
+          "expr": "max by (registration) (schwab_account_buying_power{registration=~\"$registration\"})",
           "legendFormat": "Buying Power"
         }
       ],
@@ -232,6 +232,12 @@
       "options": {
         "mode": "candles",
         "includeAllFields": false,
+        "fields": {
+          "open": "open",
+          "high": "high",
+          "low": "low",
+          "close": "close"
+        },
         "colors": {
           "up": "green",
           "down": "red",
