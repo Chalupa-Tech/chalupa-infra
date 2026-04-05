@@ -31,7 +31,10 @@
       {
         "name": "symbol",
         "type": "query",
-        "datasource": "TimescaleDB",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "timescaledb"
+        },
         "query": "SELECT DISTINCT symbol FROM candles ORDER BY symbol",
         "definition": "SELECT DISTINCT symbol FROM candles ORDER BY symbol",
         "multi": false,
@@ -207,7 +210,7 @@
       "title": "$symbol Candlestick",
       "type": "candlestick",
       "gridPos": { "h": 14, "w": 18, "x": 0, "y": 6 },
-      "datasource": "TimescaleDB",
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
       "targets": [
         {
           "rawSql": "SELECT time, open, high, low, close, volume FROM candles WHERE symbol = '$symbol' AND $__timeFilter(time) ORDER BY time",
