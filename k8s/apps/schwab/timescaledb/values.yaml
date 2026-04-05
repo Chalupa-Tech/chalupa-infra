@@ -1,7 +1,7 @@
 ---
 image:
-  repository: timescale/timescaledb-ha
-  tag: pg16-ts2.17.2
+  repository: timescale/timescaledb
+  tag: 2.26.1-pg16
   pullPolicy: IfNotPresent
 
 database:

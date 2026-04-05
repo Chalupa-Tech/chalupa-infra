@@ -3,5 +3,5 @@ kind: ConfigMap
 metadata:
   name: timescaledb-init
 data:
-  init.sql: |
-{{ .Files.Get "files/init.sql" | indent 4 }}
+  init.sh: |
+{{ .Files.Get "files/init.sh" | indent 4 }}
