@@ -3,6 +3,8 @@ argo-rollouts:
   keepCRDs: true
 
   controller:
+    metrics:
+      enabled: true
     resources:
       requests:
         cpu: 10m
