@@ -99,8 +99,9 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "max by (registration) (schwab_account_value{registration=~\"$registration\"})",
-          "legendFormat": "Total Value"
+          "expr": "schwab_account_value{registration=~\"$registration\"}",
+          "legendFormat": "Total Value",
+          "instant": true
         }
       ],
       "fieldConfig": {
@@ -126,8 +127,9 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "max by (registration) (schwab_account_day_gain_loss{registration=~\"$registration\"})",
-          "legendFormat": "Day P&L"
+          "expr": "schwab_account_day_gain_loss{registration=~\"$registration\"}",
+          "legendFormat": "Day P&L",
+          "instant": true
         }
       ],
       "fieldConfig": {
@@ -154,8 +156,9 @@
       "datasource": "VictoriaMetrics",
       "targets": [
         {
-          "expr": "max by (registration) (schwab_account_buying_power{registration=~\"$registration\"})",
-          "legendFormat": "Buying Power"
+          "expr": "schwab_account_buying_power{registration=~\"$registration\"}",
+          "legendFormat": "Buying Power",
+          "instant": true
         }
       ],
       "fieldConfig": {
@@ -182,7 +185,8 @@
       "targets": [
         {
           "expr": "sum(schwab_position_unrealized_pl{registration=~\"$registration\"})",
-          "legendFormat": "Unrealized P&L"
+          "legendFormat": "Unrealized P&L",
+          "instant": true
         }
       ],
       "fieldConfig": {
