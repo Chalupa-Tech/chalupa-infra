@@ -26,6 +26,7 @@ feed:
   optionsInterval: "30m"
   positionInterval: "15m"
   historyInterval: "24h"
+  intradayInterval: "30m"
   watchlist: ""
 
 resources:

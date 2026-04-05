@@ -70,6 +70,10 @@ spec:
               value: {{ .Values.feed.positionInterval | quote }}
             - name: HISTORY_INTERVAL
               value: {{ .Values.feed.historyInterval | quote }}
+            {{- if .Values.feed.intradayInterval }}
+            - name: INTRADAY_INTERVAL
+              value: {{ .Values.feed.intradayInterval | quote }}
+            {{- end }}
             - name: METRICS_PORT
               value: {{ .Values.metrics.port | quote }}
             {{- if .Values.feed.watchlist }}
