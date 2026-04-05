@@ -38,20 +38,20 @@ spec:
               CREATE INDEX IF NOT EXISTS idx_candles_symbol_freq_time ON candles (symbol, frequency, time DESC);
 
               -- Drop continuous aggregates if they still exist
-              DO $$ BEGIN
+              DO {{ "$$" }} BEGIN
                 PERFORM remove_retention_policy('candles_5m', if_exists => true);
               EXCEPTION WHEN undefined_table THEN NULL;
-              END $$;
-              DO $$ BEGIN
+              END {{ "$$" }};
+              DO {{ "$$" }} BEGIN
                 PERFORM remove_continuous_aggregate_policy('candles_5m', if_not_exists => true);
               EXCEPTION WHEN undefined_table THEN NULL;
-              END $$;
+              END {{ "$$" }};
               DROP MATERIALIZED VIEW IF EXISTS candles_5m CASCADE;
 
-              DO $$ BEGIN
+              DO {{ "$$" }} BEGIN
                 PERFORM remove_continuous_aggregate_policy('candles_1h', if_not_exists => true);
               EXCEPTION WHEN undefined_table THEN NULL;
-              END $$;
+              END {{ "$$" }};
               DROP MATERIALIZED VIEW IF EXISTS candles_1h CASCADE;
 
               -- Compression policies (idempotent via if_not_exists)
@@ -70,17 +70,17 @@ spec:
               SELECT add_compression_policy('quotes', INTERVAL '7 days', if_not_exists => true);
 
               -- Frequency-based retention function + job (idempotent)
-              CREATE OR REPLACE FUNCTION cleanup_old_candles(config jsonb DEFAULT NULL) RETURNS void AS $$
+              CREATE OR REPLACE FUNCTION cleanup_old_candles(config jsonb DEFAULT NULL) RETURNS void AS {{ "$$" }}
               BEGIN
                   DELETE FROM candles WHERE frequency = '5m' AND time < now() - INTERVAL '90 days';
                   DELETE FROM candles WHERE frequency = '1h' AND time < now() - INTERVAL '1 year';
               END;
-              $$ LANGUAGE plpgsql;
+              {{ "$$" }} LANGUAGE plpgsql;
 
-              DO $$ BEGIN
+              DO {{ "$$" }} BEGIN
                 PERFORM add_job('cleanup_old_candles', INTERVAL '1 day');
               EXCEPTION WHEN duplicate_object THEN NULL;
-              END $$;
+              END {{ "$$" }};
               EOSQL
           env:
             - name: PGPASSWORD
