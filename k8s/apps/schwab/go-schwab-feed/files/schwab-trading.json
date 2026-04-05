@@ -36,13 +36,15 @@
           "uid": "timescaledb"
         },
         "query": "SELECT DISTINCT symbol FROM candles ORDER BY symbol",
+        "rawSql": "SELECT DISTINCT symbol FROM candles ORDER BY symbol",
         "definition": "SELECT DISTINCT symbol FROM candles ORDER BY symbol",
         "multi": false,
         "includeAll": false,
         "current": {},
-        "refresh": 2,
+        "refresh": 1,
         "sort": 1,
-        "regex": ""
+        "regex": "",
+        "hide": 0
       }
     ]
   },
