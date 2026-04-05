@@ -213,6 +213,7 @@
       "type": "candlestick",
       "gridPos": { "h": 14, "w": 18, "x": 0, "y": 6 },
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
+      "timeFrom": "90d",
       "targets": [
         {
           "rawSql": "SELECT time, open, high, low, close FROM candles WHERE symbol = '$symbol' AND $__timeFilter(time) ORDER BY time",
