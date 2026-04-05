@@ -15,6 +15,11 @@ velero:
     image:
       tag: "1.32"
 
+  # -- Skip CRD upgrade hook — CRDs already installed, and ArgoCD's
+  # manifest cache prevents the kubectl.image.tag override from taking
+  # effect on the hook job (known rendering issue with wrapper charts).
+  upgradeCRDs: false
+
   # -- S3-compatible backup storage (MinIO on fw1)
   configuration:
     backupStorageLocation:
