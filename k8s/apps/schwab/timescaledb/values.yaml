@@ -29,4 +29,4 @@ vault:
 
 migrations:
   frequency:
-    enabled: false  # Schema applied — disable to avoid PreSync/secret ordering issue
+    enabled: true
