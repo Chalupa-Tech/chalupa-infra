@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: go-notify-subscriber-canary
+  labels:
+    app: go-notify-subscriber
+spec:
+  args:
+    - name: pod-hash
+  metrics:
+    # Canary pod must be responding to health probes (admin server alive).
+    - name: health-check
+      interval: 60s
+      count: 3
+      failureLimit: 1
+      provider:
+        prometheus:
+          address: http://vmsingle-vmstack.observability.svc.cluster.local:8428
+          query: |
+            scalar(
+              up{job="go-notify-subscriber", namespace="schwab-ddowell"}
+            )
+      successCondition: result >= 1
+
+    # No crash loops — canary pod restarts must be zero.
+    - name: no-restarts
+      interval: 60s
+      count: 3
+      failureLimit: 0
+      provider:
+        prometheus:
+          address: http://vmsingle-vmstack.observability.svc.cluster.local:8428
+          query: |
+            scalar(
+              max(
+                kube_pod_container_status_restarts_total{
+                  namespace="schwab-ddowell",
+                  pod=~"go-notify-subscriber-.*-{{`{{args.pod-hash}}`}}.*"
+                }
+              )
+            )
+      successCondition: result == 0 || isNaN(result)
