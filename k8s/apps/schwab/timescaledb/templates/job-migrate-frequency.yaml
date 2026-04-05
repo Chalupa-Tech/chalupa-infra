@@ -1,0 +1,81 @@
+{{- if .Values.migrations.frequency.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: timescaledb-migrate-frequency
+  labels:
+    app.kubernetes.io/name: timescaledb
+    app.kubernetes.io/component: migration
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["psql"]
+          args:
+            - "-v"
+            - "ON_ERROR_STOP=1"
+            - "-h"
+            - "timescaledb.{{ .Release.Namespace }}.svc.cluster.local"
+            - "-U"
+            - "postgres"
+            - "-d"
+            - "{{ .Values.database.name }}"
+            - "-c"
+            - |
+              -- Add frequency column with default for existing daily data
+              ALTER TABLE candles ADD COLUMN IF NOT EXISTS frequency TEXT NOT NULL DEFAULT '1d';
+
+              -- Drop old unique index, create new one
+              DROP INDEX IF EXISTS idx_candles_unique;
+              CREATE UNIQUE INDEX IF NOT EXISTS idx_candles_unique ON candles (time, symbol, frequency);
+
+              -- Update symbol lookup index
+              DROP INDEX IF EXISTS idx_candles_symbol_time;
+              CREATE INDEX IF NOT EXISTS idx_candles_symbol_freq_time ON candles (symbol, frequency, time DESC);
+
+              -- Drop continuous aggregates (order matters — drop policies first)
+              SELECT remove_retention_policy('candles_5m', if_exists => true);
+              SELECT remove_continuous_aggregate_policy('candles_5m', if_not_exists => true);
+              DROP MATERIALIZED VIEW IF EXISTS candles_5m CASCADE;
+
+              SELECT remove_continuous_aggregate_policy('candles_1h', if_not_exists => true);
+              DROP MATERIALIZED VIEW IF EXISTS candles_1h CASCADE;
+
+              -- Add compression policies
+              ALTER TABLE candles SET (
+                  timescaledb.compress,
+                  timescaledb.compress_segmentby = 'symbol, frequency',
+                  timescaledb.compress_orderby = 'time DESC'
+              );
+              SELECT add_compression_policy('candles', INTERVAL '30 days', if_not_exists => true);
+
+              ALTER TABLE quotes SET (
+                  timescaledb.compress,
+                  timescaledb.compress_segmentby = 'symbol',
+                  timescaledb.compress_orderby = 'time DESC'
+              );
+              SELECT add_compression_policy('quotes', INTERVAL '7 days', if_not_exists => true);
+
+              -- Frequency-based retention (daily candles kept forever)
+              CREATE OR REPLACE FUNCTION cleanup_old_candles() RETURNS void AS $$
+              BEGIN
+                  DELETE FROM candles WHERE frequency = '5m' AND time < now() - INTERVAL '90 days';
+                  DELETE FROM candles WHERE frequency = '1h' AND time < now() - INTERVAL '1 year';
+              END;
+              $$ LANGUAGE plpgsql;
+              SELECT add_job('cleanup_old_candles', '1 day', if_not_exists => true);
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: timescaledb-secrets
+                  key: POSTGRES_PASSWORD
+{{- end }}

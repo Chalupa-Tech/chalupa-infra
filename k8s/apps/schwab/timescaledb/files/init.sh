@@ -7,20 +7,29 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 
     CREATE EXTENSION IF NOT EXISTS timescaledb;
 
-    -- Daily OHLCV candle data from Schwab price history API
+    -- Multi-frequency OHLCV candle data from Schwab price history API
     CREATE TABLE IF NOT EXISTS candles (
-        time    TIMESTAMPTZ      NOT NULL,
-        symbol  TEXT             NOT NULL,
-        open    DOUBLE PRECISION,
-        high    DOUBLE PRECISION,
-        low     DOUBLE PRECISION,
-        close   DOUBLE PRECISION,
-        volume  BIGINT,
-        source  TEXT DEFAULT 'schwab'
+        time      TIMESTAMPTZ      NOT NULL,
+        symbol    TEXT             NOT NULL,
+        frequency TEXT             NOT NULL DEFAULT '1d',
+        open      DOUBLE PRECISION,
+        high      DOUBLE PRECISION,
+        low       DOUBLE PRECISION,
+        close     DOUBLE PRECISION,
+        volume    BIGINT,
+        source    TEXT DEFAULT 'schwab'
     );
     SELECT create_hypertable('candles', 'time', if_not_exists => TRUE);
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_candles_unique ON candles (time, symbol);
-    CREATE INDEX IF NOT EXISTS idx_candles_symbol_time ON candles (symbol, time DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_candles_unique ON candles (time, symbol, frequency);
+    CREATE INDEX IF NOT EXISTS idx_candles_symbol_freq_time ON candles (symbol, frequency, time DESC);
+
+    -- Compression on candles (segmentby symbol+frequency, orderby time)
+    ALTER TABLE candles SET (
+        timescaledb.compress,
+        timescaledb.compress_segmentby = 'symbol, frequency',
+        timescaledb.compress_orderby = 'time DESC'
+    );
+    SELECT add_compression_policy('candles', INTERVAL '30 days', if_not_exists => true);
 
     -- Intraday quote snapshots (append-only, 30-day retention)
     CREATE TABLE IF NOT EXISTS quotes (
@@ -40,50 +49,22 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     CREATE INDEX IF NOT EXISTS idx_quotes_symbol_time ON quotes (symbol, time DESC);
     SELECT add_retention_policy('quotes', INTERVAL '30 days', if_not_exists => TRUE);
 
-    -- 5-minute candles from quote snapshots (24h retention)
-    CREATE MATERIALIZED VIEW IF NOT EXISTS candles_5m
-    WITH (timescaledb.continuous) AS
-    SELECT
-        time_bucket('5 minutes', time) AS time,
-        symbol,
-        first(price, time) AS open,
-        max(high_price) AS high,
-        min(low_price) AS low,
-        last(price, time) AS close,
-        max(volume) AS volume,
-        'quote_agg' AS source
-    FROM quotes
-    WHERE price > 0 AND low_price > 0
-    GROUP BY time_bucket('5 minutes', time), symbol
-    WITH NO DATA;
-    SELECT add_continuous_aggregate_policy('candles_5m',
-        start_offset => INTERVAL '1 day',
-        end_offset => INTERVAL '5 minutes',
-        schedule_interval => INTERVAL '5 minutes',
-        if_not_exists => TRUE);
-    SELECT add_retention_policy('candles_5m', INTERVAL '24 hours', if_not_exists => TRUE);
+    -- Compression on quotes
+    ALTER TABLE quotes SET (
+        timescaledb.compress,
+        timescaledb.compress_segmentby = 'symbol',
+        timescaledb.compress_orderby = 'time DESC'
+    );
+    SELECT add_compression_policy('quotes', INTERVAL '7 days', if_not_exists => true);
 
-    -- Hourly candles from quote snapshots (kept indefinitely)
-    CREATE MATERIALIZED VIEW IF NOT EXISTS candles_1h
-    WITH (timescaledb.continuous) AS
-    SELECT
-        time_bucket('1 hour', time) AS time,
-        symbol,
-        first(price, time) AS open,
-        max(high_price) AS high,
-        min(low_price) AS low,
-        last(price, time) AS close,
-        max(volume) AS volume,
-        'quote_agg_1h' AS source
-    FROM quotes
-    WHERE price > 0 AND low_price > 0
-    GROUP BY time_bucket('1 hour', time), symbol
-    WITH NO DATA;
-    SELECT add_continuous_aggregate_policy('candles_1h',
-        start_offset => INTERVAL '7 days',
-        end_offset => INTERVAL '1 hour',
-        schedule_interval => INTERVAL '1 hour',
-        if_not_exists => TRUE);
+    -- Frequency-based retention (daily candles kept forever)
+    CREATE OR REPLACE FUNCTION cleanup_old_candles() RETURNS void AS \$func\$
+    BEGIN
+        DELETE FROM candles WHERE frequency = '5m' AND time < now() - INTERVAL '90 days';
+        DELETE FROM candles WHERE frequency = '1h' AND time < now() - INTERVAL '1 year';
+    END;
+    \$func\$ LANGUAGE plpgsql;
+    SELECT add_job('cleanup_old_candles', '1 day', if_not_exists => true);
 
     -- App user for go-market-store
     DO \$\$
