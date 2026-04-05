@@ -19,6 +19,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
         source  TEXT DEFAULT 'schwab'
     );
     SELECT create_hypertable('candles', 'time', if_not_exists => TRUE);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_candles_unique ON candles (time, symbol);
     CREATE INDEX IF NOT EXISTS idx_candles_symbol_time ON candles (symbol, time DESC);
 
     -- Intraday quote snapshots (append-only, 30-day retention)
