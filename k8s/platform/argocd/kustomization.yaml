@@ -6,3 +6,4 @@ resources:
 
 patches:
   - path: patches/argocd-cm.yaml
+  - path: patches/resource-limits.yaml
