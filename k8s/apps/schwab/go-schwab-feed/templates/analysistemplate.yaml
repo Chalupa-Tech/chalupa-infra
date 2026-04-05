@@ -9,6 +9,7 @@ spec:
     - name: pod-hash
   metrics:
     # Canary pod must be responding to health probes (admin server alive).
+    # VictoriaMetrics always returns vector type — use len() guard + result[0] indexing.
     - name: health-check
       interval: 60s
       count: 3
@@ -18,7 +19,8 @@ spec:
           address: http://vmsingle-vmstack.observability.svc.cluster.local:8428
           query: |
             min(up{job="go-schwab-feed", namespace="schwab-ddowell"})
-      successCondition: result >= 1
+      successCondition: "len(result) > 0 && result[0] >= 1"
+      failureCondition: "len(result) == 0 || result[0] < 1"
 
     # No crash loops — canary pod restarts must be zero.
     - name: no-restarts
@@ -35,4 +37,5 @@ spec:
                 pod=~"go-schwab-feed-.*-{{`{{args.pod-hash}}`}}.*"
               }
             )
-      successCondition: result == 0 || isNaN(result)
+      successCondition: "len(result) == 0 || result[0] == 0"
+      failureCondition: "len(result) > 0 && result[0] > 0"
