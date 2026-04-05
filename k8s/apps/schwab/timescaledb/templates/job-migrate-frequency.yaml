@@ -18,18 +18,14 @@ spec:
       containers:
         - name: migrate
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          command: ["psql"]
+          command: ["/bin/sh", "-c"]
           args:
-            - "-v"
-            - "ON_ERROR_STOP=1"
-            - "-h"
-            - "timescaledb.{{ .Release.Namespace }}.svc.cluster.local"
-            - "-U"
-            - "postgres"
-            - "-d"
-            - "{{ .Values.database.name }}"
-            - "-c"
             - |
+              psql -v ON_ERROR_STOP=1 \
+                -h "timescaledb.{{ .Release.Namespace }}.svc.cluster.local" \
+                -U postgres \
+                -d "{{ .Values.database.name }}" \
+                -f - <<'EOSQL'
               -- Add frequency column with default for existing daily data
               ALTER TABLE candles ADD COLUMN IF NOT EXISTS frequency TEXT NOT NULL DEFAULT '1d';
 
@@ -85,6 +81,7 @@ spec:
                 PERFORM add_job('cleanup_old_candles', INTERVAL '1 day');
               EXCEPTION WHEN duplicate_object THEN NULL;
               END $$;
+              EOSQL
           env:
             - name: PGPASSWORD
               valueFrom:
