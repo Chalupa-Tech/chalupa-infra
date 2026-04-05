@@ -40,6 +40,49 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     CREATE INDEX IF NOT EXISTS idx_quotes_symbol_time ON quotes (symbol, time DESC);
     SELECT add_retention_policy('quotes', INTERVAL '30 days', if_not_exists => TRUE);
 
+    -- 5-minute candles from quote snapshots (24h retention)
+    CREATE MATERIALIZED VIEW IF NOT EXISTS candles_5m
+    WITH (timescaledb.continuous) AS
+    SELECT
+        time_bucket('5 minutes', time) AS time,
+        symbol,
+        first(price, time) AS open,
+        max(high_price) AS high,
+        min(low_price) AS low,
+        last(price, time) AS close,
+        max(volume) AS volume,
+        'quote_agg' AS source
+    FROM quotes
+    GROUP BY time_bucket('5 minutes', time), symbol
+    WITH NO DATA;
+    SELECT add_continuous_aggregate_policy('candles_5m',
+        start_offset => INTERVAL '1 day',
+        end_offset => INTERVAL '5 minutes',
+        schedule_interval => INTERVAL '5 minutes',
+        if_not_exists => TRUE);
+    SELECT add_retention_policy('candles_5m', INTERVAL '24 hours', if_not_exists => TRUE);
+
+    -- Hourly candles from quote snapshots (kept indefinitely)
+    CREATE MATERIALIZED VIEW IF NOT EXISTS candles_1h
+    WITH (timescaledb.continuous) AS
+    SELECT
+        time_bucket('1 hour', time) AS time,
+        symbol,
+        first(price, time) AS open,
+        max(high_price) AS high,
+        min(low_price) AS low,
+        last(price, time) AS close,
+        max(volume) AS volume,
+        'quote_agg_1h' AS source
+    FROM quotes
+    GROUP BY time_bucket('1 hour', time), symbol
+    WITH NO DATA;
+    SELECT add_continuous_aggregate_policy('candles_1h',
+        start_offset => INTERVAL '7 days',
+        end_offset => INTERVAL '1 hour',
+        schedule_interval => INTERVAL '1 hour',
+        if_not_exists => TRUE);
+
     -- App user for go-market-store
     DO \$\$
     BEGIN
@@ -65,5 +108,6 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     GRANT CONNECT ON DATABASE market TO grafana;
     GRANT USAGE ON SCHEMA public TO grafana;
     GRANT SELECT ON ALL TABLES IN SCHEMA public TO grafana;
+    GRANT SELECT ON ALL TABLES IN SCHEMA _timescaledb_internal TO grafana;
     ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO grafana;
 EOSQL
