@@ -50,6 +50,10 @@ spec:
             path: k8s/apps/schwab/go-schwab-feed
             namespace: schwab-ddowell
             wave: "1"
+          - name: schwab-ddowell-go-market-store
+            path: k8s/apps/schwab/go-market-store
+            namespace: schwab-ddowell
+            wave: "1"
   template:
     metadata:
       name: "{{name}}"

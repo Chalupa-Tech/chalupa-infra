@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-market-store
+  labels:
+    app: go-market-store
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 120
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: go-market-store
+  template:
+    metadata:
+      labels:
+        app: go-market-store
+    spec:
+      containers:
+        - name: go-market-store
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: timescaledb-secrets
+                  key: APP_PASSWORD
+            - name: NATS_URL
+              value: {{ .Values.nats.url | quote }}
+            - name: DATABASE_URL
+              value: "postgresql://{{ .Values.database.user }}:$(DB_PASSWORD)@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}?sslmode=disable"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
