@@ -2,7 +2,7 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-schwab-feed
-  tag: v0.4.0
+  tag: v0.5.0
 
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
@@ -20,8 +20,9 @@ metrics:
   port: 9090
 
 feed:
-  rateLimit: "30"
-  quoteInterval: "30s"
+  rateLimit: "100"
+  quoteInterval: "10s"
+  offHoursQuoteInterval: "5m"
   optionsInterval: "30m"
   positionInterval: "15m"
   historyInterval: "24h"
