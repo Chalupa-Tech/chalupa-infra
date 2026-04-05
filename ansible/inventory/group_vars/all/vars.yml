@@ -23,6 +23,11 @@ managed_apps:
     auth_sa: go-schwab-auth
   - name: observability
   - name: velero
+    secrets:
+      - path: velero/minio
+        data:
+          access_key: "{{ minio_access_key }}"
+          secret_key: "{{ minio_secret_key }}"
 
 # Secrets (Now managed via Ansible Vault: vault.yml)
 gitea_ci_read_password: "{{ vault_gitea_ci_read_password }}"
@@ -32,6 +37,8 @@ ts_docker_authkey: "{{ vault_ts_docker_authkey }}"
 ts_operator_client_id: "{{ vault_ts_operator_client_id }}"
 ts_operator_client_secret: "{{ vault_ts_operator_client_secret }}"
 cloudflare_api_key: "{{ vault_cloudflare_api_key }}"
+minio_access_key: "{{ vault_minio_access_key }}"
+minio_secret_key: "{{ vault_minio_secret_key }}"
 ts_service_name: "{{ vault_ts_service_name | default('svc:chalupa-k3s') }}"
 tailscale_api_key: "{{ vault_tailscale_api_key }}"
 

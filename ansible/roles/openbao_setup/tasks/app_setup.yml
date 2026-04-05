@@ -76,3 +76,20 @@
   changed_when: true
   no_log: true
   when: app_item.auth_service | default(false)
+
+- name: Seed OpenBao secrets for {{ app_item.name }}
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/{{ secret_item.path }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      data: "{{ secret_item.data }}"
+    status_code: [200, 204]
+    validate_certs: false
+  loop: "{{ app_item.secrets | default([]) }}"
+  loop_control:
+    loop_var: secret_item
+  no_log: true
+  when: app_item.secrets is defined
