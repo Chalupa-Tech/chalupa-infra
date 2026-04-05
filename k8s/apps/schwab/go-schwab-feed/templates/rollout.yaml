@@ -60,6 +60,10 @@ spec:
               value: {{ .Values.feed.rateLimit | quote }}
             - name: QUOTE_INTERVAL
               value: {{ .Values.feed.quoteInterval | quote }}
+            {{- if .Values.feed.offHoursQuoteInterval }}
+            - name: OFF_HOURS_QUOTE_INTERVAL
+              value: {{ .Values.feed.offHoursQuoteInterval | quote }}
+            {{- end }}
             - name: OPTIONS_INTERVAL
               value: {{ .Values.feed.optionsInterval | quote }}
             - name: POSITION_INTERVAL
