@@ -219,7 +219,7 @@
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
       "targets": [
         {
-          "rawSql": "SELECT time, open, high, low, close FROM candles WHERE symbol = '$symbol' AND time >= now() - interval '90 days' ORDER BY time",
+          "rawSql": "SELECT time, open, high, low, close FROM candles_5m WHERE symbol = '$symbol' AND $__timeFilter(time) UNION ALL SELECT time, open, high, low, close FROM candles_1h WHERE symbol = '$symbol' AND $__timeFilter(time) AND time < now() - interval '24 hours' UNION ALL SELECT time, open, high, low, close FROM candles WHERE symbol = '$symbol' AND $__timeFilter(time) AND time < now() - interval '7 days' ORDER BY time",
           "format": "table",
           "refId": "A"
         }
