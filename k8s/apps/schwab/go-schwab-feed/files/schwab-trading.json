@@ -215,7 +215,7 @@
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
       "targets": [
         {
-          "rawSql": "SELECT time, open, high, low, close, volume FROM candles_5m WHERE symbol = '$symbol' AND $__timeFilter(time) UNION ALL SELECT time, open, high, low, close, volume FROM candles_1h WHERE symbol = '$symbol' AND $__timeFilter(time) AND time < now() - INTERVAL '24 hours' UNION ALL SELECT time, open, high, low, close, volume FROM candles WHERE symbol = '$symbol' AND $__timeFilter(time) AND time < now() - INTERVAL '7 days' ORDER BY time",
+          "rawSql": "SELECT time, open, high, low, close FROM candles_5m WHERE symbol = '$symbol' AND $__timeFilter(time) UNION ALL SELECT time, open, high, low, close FROM candles_1h WHERE symbol = '$symbol' AND $__timeFilter(time) AND time < now() - INTERVAL '24 hours' UNION ALL SELECT time, open, high, low, close FROM candles WHERE symbol = '$symbol' AND $__timeFilter(time) AND time < now() - INTERVAL '7 days' ORDER BY time",
           "format": "table",
           "refId": "A"
         }
@@ -223,19 +223,11 @@
       "fieldConfig": {
         "defaults": {
           "custom": {
-            "includeAllFields": false
-          }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "volume" },
-            "properties": [
-              { "id": "custom.axisSoftMax", "value": 0 },
-              { "id": "custom.fillOpacity", "value": 30 },
-              { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }
-            ]
-          }
-        ]
+            "axisSoftMin": null
+          },
+          "decimals": 2,
+          "unit": "currencyUSD"
+        }
       },
       "options": {
         "mode": "candles",
