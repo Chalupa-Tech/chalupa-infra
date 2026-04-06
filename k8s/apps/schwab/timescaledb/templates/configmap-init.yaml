@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: timescaledb-init
-data:
-  init.sh: |
-{{ .Files.Get "files/init.sh" | indent 4 }}

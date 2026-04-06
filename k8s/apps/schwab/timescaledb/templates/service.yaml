@@ -1,3 +1,7 @@
+---
+# Compatibility service — CloudNativePG creates timescaledb-rw, timescaledb-ro,
+# timescaledb-r. This keeps the original "timescaledb" name working for
+# go-market-store and Grafana without requiring downstream changes.
 apiVersion: v1
 kind: Service
 metadata:
@@ -6,11 +10,5 @@ metadata:
     app.kubernetes.io/name: timescaledb
     app.kubernetes.io/component: database
 spec:
-  type: ClusterIP
-  ports:
-    - name: postgresql
-      port: {{ .Values.service.port }}
-      targetPort: postgresql
-      protocol: TCP
-  selector:
-    app.kubernetes.io/name: timescaledb
+  type: ExternalName
+  externalName: timescaledb-rw.{{ .Release.Namespace }}.svc.cluster.local
