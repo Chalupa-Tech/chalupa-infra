@@ -160,17 +160,26 @@
     - name: Copy dump into CNPG pod
       ansible.builtin.command: >
         k3s kubectl cp {{ tsdb_dump_path }}
-        {{ tsdb_namespace }}/{{ cnpg_primary_pod.stdout }}:/tmp/restore.dump
+        {{ tsdb_namespace }}/{{ cnpg_primary_pod.stdout }}:/var/lib/postgresql/data/restore.dump
+      changed_when: true
+      when: phase == 'restore'
+
+    - name: Drop existing tables for full restore
+      ansible.builtin.command: >
+        k3s kubectl exec {{ cnpg_primary_pod.stdout }}
+        -n {{ tsdb_namespace }} -c postgres --
+        psql -U postgres -d {{ tsdb_database }}
+        -c "DROP TABLE IF EXISTS candles CASCADE; DROP TABLE IF EXISTS quotes CASCADE;"
       changed_when: true
       when: phase == 'restore'
 
     - name: Restore dump into CNPG database
       ansible.builtin.command: >
         k3s kubectl exec {{ cnpg_primary_pod.stdout }}
-        -n {{ tsdb_namespace }} --
+        -n {{ tsdb_namespace }} -c postgres --
         pg_restore -U postgres -d {{ tsdb_database }}
-        --no-owner --no-acl --data-only
-        /tmp/restore.dump
+        --no-owner --no-acl
+        /var/lib/postgresql/data/restore.dump
       register: restore_result
       changed_when: true
       failed_when: restore_result.rc > 1
@@ -184,7 +193,7 @@
     - name: Verify candle counts in CNPG
       ansible.builtin.command: >
         k3s kubectl exec {{ cnpg_primary_pod.stdout }}
-        -n {{ tsdb_namespace }} --
+        -n {{ tsdb_namespace }} -c postgres --
         psql -U postgres -d {{ tsdb_database }} -t -A
         -c "SELECT frequency, count(*) FROM candles GROUP BY frequency ORDER BY frequency"
       register: new_candle_counts
@@ -194,7 +203,7 @@
     - name: Verify quote counts in CNPG
       ansible.builtin.command: >
         k3s kubectl exec {{ cnpg_primary_pod.stdout }}
-        -n {{ tsdb_namespace }} --
+        -n {{ tsdb_namespace }} -c postgres --
         psql -U postgres -d {{ tsdb_database }} -t -A
         -c "SELECT count(*) FROM quotes"
       register: new_quote_count
@@ -218,7 +227,7 @@
     - name: Remove dump from CNPG pod
       ansible.builtin.command: >
         k3s kubectl exec {{ cnpg_primary_pod.stdout }}
-        -n {{ tsdb_namespace }} -- rm -f /tmp/restore.dump
+        -n {{ tsdb_namespace }} -c postgres -- rm -f /var/lib/postgresql/data/restore.dump
       changed_when: true
       when: phase == 'restore'
 
