@@ -1,6 +1,6 @@
 ---
 image:
-  name: timescale/timescaledb:2.26.1-pg16
+  name: ghcr.io/clevyr/cloudnativepg-timescale:16
 
 database:
   name: market

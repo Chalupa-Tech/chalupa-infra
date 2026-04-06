@@ -9,18 +9,13 @@ spec:
   instances: 1
   imageName: {{ .Values.image.name }}
 
-  # TimescaleDB HA images use Alpine with UID/GID 70, not the CNPG default 26.
-  # Without this, the pod fails to start with permission errors on PGDATA.
-  postgresUID: 70
-  postgresGID: 70
-
   storage:
     size: {{ .Values.storage.size }}
     storageClass: {{ .Values.storage.storageClass }}
 
   postgresql:
-    parameters:
-      shared_preload_libraries: timescaledb
+    shared_preload_libraries:
+      - timescaledb
 
   bootstrap:
     initdb:
