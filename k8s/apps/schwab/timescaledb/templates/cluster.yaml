@@ -1,0 +1,73 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: timescaledb
+  labels:
+    app.kubernetes.io/name: timescaledb
+    app.kubernetes.io/component: database
+spec:
+  instances: 1
+  imageName: {{ .Values.image.name }}
+
+  # TimescaleDB HA images use Alpine with UID/GID 70, not the CNPG default 26.
+  # Without this, the pod fails to start with permission errors on PGDATA.
+  postgresUID: 70
+  postgresGID: 70
+
+  storage:
+    size: {{ .Values.storage.size }}
+    storageClass: {{ .Values.storage.storageClass }}
+
+  postgresql:
+    parameters:
+      shared_preload_libraries: timescaledb
+
+  bootstrap:
+    initdb:
+      database: {{ .Values.database.name }}
+      owner: postgres
+      postInitTemplateSQL:
+        - CREATE EXTENSION IF NOT EXISTS timescaledb
+      postInitApplicationSQLRefs:
+        configMapRefs:
+          - name: timescaledb-init-sql
+            key: schema.sql
+
+  managed:
+    roles:
+      - name: {{ .Values.database.appUser }}
+        ensure: present
+        login: true
+        passwordSecret:
+          name: timescaledb-secrets
+        inRoles:
+          - pg_read_all_data
+          - pg_write_all_data
+      - name: {{ .Values.database.grafanaUser }}
+        ensure: present
+        login: true
+        passwordSecret:
+          name: timescaledb-grafana-secret
+        inRoles:
+          - pg_read_all_data
+    services:
+      additional:
+        - selectorType: rw
+          serviceTemplate:
+            metadata:
+              name: timescaledb
+              labels:
+                app.kubernetes.io/name: timescaledb
+                app.kubernetes.io/component: database
+            spec:
+              type: ClusterIP
+
+  resources:
+    requests:
+      cpu: {{ .Values.resources.requests.cpu }}
+      memory: {{ .Values.resources.requests.memory }}
+    limits:
+      memory: {{ .Values.resources.limits.memory }}
+
+  monitoring:
+    enablePodMonitor: false

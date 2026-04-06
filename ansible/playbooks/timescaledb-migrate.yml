@@ -1,0 +1,240 @@
+---
+# Migrate TimescaleDB data from hand-rolled StatefulSet to CloudNativePG.
+#
+# Two-phase playbook controlled by the "phase" variable:
+#
+#   Phase 1 (dump)  — run BEFORE merging the CNPG PR
+#     Dumps the database from the old StatefulSet pod to a local file.
+#
+#   Phase 2 (restore) — run AFTER merging, once CNPG cluster is healthy
+#     Restores the dump into the CNPG-managed instance, verifies row counts.
+#
+# Why not CNPG's built-in bootstrap.initdb.import?
+#   CNPG import requires the source to be reachable during cluster bootstrap.
+#   ArgoCD prunes the old StatefulSet when it syncs the new Cluster CR, so
+#   the source pod won't exist when import runs. A two-phase dump/restore
+#   avoids this race condition and works cleanly with GitOps.
+#
+# Schedule outside market hours to avoid data loss during the dump window.
+#
+# Usage:
+#   # Phase 1: dump from old pod (before merging PR)
+#   ansible-playbook playbooks/timescaledb-migrate.yml -e phase=dump
+#
+#   # Merge the CNPG PR, wait for ArgoCD to sync
+#
+#   # Phase 2: restore into CNPG cluster (after merge)
+#   ansible-playbook playbooks/timescaledb-migrate.yml -e phase=restore
+#
+# Variables (override via -e):
+#   tsdb_namespace:    schwab-ddowell
+#   tsdb_old_pod:      timescaledb-0
+#   tsdb_database:     market
+#   tsdb_dump_path:    /tmp/timescaledb-market.dump
+
+- name: TimescaleDB migration
+  hosts: k3s_servers[0]
+  become: true
+  gather_facts: false
+  vars:
+    phase: ""
+    tsdb_namespace: schwab-ddowell
+    tsdb_old_pod: timescaledb-0
+    tsdb_database: market
+    tsdb_dump_path: /tmp/timescaledb-market.dump
+  tasks:
+    - name: Validate phase variable
+      ansible.builtin.assert:
+        that: phase in ['dump', 'restore']
+        fail_msg: "Set -e phase=dump or -e phase=restore"
+
+    # ── DUMP PHASE ───────────────────────────────────────────────────────
+
+    - name: Check old pod is running
+      ansible.builtin.command: >
+        k3s kubectl get pod {{ tsdb_old_pod }}
+        -n {{ tsdb_namespace }}
+        -o jsonpath='{.status.phase}'
+      register: old_pod_phase
+      changed_when: false
+      failed_when: old_pod_phase.stdout != 'Running'
+      when: phase == 'dump'
+
+    - name: Capture row counts from old instance (candles)
+      ansible.builtin.command: >
+        k3s kubectl exec {{ tsdb_old_pod }}
+        -n {{ tsdb_namespace }} --
+        psql -U postgres -d {{ tsdb_database }} -t -A
+        -c "SELECT frequency, count(*) FROM candles GROUP BY frequency ORDER BY frequency"
+      register: old_candle_counts
+      changed_when: false
+      when: phase == 'dump'
+
+    - name: Capture row counts from old instance (quotes)
+      ansible.builtin.command: >
+        k3s kubectl exec {{ tsdb_old_pod }}
+        -n {{ tsdb_namespace }} --
+        psql -U postgres -d {{ tsdb_database }} -t -A
+        -c "SELECT count(*) FROM quotes"
+      register: old_quote_count
+      changed_when: false
+      when: phase == 'dump'
+
+    - name: Show pre-dump row counts
+      ansible.builtin.debug:
+        msg:
+          candles: "{{ old_candle_counts.stdout_lines }}"
+          quotes: "{{ old_quote_count.stdout | trim }}"
+      when: phase == 'dump'
+
+    - name: Save row counts to file for restore verification
+      ansible.builtin.copy:
+        content: |
+          candles: {{ old_candle_counts.stdout }}
+          quotes: {{ old_quote_count.stdout | trim }}
+        dest: "{{ tsdb_dump_path }}.counts"
+        mode: "0644"
+      when: phase == 'dump'
+
+    - name: Dump database from old pod
+      ansible.builtin.shell: |
+        k3s kubectl exec {{ tsdb_old_pod }} -n {{ tsdb_namespace }} -- \
+          pg_dump -U postgres -d {{ tsdb_database }} \
+          --format=custom --no-owner --no-acl \
+          > {{ tsdb_dump_path }}
+      changed_when: true
+      when: phase == 'dump'
+
+    - name: Verify dump file
+      ansible.builtin.stat:
+        path: "{{ tsdb_dump_path }}"
+      register: dump_stat
+      failed_when: not dump_stat.stat.exists or dump_stat.stat.size == 0
+      when: phase == 'dump'
+
+    - name: Dump complete
+      ansible.builtin.debug:
+        msg: >-
+          Dump saved to {{ tsdb_dump_path }}
+          ({{ (dump_stat.stat.size / 1048576) | round(1) }} MB).
+          Merge the CNPG PR, wait for ArgoCD sync, then run phase=restore.
+      when: phase == 'dump'
+
+    # ── RESTORE PHASE ────────────────────────────────────────────────────
+
+    - name: Verify dump file exists
+      ansible.builtin.stat:
+        path: "{{ tsdb_dump_path }}"
+      register: dump_stat_restore
+      failed_when: not dump_stat_restore.stat.exists or dump_stat_restore.stat.size == 0
+      when: phase == 'restore'
+
+    - name: Wait for CNPG cluster to be healthy
+      ansible.builtin.command: >
+        k3s kubectl get cluster timescaledb
+        -n {{ tsdb_namespace }}
+        -o jsonpath='{.status.phase}'
+      register: cnpg_health
+      until: cnpg_health.stdout == 'Cluster in healthy state'
+      retries: 30
+      delay: 10
+      changed_when: false
+      when: phase == 'restore'
+
+    - name: Get CNPG primary pod name
+      ansible.builtin.command: >
+        k3s kubectl get pod
+        -n {{ tsdb_namespace }}
+        -l cnpg.io/cluster=timescaledb,role=primary
+        --no-headers
+        -o custom-columns=NAME:.metadata.name
+      register: cnpg_primary_pod
+      changed_when: false
+      when: phase == 'restore'
+
+    - name: Show CNPG primary
+      ansible.builtin.debug:
+        msg: "CNPG primary pod: {{ cnpg_primary_pod.stdout }}"
+      when: phase == 'restore'
+
+    - name: Copy dump into CNPG pod
+      ansible.builtin.command: >
+        k3s kubectl cp {{ tsdb_dump_path }}
+        {{ tsdb_namespace }}/{{ cnpg_primary_pod.stdout }}:/tmp/restore.dump
+      changed_when: true
+      when: phase == 'restore'
+
+    - name: Restore dump into CNPG database
+      ansible.builtin.command: >
+        k3s kubectl exec {{ cnpg_primary_pod.stdout }}
+        -n {{ tsdb_namespace }} --
+        pg_restore -U postgres -d {{ tsdb_database }}
+        --no-owner --no-acl --data-only
+        /tmp/restore.dump
+      register: restore_result
+      changed_when: true
+      failed_when: restore_result.rc > 1
+      when: phase == 'restore'
+
+    - name: Show restore warnings
+      ansible.builtin.debug:
+        msg: "{{ restore_result.stderr_lines }}"
+      when: phase == 'restore' and (restore_result.stderr_lines | default([]) | length > 0)
+
+    - name: Verify candle counts in CNPG
+      ansible.builtin.command: >
+        k3s kubectl exec {{ cnpg_primary_pod.stdout }}
+        -n {{ tsdb_namespace }} --
+        psql -U postgres -d {{ tsdb_database }} -t -A
+        -c "SELECT frequency, count(*) FROM candles GROUP BY frequency ORDER BY frequency"
+      register: new_candle_counts
+      changed_when: false
+      when: phase == 'restore'
+
+    - name: Verify quote counts in CNPG
+      ansible.builtin.command: >
+        k3s kubectl exec {{ cnpg_primary_pod.stdout }}
+        -n {{ tsdb_namespace }} --
+        psql -U postgres -d {{ tsdb_database }} -t -A
+        -c "SELECT count(*) FROM quotes"
+      register: new_quote_count
+      changed_when: false
+      when: phase == 'restore'
+
+    - name: Load saved row counts
+      ansible.builtin.slurp:
+        src: "{{ tsdb_dump_path }}.counts"
+      register: saved_counts
+      when: phase == 'restore'
+
+    - name: Show comparison
+      ansible.builtin.debug:
+        msg:
+          saved_counts: "{{ saved_counts.content | b64decode }}"
+          new_candles: "{{ new_candle_counts.stdout_lines }}"
+          new_quotes: "{{ new_quote_count.stdout | trim }}"
+      when: phase == 'restore'
+
+    - name: Remove dump from CNPG pod
+      ansible.builtin.command: >
+        k3s kubectl exec {{ cnpg_primary_pod.stdout }}
+        -n {{ tsdb_namespace }} -- rm -f /tmp/restore.dump
+      changed_when: true
+      when: phase == 'restore'
+
+    - name: Remove local dump and counts files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ tsdb_dump_path }}"
+        - "{{ tsdb_dump_path }}.counts"
+      when: phase == 'restore'
+
+    - name: Migration complete
+      ansible.builtin.debug:
+        msg: >-
+          Restore complete. Verify go-market-store is writing candles and
+          Grafana dashboards show data. Old PVC (data-timescaledb-0) can
+          be deleted after confirming integrity.
+      when: phase == 'restore'

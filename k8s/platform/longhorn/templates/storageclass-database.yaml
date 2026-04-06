@@ -1,0 +1,20 @@
+---
+# Database-optimized StorageClass for CloudNativePG and other stateful workloads.
+#
+# Key differences from longhorn-single:
+#   - strict-local: pod is scheduled on the node owning the volume (better IOPS)
+#   - WaitForFirstConsumer: volume provisioned after pod scheduling (avoids mismatch)
+#
+# Use longhorn-single for stateless workloads; use this for databases.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-database
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  numberOfReplicas: "1"
+  staleReplicaTimeout: "30"
+  dataLocality: "strict-local"

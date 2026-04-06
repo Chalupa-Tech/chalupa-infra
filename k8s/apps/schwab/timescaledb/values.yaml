@@ -1,8 +1,6 @@
 ---
 image:
-  repository: timescale/timescaledb
-  tag: 2.26.1-pg16
-  pullPolicy: IfNotPresent
+  name: timescale/timescaledb:2.26.1-pg16
 
 database:
   name: market
@@ -11,7 +9,7 @@ database:
 
 storage:
   size: 10Gi
-  storageClass: longhorn-single
+  storageClass: longhorn-database
 
 resources:
   requests:
@@ -20,13 +18,8 @@ resources:
   limits:
     memory: 1Gi
 
-service:
-  port: 5432
+monitoring:
+  enabled: true
 
 vault:
-  addr: "http://openbao-active.openbao.svc.cluster.local:8200"
   secretPath: "secret/data/schwab-ddowell/timescaledb"
-
-migrations:
-  frequency:
-    enabled: false
