@@ -1,0 +1,231 @@
+---
+# Migrate TimescaleDB data from hand-rolled StatefulSet to CloudNativePG.
+#
+# Performs pg_dump from the old instance, waits for the CNPG cluster to be
+# healthy, restores data, verifies row counts, and reports status.
+#
+# Prerequisites:
+#   - CloudNativePG operator installed (core-apps Wave 0)
+#   - New Cluster CR deployed but empty (bootstrap.initdb creates schema)
+#   - Old StatefulSet pod still running (or PVC still mounted)
+#
+# Schedule outside market hours to avoid data loss during the dump window.
+#
+# Usage:
+#   ansible-playbook playbooks/timescaledb-migrate.yml
+#
+# Variables (override via -e):
+#   tsdb_namespace:    schwab-ddowell
+#   tsdb_old_pod:      timescaledb-0 (StatefulSet pod)
+#   tsdb_database:     market
+#   tsdb_dump_path:    /tmp/timescaledb-market.dump
+
+- name: Migrate TimescaleDB to CloudNativePG
+  hosts: k3s_servers
+  become: true
+  gather_facts: false
+  vars:
+    tsdb_namespace: schwab-ddowell
+    tsdb_old_pod: timescaledb-0
+    tsdb_database: market
+    tsdb_dump_path: /tmp/timescaledb-market.dump
+  tasks:
+    # ── Phase 1: Validate prerequisites ──────────────────────────────────
+
+    - name: Check old pod is running
+      ansible.builtin.command: >
+        k3s kubectl get pod {{ tsdb_old_pod }}
+        -n {{ tsdb_namespace }}
+        -o jsonpath='{.status.phase}'
+      register: old_pod_phase
+      changed_when: false
+      failed_when: old_pod_phase.stdout != 'Running'
+
+    - name: Check CNPG cluster exists
+      ansible.builtin.command: >
+        k3s kubectl get cluster timescaledb
+        -n {{ tsdb_namespace }}
+        -o jsonpath='{.status.phase}'
+      register: cnpg_phase
+      changed_when: false
+
+    - name: Show cluster states
+      ansible.builtin.debug:
+        msg:
+          old_pod: "{{ old_pod_phase.stdout }}"
+          cnpg_cluster: "{{ cnpg_phase.stdout }}"
+
+    # ── Phase 2: Dump from old instance ──────────────────────────────────
+
+    - name: Get postgres password from secret
+      ansible.builtin.command: >
+        k3s kubectl get secret timescaledb-superuser
+        -n {{ tsdb_namespace }}
+        -o jsonpath='{.data.password}'
+      register: pg_password_b64
+      changed_when: false
+      no_log: true
+      failed_when: false
+
+    - name: Fall back to old secret if superuser secret missing
+      ansible.builtin.command: >
+        k3s kubectl get secret timescaledb-secrets
+        -n {{ tsdb_namespace }}
+        -o jsonpath='{.data.POSTGRES_PASSWORD}'
+      register: pg_password_old_b64
+      changed_when: false
+      no_log: true
+      when: pg_password_b64.rc != 0
+
+    - name: Decode password
+      ansible.builtin.set_fact:
+        pg_password: >-
+          {{ (pg_password_b64.stdout | b64decode)
+             if pg_password_b64.rc == 0
+             else (pg_password_old_b64.stdout | b64decode) }}
+      no_log: true
+
+    - name: Dump database from old pod
+      ansible.builtin.shell: |
+        k3s kubectl exec {{ tsdb_old_pod }} -n {{ tsdb_namespace }} -- \
+          pg_dump -U postgres -d {{ tsdb_database }} \
+          --format=custom --no-owner --no-acl \
+          > {{ tsdb_dump_path }}
+      changed_when: true
+
+    - name: Verify dump file exists and is non-empty
+      ansible.builtin.stat:
+        path: "{{ tsdb_dump_path }}"
+      register: dump_stat
+      failed_when: not dump_stat.stat.exists or dump_stat.stat.size == 0
+
+    - name: Show dump size
+      ansible.builtin.debug:
+        msg: "Dump file: {{ tsdb_dump_path }} ({{ (dump_stat.stat.size / 1048576) | round(1) }} MB)"
+
+    # ── Phase 3: Wait for CNPG cluster to be healthy ─────────────────────
+
+    - name: Wait for CNPG cluster to be healthy
+      ansible.builtin.command: >
+        k3s kubectl get cluster timescaledb
+        -n {{ tsdb_namespace }}
+        -o jsonpath='{.status.phase}'
+      register: cnpg_health
+      until: cnpg_health.stdout == 'Cluster in healthy state'
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Get CNPG primary pod name
+      ansible.builtin.command: >
+        k3s kubectl get pod
+        -n {{ tsdb_namespace }}
+        -l cnpg.io/cluster=timescaledb,role=primary
+        --no-headers
+        -o custom-columns=NAME:.metadata.name
+      register: cnpg_primary_pod
+      changed_when: false
+
+    - name: Show CNPG primary
+      ansible.builtin.debug:
+        msg: "CNPG primary pod: {{ cnpg_primary_pod.stdout }}"
+
+    # ── Phase 4: Restore into CNPG instance ──────────────────────────────
+
+    - name: Copy dump into CNPG pod
+      ansible.builtin.command: >
+        k3s kubectl cp {{ tsdb_dump_path }}
+        {{ tsdb_namespace }}/{{ cnpg_primary_pod.stdout }}:/tmp/restore.dump
+      changed_when: true
+
+    - name: Restore dump into CNPG database
+      ansible.builtin.command: >
+        k3s kubectl exec {{ cnpg_primary_pod.stdout }}
+        -n {{ tsdb_namespace }} --
+        pg_restore -U postgres -d {{ tsdb_database }}
+        --no-owner --no-acl --if-exists --clean
+        /tmp/restore.dump
+      register: restore_result
+      changed_when: true
+      failed_when: restore_result.rc > 1
+
+    - name: Show restore output
+      ansible.builtin.debug:
+        msg: "{{ restore_result.stderr_lines | default([]) }}"
+      when: restore_result.stderr_lines | default([]) | length > 0
+
+    # ── Phase 5: Verify data integrity ───────────────────────────────────
+
+    - name: Count candles in old instance
+      ansible.builtin.command: >
+        k3s kubectl exec {{ tsdb_old_pod }}
+        -n {{ tsdb_namespace }} --
+        psql -U postgres -d {{ tsdb_database }} -t -A
+        -c "SELECT frequency, count(*) FROM candles GROUP BY frequency ORDER BY frequency"
+      register: old_candle_counts
+      changed_when: false
+
+    - name: Count candles in CNPG instance
+      ansible.builtin.command: >
+        k3s kubectl exec {{ cnpg_primary_pod.stdout }}
+        -n {{ tsdb_namespace }} --
+        psql -U postgres -d {{ tsdb_database }} -t -A
+        -c "SELECT frequency, count(*) FROM candles GROUP BY frequency ORDER BY frequency"
+      register: new_candle_counts
+      changed_when: false
+
+    - name: Count quotes in old instance
+      ansible.builtin.command: >
+        k3s kubectl exec {{ tsdb_old_pod }}
+        -n {{ tsdb_namespace }} --
+        psql -U postgres -d {{ tsdb_database }} -t -A
+        -c "SELECT count(*) FROM quotes"
+      register: old_quote_count
+      changed_when: false
+
+    - name: Count quotes in CNPG instance
+      ansible.builtin.command: >
+        k3s kubectl exec {{ cnpg_primary_pod.stdout }}
+        -n {{ tsdb_namespace }} --
+        psql -U postgres -d {{ tsdb_database }} -t -A
+        -c "SELECT count(*) FROM quotes"
+      register: new_quote_count
+      changed_when: false
+
+    - name: Compare row counts
+      ansible.builtin.debug:
+        msg:
+          candles_old: "{{ old_candle_counts.stdout_lines }}"
+          candles_new: "{{ new_candle_counts.stdout_lines }}"
+          quotes_old: "{{ old_quote_count.stdout | trim }}"
+          quotes_new: "{{ new_quote_count.stdout | trim }}"
+
+    - name: Fail if candle counts don't match
+      ansible.builtin.fail:
+        msg: "Candle row counts do not match — investigate before proceeding"
+      when: old_candle_counts.stdout != new_candle_counts.stdout
+
+    - name: Fail if quote counts don't match
+      ansible.builtin.fail:
+        msg: "Quote row counts do not match — investigate before proceeding"
+      when: old_quote_count.stdout | trim != new_quote_count.stdout | trim
+
+    # ── Phase 6: Cleanup ─────────────────────────────────────────────────
+
+    - name: Remove dump from CNPG pod
+      ansible.builtin.command: >
+        k3s kubectl exec {{ cnpg_primary_pod.stdout }}
+        -n {{ tsdb_namespace }} -- rm -f /tmp/restore.dump
+      changed_when: true
+
+    - name: Remove local dump file
+      ansible.builtin.file:
+        path: "{{ tsdb_dump_path }}"
+        state: absent
+
+    - name: Migration complete
+      ansible.builtin.debug:
+        msg: >-
+          Migration successful. Verify go-market-store is writing candles,
+          then delete the old PVC: k3s kubectl delete pvc data-timescaledb-0
+          -n {{ tsdb_namespace }}
