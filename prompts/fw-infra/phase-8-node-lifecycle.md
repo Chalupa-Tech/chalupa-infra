@@ -63,12 +63,13 @@ Remove the "skip if binary exists" guard — instead, compare installed version 
 - Flannel pod is running on the node
 - Metrics are reporting (`kubectl top node <name>`)
 - kubectl exec works (proxy to kubelet functional)
+- Etcd voter count check (server nodes only, conditional on role)
 
 **`roles/k3s_cleanup/`** — Uninstall and network cleanup (extract duplicated logic):
 - Stop services, run uninstall scripts
 - Remove residual directories
 - Delete CNI interfaces, flush iptables
-- Reboot for clean state
+- Reboot for clean state (using `ansible.builtin.reboot` to wait for reconnect)
 
 ### 4. Update lifecycle playbooks to use shared roles
 
@@ -82,7 +83,7 @@ Remove the "skip if binary exists" guard — instead, compare installed version 
 
 ### 6. Add drift detection playbook
 
-`playbooks/k3s-version-check.yml` — runs against all nodes, compares installed version to `k3s_version`, reports any mismatches. Quick audit tool.
+`playbooks/k3s-version-check.yml` — runs against all nodes, compares installed version to `k3s_version`, reports any mismatches. Quick audit tool using `k3s --version` on each node or a single `kubectl get nodes` query.
 
 ## Verification
 
