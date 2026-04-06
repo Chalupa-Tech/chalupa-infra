@@ -21,9 +21,8 @@ spec:
     initdb:
       database: {{ .Values.database.name }}
       owner: postgres
-      postInitSQL:
-        - CREATE EXTENSION IF NOT EXISTS timescaledb
       postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS timescaledb
         - |
           CREATE TABLE IF NOT EXISTS candles (
               time      TIMESTAMPTZ      NOT NULL,
@@ -105,7 +104,5 @@ spec:
     limits:
       memory: {{ .Values.resources.limits.memory }}
 
-  {{- if .Values.monitoring.enabled }}
   monitoring:
-    enablePodMonitor: true
-  {{- end }}
+    enablePodMonitor: false

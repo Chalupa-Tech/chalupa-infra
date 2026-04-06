@@ -22,5 +22,4 @@ monitoring:
   enabled: true
 
 vault:
-  addr: "http://openbao-active.openbao.svc.cluster.local:8200"
   secretPath: "secret/data/schwab-ddowell/timescaledb"
