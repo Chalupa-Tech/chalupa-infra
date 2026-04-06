@@ -9,7 +9,7 @@ database:
 
 storage:
   size: 10Gi
-  storageClass: longhorn-single
+  storageClass: longhorn-database
 
 resources:
   requests:
