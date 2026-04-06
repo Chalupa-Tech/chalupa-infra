@@ -9,21 +9,21 @@ spec:
       rules:
         - alert: NodeDown
           expr: up{job="kubelet"} == 0
-          for: 2m
+          for: 5m
           labels:
             severity: critical
           annotations:
             summary: "Node {{ "{{" }} $labels.instance {{ "}}" }} is down"
-            description: "Kubelet on {{ "{{" }} $labels.instance {{ "}}" }} has been unreachable for 2 minutes."
+            description: "Kubelet on {{ "{{" }} $labels.instance {{ "}}" }} has been unreachable for 5 minutes."
 
         - alert: NodeNotReady
           expr: kube_node_status_condition{condition="Ready",status="true"} == 0
-          for: 3m
+          for: 5m
           labels:
             severity: critical
           annotations:
             summary: "Node {{ "{{" }} $labels.node {{ "}}" }} is NotReady"
-            description: "Node has been in NotReady state for 3 minutes."
+            description: "Node has been in NotReady state for 5 minutes."
 
         - alert: DeploymentReplicasUnavailable
           expr: kube_deployment_status_available_replicas == 0 and kube_deployment_spec_replicas > 0
@@ -48,7 +48,7 @@ spec:
       rules:
         - alert: PodCrashLooping
           expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
-          for: 5m
+          for: 10m
           labels:
             severity: error
           annotations:
@@ -57,7 +57,7 @@ spec:
 
         - alert: PodImagePullBackOff
           expr: kube_pod_container_status_waiting_reason{reason="ImagePullBackOff"} == 1
-          for: 5m
+          for: 10m
           labels:
             severity: error
           annotations:
