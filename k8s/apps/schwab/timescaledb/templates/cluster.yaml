@@ -22,7 +22,7 @@ spec:
       database: {{ .Values.database.name }}
       owner: postgres
       postInitTemplateSQL:
-        - CREATE EXTENSION IF NOT EXISTS timescaledb
+        - CREATE EXTENSION IF NOT EXISTS timescaledb VERSION '2.19.3'
       postInitApplicationSQLRefs:
         configMapRefs:
           - name: timescaledb-init-sql
