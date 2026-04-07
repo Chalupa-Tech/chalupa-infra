@@ -157,3 +157,18 @@ data:
     SELECT create_hypertable('transactions', 'time', if_not_exists => TRUE);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_unique ON transactions (transaction_id);
     SELECT add_retention_policy('transactions', INTERVAL '2 years', if_not_exists => TRUE);
+    -- Top movers by index from Schwab API
+    CREATE TABLE IF NOT EXISTS movers (
+        time          TIMESTAMPTZ      NOT NULL,
+        index_symbol  TEXT             NOT NULL,
+        symbol        TEXT             NOT NULL,
+        description   TEXT,
+        direction     TEXT,
+        change        DOUBLE PRECISION,
+        change_pct    DOUBLE PRECISION,
+        volume        BIGINT,
+        source        TEXT DEFAULT 'schwab'
+    );
+    SELECT create_hypertable('movers', 'time', if_not_exists => TRUE);
+    CREATE INDEX IF NOT EXISTS idx_movers_index_time ON movers (index_symbol, time DESC);
+    SELECT add_retention_policy('movers', INTERVAL '90 days', if_not_exists => TRUE);
