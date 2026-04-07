@@ -697,16 +697,41 @@
       }
     },
     {
-      "title": "Options",
+      "title": "Orders",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 57 },
+      "collapsed": false
+    },
+    {
+      "title": "Recent Orders",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 58 },
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
+      "targets": [
+        {
+          "rawSql": "SELECT entered_time AS \"Time\", symbol AS \"Symbol\", side AS \"Side\", order_type AS \"Type\", status AS \"Status\", quantity AS \"Qty\", filled_qty AS \"Filled\", price AS \"Price\", filled_price AS \"Fill Price\" FROM orders WHERE $__timeFilter(time) AND symbol = '$symbol' ORDER BY time DESC LIMIT 50",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {}
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "title": "Options",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 66 },
       "collapsed": true,
       "panels": [
         {
           "title": "Options Greeks — $symbol",
           "description": "Delta, Gamma, Theta, Vega, Rho for selected symbol's option chain. Data populates when options polling is active.",
           "type": "table",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 58 },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 67 },
           "datasource": "VictoriaMetrics",
           "targets": [
             {
