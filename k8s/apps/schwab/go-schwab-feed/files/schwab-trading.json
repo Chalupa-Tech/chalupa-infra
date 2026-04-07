@@ -215,7 +215,7 @@
     {
       "title": "$symbol Candlestick",
       "type": "candlestick",
-      "gridPos": { "h": 14, "w": 18, "x": 0, "y": 6 },
+      "gridPos": { "h": 10, "w": 18, "x": 0, "y": 6 },
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
       "targets": [
         {
@@ -234,13 +234,14 @@
         }
       },
       "options": {
-        "mode": "candles",
+        "mode": "both",
         "includeAllFields": false,
         "fields": {
           "open": "open",
           "high": "high",
           "low": "low",
-          "close": "close"
+          "close": "close",
+          "volume": "volume"
         },
         "colors": {
           "up": "green",
@@ -250,9 +251,126 @@
       }
     },
     {
+      "title": "$symbol SMA-20 / Bollinger Bands",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 18, "x": 0, "y": 16 },
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
+      "targets": [
+        {
+          "rawSql": "SELECT time, close FROM candles WHERE symbol = '$symbol' AND frequency = CASE WHEN $__interval_ms <= 600000 THEN '5m' ELSE '1d' END AND source = 'schwab' AND $__timeFilter(time) ORDER BY time",
+          "format": "table",
+          "refId": "A"
+        },
+        {
+          "rawSql": "SELECT time, AVG(close) OVER (ORDER BY time ROWS BETWEEN 19 PRECEDING AND CURRENT ROW) AS sma20 FROM candles WHERE symbol = '$symbol' AND frequency = CASE WHEN $__interval_ms <= 600000 THEN '5m' ELSE '1d' END AND source = 'schwab' AND $__timeFilter(time) ORDER BY time",
+          "format": "table",
+          "refId": "B"
+        },
+        {
+          "rawSql": "SELECT time, AVG(close) OVER w + 2 * STDDEV(close) OVER w AS bb_upper, AVG(close) OVER w - 2 * STDDEV(close) OVER w AS bb_lower FROM candles WHERE symbol = '$symbol' AND frequency = CASE WHEN $__interval_ms <= 600000 THEN '5m' ELSE '1d' END AND source = 'schwab' AND $__timeFilter(time) WINDOW w AS (ORDER BY time ROWS BETWEEN 19 PRECEDING AND CURRENT ROW) ORDER BY time",
+          "format": "table",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "close" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "white", "mode": "fixed" } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "custom.lineStyle", "value": { "fill": "dot" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "sma20" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } },
+              { "id": "custom.lineWidth", "value": 2 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "bb_upper" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "gray", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "bb_lower" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "gray", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash" } },
+              { "id": "custom.fillBelowTo", "value": "bb_upper" },
+              { "id": "custom.fillOpacity", "value": 5 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "title": "$symbol Source Variance",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 18, "x": 0, "y": 24 },
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
+      "targets": [
+        {
+          "rawSql": "SELECT s.time, ABS(s.close - q.close) AS variance, s.close AS schwab_close, q.close AS quote_close FROM candles s JOIN candles q ON s.time = q.time AND s.symbol = q.symbol AND s.frequency = q.frequency WHERE s.source = 'schwab' AND q.source = 'quote' AND s.symbol = '$symbol' AND s.frequency = '5m' AND $__timeFilter(s.time) ORDER BY s.time",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "variance" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } },
+              { "id": "custom.fillOpacity", "value": 20 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "schwab_close" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "quote_close" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
       "title": "Quote Details",
       "type": "table",
-      "gridPos": { "h": 14, "w": 6, "x": 18, "y": 6 },
+      "gridPos": { "h": 18, "w": 6, "x": 18, "y": 6 },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -340,13 +458,13 @@
     {
       "title": "Positions",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
       "collapsed": false
     },
     {
       "title": "Positions",
       "type": "table",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 21 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 31 },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -431,13 +549,13 @@
     {
       "title": "Allocation & Performance",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
       "collapsed": false
     },
     {
       "title": "Position Allocation",
       "type": "piechart",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -459,7 +577,7 @@
     {
       "title": "Day P&L by Position",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -490,13 +608,13 @@
     {
       "title": "Market Overview",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 48 },
       "collapsed": false
     },
     {
       "title": "Market Overview",
       "type": "table",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 39 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 49 },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -581,14 +699,14 @@
     {
       "title": "Options",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 47 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 57 },
       "collapsed": true,
       "panels": [
         {
           "title": "Options Greeks — $symbol",
           "description": "Delta, Gamma, Theta, Vega, Rho for selected symbol's option chain. Data populates when options polling is active.",
           "type": "table",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 48 },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 58 },
           "datasource": "VictoriaMetrics",
           "targets": [
             {
