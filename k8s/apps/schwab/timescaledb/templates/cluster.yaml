@@ -5,6 +5,8 @@ metadata:
   labels:
     app.kubernetes.io/name: timescaledb
     app.kubernetes.io/component: database
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   instances: 1
   imageName: {{ .Values.image.name }}
@@ -24,6 +26,9 @@ spec:
       postInitTemplateSQL:
         - CREATE EXTENSION IF NOT EXISTS timescaledb VERSION '2.19.3'
       postInitApplicationSQLRefs:
+        secretRefs:
+          - name: timescaledb-init-roles
+            key: init-roles.sql
         configMapRefs:
           - name: timescaledb-init-sql
             key: schema.sql

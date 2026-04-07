@@ -21,6 +21,30 @@ spec:
       labels:
         app: go-market-store
     spec:
+      initContainers:
+        - name: wait-for-db
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until PGPASSWORD="$DB_PASSWORD" psql -h {{ .Values.database.host }} -p {{ .Values.database.port }} -U {{ .Values.database.user }} -d {{ .Values.database.name }} -c 'SELECT 1' >/dev/null 2>&1; do
+                echo "waiting for database connectivity..."
+                sleep 3
+              done
+              echo "database ready"
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: timescaledb-secrets
+                  key: APP_PASSWORD
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              memory: 32Mi
       containers:
         - name: go-market-store
           image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
