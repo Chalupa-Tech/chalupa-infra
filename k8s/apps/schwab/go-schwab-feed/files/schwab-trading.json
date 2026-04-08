@@ -257,17 +257,17 @@
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
       "targets": [
         {
-          "rawSql": "SELECT time, close FROM candles WHERE symbol = '$symbol' AND frequency = CASE WHEN $__interval_ms <= 600000 THEN '5m' ELSE '1d' END AND source = 'schwab' AND $__timeFilter(time) ORDER BY time",
+          "rawSql": "SELECT time, close FROM candles WHERE symbol = '$symbol' AND frequency = CASE WHEN $__interval_ms <= 600000 THEN '5m' ELSE '1d' END AND $__timeFilter(time) ORDER BY time",
           "format": "table",
           "refId": "A"
         },
         {
-          "rawSql": "SELECT time, AVG(close) OVER (ORDER BY time ROWS BETWEEN 19 PRECEDING AND CURRENT ROW) AS sma20 FROM candles WHERE symbol = '$symbol' AND frequency = CASE WHEN $__interval_ms <= 600000 THEN '5m' ELSE '1d' END AND source = 'schwab' AND $__timeFilter(time) ORDER BY time",
+          "rawSql": "SELECT time, AVG(close) OVER (ORDER BY time ROWS BETWEEN 19 PRECEDING AND CURRENT ROW) AS sma20 FROM candles WHERE symbol = '$symbol' AND frequency = CASE WHEN $__interval_ms <= 600000 THEN '5m' ELSE '1d' END AND $__timeFilter(time) ORDER BY time",
           "format": "table",
           "refId": "B"
         },
         {
-          "rawSql": "SELECT time, AVG(close) OVER w + 2 * STDDEV(close) OVER w AS bb_upper, AVG(close) OVER w - 2 * STDDEV(close) OVER w AS bb_lower FROM candles WHERE symbol = '$symbol' AND frequency = CASE WHEN $__interval_ms <= 600000 THEN '5m' ELSE '1d' END AND source = 'schwab' AND $__timeFilter(time) WINDOW w AS (ORDER BY time ROWS BETWEEN 19 PRECEDING AND CURRENT ROW) ORDER BY time",
+          "rawSql": "SELECT time, AVG(close) OVER w + 2 * STDDEV(close) OVER w AS bb_upper, AVG(close) OVER w - 2 * STDDEV(close) OVER w AS bb_lower FROM candles WHERE symbol = '$symbol' AND frequency = CASE WHEN $__interval_ms <= 600000 THEN '5m' ELSE '1d' END AND $__timeFilter(time) WINDOW w AS (ORDER BY time ROWS BETWEEN 19 PRECEDING AND CURRENT ROW) ORDER BY time",
           "format": "table",
           "refId": "C"
         }
@@ -327,7 +327,7 @@
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
       "targets": [
         {
-          "rawSql": "SELECT s.time, ABS(s.close - q.close) AS variance, s.close AS schwab_close, q.close AS quote_close FROM candles s JOIN candles q ON s.time = q.time AND s.symbol = q.symbol AND s.frequency = q.frequency WHERE s.source = 'schwab' AND q.source = 'quote' AND s.symbol = '$symbol' AND s.frequency = '5m' AND $__timeFilter(s.time) ORDER BY s.time",
+          "rawSql": "SELECT s.time, ABS(s.close - q.close) AS variance, s.close AS schwab_close, q.close AS quote_close FROM candles s JOIN candles q ON s.time = q.time AND s.symbol = q.symbol AND s.frequency = q.frequency WHERE s.source = 'ddowell-individual' AND q.source IN ('quote', 'quote-derived') AND s.symbol = '$symbol' AND s.frequency = '5m' AND $__timeFilter(s.time) ORDER BY s.time",
           "format": "table",
           "refId": "A"
         }
@@ -722,16 +722,106 @@
       }
     },
     {
-      "title": "Options",
+      "title": "Movers",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 66 },
+      "collapsed": false
+    },
+    {
+      "title": "Top Movers",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 67 },
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
+      "targets": [
+        {
+          "rawSql": "SELECT time AS \"Time\", index_symbol AS \"Index\", symbol AS \"Symbol\", description AS \"Description\", direction AS \"Direction\", change AS \"Change\", change_pct AS \"Change %\", volume AS \"Volume\" FROM movers WHERE $__timeFilter(time) ORDER BY time DESC, ABS(change_pct) DESC LIMIT 50",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Change %" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 0 }] } },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Change" },
+            "properties": [
+              { "id": "unit", "value": "currencyUSD" },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 0 }] } },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Volume" },
+            "properties": [
+              { "id": "unit", "value": "short" }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "title": "P&L",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 75 },
+      "collapsed": false
+    },
+    {
+      "title": "Cumulative P&L",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 76 },
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
+      "targets": [
+        {
+          "rawSql": "SELECT time, SUM(net_amount) OVER (ORDER BY time) AS cumulative_pl FROM transactions WHERE $__timeFilter(time) ORDER BY time",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "lineWidth": 2
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "title": "Options",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 84 },
       "collapsed": true,
       "panels": [
         {
           "title": "Options Greeks — $symbol",
           "description": "Delta, Gamma, Theta, Vega, Rho for selected symbol's option chain. Data populates when options polling is active.",
           "type": "table",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 67 },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 85 },
           "datasource": "VictoriaMetrics",
           "targets": [
             {

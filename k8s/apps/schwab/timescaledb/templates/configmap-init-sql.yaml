@@ -19,18 +19,34 @@ data:
         source    TEXT DEFAULT 'schwab'
     );
     SELECT create_hypertable('candles', 'time', if_not_exists => TRUE);
+    DROP INDEX IF EXISTS idx_candles_unique_3col;
     CREATE UNIQUE INDEX IF NOT EXISTS idx_candles_unique ON candles (time, symbol, frequency, source);
     CREATE INDEX IF NOT EXISTS idx_candles_symbol_freq_time ON candles (symbol, frequency, time DESC);
 
     -- Migration: widen unique constraint to include source (idempotent)
     -- Safe: existing rows all have source='schwab', so no duplicates
     DO $$ BEGIN
+      -- Drop old 3-column unique index by any known name
       IF EXISTS (
         SELECT 1 FROM pg_indexes
-        WHERE indexname = 'idx_candles_unique'
+        WHERE tablename = 'candles'
+        AND indexdef LIKE '%time%symbol%frequency%'
         AND indexdef NOT LIKE '%source%'
       ) THEN
-        DROP INDEX idx_candles_unique;
+        EXECUTE 'DROP INDEX IF EXISTS ' || (
+          SELECT indexname FROM pg_indexes
+          WHERE tablename = 'candles'
+          AND indexdef LIKE '%time%symbol%frequency%'
+          AND indexdef NOT LIKE '%source%'
+          LIMIT 1
+        );
+      END IF;
+      -- Recreate with 4 columns if needed
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE indexname = 'idx_candles_unique'
+        AND indexdef LIKE '%source%'
+      ) THEN
         CREATE UNIQUE INDEX idx_candles_unique ON candles (time, symbol, frequency, source);
       END IF;
     END $$;
@@ -98,7 +114,7 @@ data:
     WITH NO DATA;
 
     SELECT add_continuous_aggregate_policy('candles_from_quotes',
-      start_offset => INTERVAL '1 hour',
+      start_offset => INTERVAL '1 day',
       end_offset => INTERVAL '5 minutes',
       schedule_interval => INTERVAL '5 minutes',
       if_not_exists => TRUE);
@@ -109,7 +125,7 @@ data:
       INSERT INTO candles (time, symbol, frequency, open, high, low, close, volume, source)
       SELECT time, symbol, frequency, open, high, low, close, volume, source
       FROM candles_from_quotes
-      WHERE time > now() - INTERVAL '2 hours'
+      WHERE time > now() - INTERVAL '1 day'
       ON CONFLICT (time, symbol, frequency, source) DO UPDATE SET
         open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
         close = EXCLUDED.close, volume = EXCLUDED.volume;
@@ -155,7 +171,7 @@ data:
         source           TEXT DEFAULT 'schwab'
     );
     SELECT create_hypertable('transactions', 'time', if_not_exists => TRUE);
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_unique ON transactions (transaction_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_unique ON transactions (transaction_id, time);
     SELECT add_retention_policy('transactions', INTERVAL '2 years', if_not_exists => TRUE);
     -- Top movers by index from Schwab API
     CREATE TABLE IF NOT EXISTS movers (
