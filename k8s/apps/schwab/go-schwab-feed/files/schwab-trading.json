@@ -89,13 +89,23 @@
     {
       "title": "Portfolio Summary",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "collapsed": false
     },
     {
       "title": "Account Value",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -110,20 +120,32 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "blue", "value": null }
+              {
+                "color": "blue",
+                "value": null
+              }
             ]
           }
         }
       },
       "options": {
         "colorMode": "background",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Day P&L",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -138,21 +160,36 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 0 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
             ]
           }
         }
       },
       "options": {
         "colorMode": "background",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Buying Power",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -167,20 +204,32 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "purple", "value": null }
+              {
+                "color": "purple",
+                "value": null
+              }
             ]
           }
         }
       },
       "options": {
         "colorMode": "background",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Unrealized P&L",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -195,69 +244,54 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 0 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
             ]
           }
         }
       },
       "options": {
         "colorMode": "background",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       }
     },
     {
       "title": "Price Chart",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "collapsed": false
     },
     {
-      "title": "$symbol Candlestick",
+      "title": "$symbol Candlestick / SMA-20 / Bollinger",
       "type": "candlestick",
-      "gridPos": { "h": 10, "w": 18, "x": 0, "y": 6 },
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
+      "gridPos": {
+        "h": 14,
+        "w": 18,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
       "targets": [
         {
           "rawSql": "SELECT time, open, high, low, close, volume FROM candles WHERE symbol = '$symbol' AND frequency = CASE WHEN $__interval_ms <= 600000 THEN '5m' ELSE '1d' END AND $__timeFilter(time) ORDER BY time",
-          "format": "table",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "axisSoftMin": null
-          },
-          "decimals": 2,
-          "unit": "currencyUSD"
-        }
-      },
-      "options": {
-        "mode": "both",
-        "includeAllFields": false,
-        "fields": {
-          "open": "open",
-          "high": "high",
-          "low": "low",
-          "close": "close",
-          "volume": "volume"
-        },
-        "colors": {
-          "up": "green",
-          "down": "red",
-          "flat": "gray"
-        }
-      }
-    },
-    {
-      "title": "$symbol SMA-20 / Bollinger Bands",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 18, "x": 0, "y": 16 },
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
-      "targets": [
-        {
-          "rawSql": "SELECT time, close FROM candles WHERE symbol = '$symbol' AND frequency = CASE WHEN $__interval_ms <= 600000 THEN '5m' ELSE '1d' END AND $__timeFilter(time) ORDER BY time",
           "format": "table",
           "refId": "A"
         },
@@ -274,57 +308,114 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD",
           "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "showPoints": "never"
-          }
+            "axisSoftMin": null
+          },
+          "decimals": 2,
+          "unit": "currencyUSD"
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "close" },
+            "matcher": {
+              "id": "byName",
+              "options": "sma20"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "white", "mode": "fixed" } },
-              { "id": "custom.lineWidth", "value": 1 },
-              { "id": "custom.lineStyle", "value": { "fill": "dot" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "sma20" },
+            "matcher": {
+              "id": "byName",
+              "options": "bb_upper"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } },
-              { "id": "custom.lineWidth", "value": 2 }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "gray",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "bb_upper" },
+            "matcher": {
+              "id": "byName",
+              "options": "bb_lower"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "gray", "mode": "fixed" } },
-              { "id": "custom.lineStyle", "value": { "fill": "dash" } }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "bb_lower" },
-            "properties": [
-              { "id": "color", "value": { "fixedColor": "gray", "mode": "fixed" } },
-              { "id": "custom.lineStyle", "value": { "fill": "dash" } },
-              { "id": "custom.fillBelowTo", "value": "bb_upper" },
-              { "id": "custom.fillOpacity", "value": 5 }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "gray",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "custom.fillBelowTo",
+                "value": "bb_upper"
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 5
+              }
             ]
           }
         ]
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "mode": "both",
+        "includeAllFields": true,
+        "fields": {
+          "open": "open",
+          "high": "high",
+          "low": "low",
+          "close": "close",
+          "volume": "volume"
+        },
+        "colors": {
+          "up": "green",
+          "down": "red",
+          "flat": "gray"
+        }
       }
     },
     {
       "title": "$symbol Source Variance",
       "type": "timeseries",
-      "gridPos": { "h": 6, "w": 18, "x": 0, "y": 24 },
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
+      "gridPos": {
+        "h": 6,
+        "w": 18,
+        "x": 0,
+        "y": 20
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
       "targets": [
         {
           "rawSql": "SELECT s.time, ABS(s.close - q.close) AS variance, s.close AS schwab_close, q.close AS quote_close FROM candles s JOIN candles q ON s.time = q.time AND s.symbol = q.symbol AND s.frequency = q.frequency WHERE s.source = 'ddowell-individual' AND q.source IN ('quote', 'quote-derived') AND s.symbol = '$symbol' AND s.frequency = '5m' AND $__timeFilter(s.time) ORDER BY s.time",
@@ -342,35 +433,75 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "variance" },
+            "matcher": {
+              "id": "byName",
+              "options": "variance"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } },
-              { "id": "custom.fillOpacity", "value": 20 }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 20
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "schwab_close" },
+            "matcher": {
+              "id": "byName",
+              "options": "schwab_close"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "quote_close" },
+            "matcher": {
+              "id": "byName",
+              "options": "quote_close"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
             ]
           }
         ]
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "title": "Quote Details",
       "type": "table",
-      "gridPos": { "h": 18, "w": 6, "x": 18, "y": 6 },
+      "gridPos": {
+        "h": 18,
+        "w": 6,
+        "x": 18,
+        "y": 6
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -430,7 +561,9 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true },
+            "excludeByName": {
+              "Time": true
+            },
             "renameByName": {}
           }
         }
@@ -441,15 +574,27 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Volume" },
+            "matcher": {
+              "id": "byName",
+              "options": "Volume"
+            },
             "properties": [
-              { "id": "unit", "value": "short" }
+              {
+                "id": "unit",
+                "value": "short"
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Change %" },
+            "matcher": {
+              "id": "byName",
+              "options": "Change %"
+            },
             "properties": [
-              { "id": "unit", "value": "percent" }
+              {
+                "id": "unit",
+                "value": "percent"
+              }
             ]
           }
         ]
@@ -458,13 +603,23 @@
     {
       "title": "Positions",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
       "collapsed": false
     },
     {
       "title": "Positions",
       "type": "table",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 31 },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -501,12 +656,20 @@
       "transformations": [
         {
           "id": "seriesToColumns",
-          "options": { "byField": "symbol" }
+          "options": {
+            "byField": "symbol"
+          }
         },
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "Time 4": true },
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true
+            },
             "renameByName": {
               "symbol": "Symbol",
               "Value #price": "Current Price",
@@ -524,23 +687,75 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Symbol" },
+            "matcher": {
+              "id": "byName",
+              "options": "Symbol"
+            },
             "properties": [
-              { "id": "unit", "value": "string" }
+              {
+                "id": "unit",
+                "value": "string"
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Unrealized P&L" },
+            "matcher": {
+              "id": "byName",
+              "options": "Unrealized P&L"
+            },
             "properties": [
-              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 0 }] } },
-              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Day P&L" },
+            "matcher": {
+              "id": "byName",
+              "options": "Day P&L"
+            },
             "properties": [
-              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 0 }] } },
-              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
             ]
           }
         ]
@@ -549,13 +764,23 @@
     {
       "title": "Allocation & Performance",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
       "collapsed": false
     },
     {
       "title": "Position Allocation",
       "type": "piechart",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -565,19 +790,31 @@
         }
       ],
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "pieType": "donut",
         "legend": {
           "displayMode": "table",
           "placement": "right",
-          "values": ["value", "percent"]
+          "values": [
+            "value",
+            "percent"
+          ]
         }
       }
     },
     {
       "title": "Day P&L by Position",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -592,8 +829,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 0 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
             ]
           }
         }
@@ -601,20 +844,34 @@
       "options": {
         "orientation": "horizontal",
         "displayMode": "gradient",
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "showUnfilled": true
       }
     },
     {
       "title": "Market Overview",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 48 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
       "collapsed": false
     },
     {
       "title": "Market Overview",
       "type": "table",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 49 },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 45
+      },
       "datasource": "VictoriaMetrics",
       "targets": [
         {
@@ -651,12 +908,20 @@
       "transformations": [
         {
           "id": "seriesToColumns",
-          "options": { "byField": "symbol" }
+          "options": {
+            "byField": "symbol"
+          }
         },
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "Time 4": true },
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true
+            },
             "renameByName": {
               "symbol": "Symbol",
               "Value #price": "Price",
@@ -674,23 +939,61 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Symbol" },
+            "matcher": {
+              "id": "byName",
+              "options": "Symbol"
+            },
             "properties": [
-              { "id": "unit", "value": "string" }
+              {
+                "id": "unit",
+                "value": "string"
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Change %" },
+            "matcher": {
+              "id": "byName",
+              "options": "Change %"
+            },
             "properties": [
-              { "id": "unit", "value": "percent" },
-              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 0 }] } },
-              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Volume" },
+            "matcher": {
+              "id": "byName",
+              "options": "Volume"
+            },
             "properties": [
-              { "id": "unit", "value": "short" }
+              {
+                "id": "unit",
+                "value": "short"
+              }
             ]
           }
         ]
@@ -699,14 +1002,27 @@
     {
       "title": "Orders",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 57 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 53
+      },
       "collapsed": false
     },
     {
       "title": "Recent Orders",
       "type": "table",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 58 },
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 54
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
       "targets": [
         {
           "rawSql": "SELECT entered_time AS \"Time\", symbol AS \"Symbol\", side AS \"Side\", order_type AS \"Type\", status AS \"Status\", quantity AS \"Qty\", filled_qty AS \"Filled\", price AS \"Price\", filled_price AS \"Fill Price\" FROM orders WHERE $__timeFilter(time) AND symbol = '$symbol' ORDER BY time DESC LIMIT 50",
@@ -724,14 +1040,27 @@
     {
       "title": "Movers",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 66 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 62
+      },
       "collapsed": false
     },
     {
       "title": "Top Movers",
       "type": "table",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 67 },
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 63
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
       "targets": [
         {
           "rawSql": "SELECT time AS \"Time\", index_symbol AS \"Index\", symbol AS \"Symbol\", description AS \"Description\", direction AS \"Direction\", change AS \"Change\", change_pct AS \"Change %\", volume AS \"Volume\" FROM movers WHERE $__timeFilter(time) ORDER BY time DESC, ABS(change_pct) DESC LIMIT 50",
@@ -743,25 +1072,83 @@
         "defaults": {},
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Change %" },
+            "matcher": {
+              "id": "byName",
+              "options": "Change %"
+            },
             "properties": [
-              { "id": "unit", "value": "percent" },
-              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 0 }] } },
-              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Change" },
+            "matcher": {
+              "id": "byName",
+              "options": "Change"
+            },
             "properties": [
-              { "id": "unit", "value": "currencyUSD" },
-              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 0 }] } },
-              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Volume" },
+            "matcher": {
+              "id": "byName",
+              "options": "Volume"
+            },
             "properties": [
-              { "id": "unit", "value": "short" }
+              {
+                "id": "unit",
+                "value": "short"
+              }
             ]
           }
         ]
@@ -773,14 +1160,27 @@
     {
       "title": "P&L",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 75 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 71
+      },
       "collapsed": false
     },
     {
       "title": "Cumulative P&L",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 76 },
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "timescaledb"},
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 72
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
       "targets": [
         {
           "rawSql": "SELECT time, SUM(net_amount) OVER (ORDER BY time) AS cumulative_pl FROM transactions WHERE $__timeFilter(time) ORDER BY time",
@@ -799,34 +1199,57 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 0 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
             ]
           },
-          "color": { "mode": "thresholds" }
+          "color": {
+            "mode": "thresholds"
+          }
         }
       },
       "options": {
-        "tooltip": { "mode": "single" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "title": "Options",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 84 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 80
+      },
       "collapsed": true,
       "panels": [
         {
-          "title": "Options Greeks — $symbol",
+          "title": "Options Greeks \u2014 $symbol",
           "description": "Delta, Gamma, Theta, Vega, Rho for selected symbol's option chain. Data populates when options polling is active.",
           "type": "table",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 85 },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 85
+          },
           "datasource": "VictoriaMetrics",
           "targets": [
             {
               "expr": "schwab_quote_price{registration=~\"$registration\", symbol=~\"$symbol\"}",
-              "legendFormat": "Placeholder — options metrics coming in future release",
+              "legendFormat": "Placeholder \u2014 options metrics coming in future release",
               "instant": true
             }
           ],
