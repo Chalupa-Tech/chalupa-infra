@@ -2,7 +2,7 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-schwab-feed
-  tag: v0.7.0
+  tag: v0.8.0
 
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
