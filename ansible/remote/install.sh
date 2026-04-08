@@ -134,19 +134,19 @@ if [ "$ROLE" == "server" ]; then
         # Case A: First Server (Cluster Init)
         echo "Mode: Initializing NEW Cluster..."
 
-        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server" K3S_TOKEN="${K3S_TOKEN}" sh -
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${INSTALL_K3S_VERSION}" INSTALL_K3S_EXEC="server" K3S_TOKEN="${K3S_TOKEN}" sh -
 
     else
         # Case B: Joining Server (HA)
         echo "Mode: Joining EXISTING Cluster as Server (HA)..."
 
-        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server" \
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${INSTALL_K3S_VERSION}" INSTALL_K3S_EXEC="server" \
             K3S_URL="https://${SERVER_IP}:6443" K3S_TOKEN="${K3S_TOKEN}" sh -
     fi
 
 elif [ "$ROLE" == "agent" ]; then
 
-    curl -sfL https://get.k3s.io | K3S_URL="https://${SERVER_IP}:6443" \
+    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${INSTALL_K3S_VERSION}" K3S_URL="https://${SERVER_IP}:6443" \
         K3S_TOKEN="${K3S_TOKEN}" sh -s - agent
 
 else

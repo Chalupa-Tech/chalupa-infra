@@ -1,0 +1,92 @@
+---
+# Verify a K3s node is healthy after join/rejoin.
+#
+# Required variables:
+#   target_node   — hostname of the node to verify
+#
+# Optional variables:
+#   k3s_install_role — set to 'server' or 'ha-server' to include etcd checks
+#
+# Most checks delegate to a server node (needs kubectl); the flannel check
+# runs directly on the target.
+
+- name: Wait for node to register
+  ansible.builtin.command: "k3s kubectl get node {{ target_node }}"
+  register: node_check
+  until: node_check.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Verify node is Ready
+  ansible.builtin.shell: |
+    k3s kubectl get node {{ target_node }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  register: node_ready
+  changed_when: false
+  failed_when: node_ready.stdout != "True"
+
+- name: Show node status
+  ansible.builtin.debug:
+    msg: "{{ target_node }}: Ready={{ node_ready.stdout }}"
+
+- name: Check kubelet version matches expected
+  ansible.builtin.shell: |
+    k3s kubectl get node {{ target_node }} -o jsonpath='{.status.nodeInfo.kubeletVersion}'
+  register: kubelet_version
+  changed_when: false
+  failed_when: kubelet_version.stdout != k3s_version
+
+- name: Show kubelet version
+  ansible.builtin.debug:
+    msg: "{{ target_node }}: kubelet={{ kubelet_version.stdout }}, expected={{ k3s_version }}"
+
+- name: Check flannel.1 exists on target
+  ansible.builtin.command: ip link show flannel.1
+  delegate_to: "{{ target_node }}"
+  register: flannel_check
+  changed_when: false
+  failed_when: false
+
+- name: Show flannel status
+  ansible.builtin.debug:
+    msg: "flannel.1 on {{ target_node }}: {{ 'present' if flannel_check.rc == 0 else 'MISSING' }}"
+
+- name: Check metrics reporting
+  ansible.builtin.command: "k3s kubectl top node {{ target_node }}"
+  register: metrics_check
+  changed_when: false
+  failed_when: false
+  retries: 6
+  delay: 10
+  until: metrics_check.rc == 0
+
+- name: Show metrics status
+  ansible.builtin.debug:
+    msg: "metrics for {{ target_node }}: {{ 'available' if metrics_check.rc == 0 else 'NOT YET AVAILABLE' }}"
+
+- name: Check kubectl exec works (proxy functional)
+  ansible.builtin.shell: |
+    k3s kubectl run --rm -i --restart=Never test-exec-{{ target_node }}
+      --image=busybox
+      --overrides='{"spec":{"nodeName":"{{ target_node }}"}}'
+      -- echo ok
+  register: exec_check
+  changed_when: false
+  failed_when: false
+  timeout: 60
+
+- name: Show proxy/exec status
+  ansible.builtin.debug:
+    msg: "kubectl exec on {{ target_node }}: {{ 'ok' if exec_check.rc == 0 else 'FAILED — kubelet proxy may be broken' }}"
+
+- name: Check etcd voter count
+  ansible.builtin.shell: |
+    k3s kubectl get nodes -l node-role.kubernetes.io/etcd=true --no-headers | wc -l
+  register: etcd_count
+  changed_when: false
+  when: k3s_install_role is defined and k3s_install_role in ['server', 'ha-server']
+
+- name: Show etcd voter count
+  ansible.builtin.debug:
+    msg: "etcd voters: {{ etcd_count.stdout | trim }}"
+  when: k3s_install_role is defined and k3s_install_role in ['server', 'ha-server']

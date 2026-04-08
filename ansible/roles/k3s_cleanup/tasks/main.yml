@@ -1,0 +1,62 @@
+---
+# Full K3s cleanup: stop services, uninstall, remove residual state, reboot.
+#
+# Replaces the manual scripts/raspberrypi-k3s/local/k3s/uninstall-k3s.sh
+# and the inline tasks in demote-server.yml Phase 2.
+
+- name: Stop k3s server service
+  ansible.builtin.systemd:
+    name: k3s
+    state: stopped
+  ignore_errors: true  # noqa: ignore-errors — may not exist
+
+- name: Stop k3s agent service
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: stopped
+  ignore_errors: true  # noqa: ignore-errors — may not exist
+
+- name: Run k3s server uninstall script
+  ansible.builtin.command: /usr/local/bin/k3s-uninstall.sh
+  register: server_uninstall
+  changed_when: true
+  failed_when: false
+
+- name: Run k3s agent uninstall script
+  ansible.builtin.command: /usr/local/bin/k3s-agent-uninstall.sh
+  register: agent_uninstall
+  changed_when: true
+  failed_when: false
+
+- name: Remove residual K3s directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /var/lib/rancher/k3s
+    - /etc/rancher/k3s
+    - /run/k3s
+    - /var/lib/kubelet
+    - /etc/cni/net.d
+
+- name: Remove stale CNI interfaces
+  ansible.builtin.command: "ip link delete {{ item }}"
+  loop:
+    - cni0
+    - flannel.1
+  failed_when: false
+  changed_when: true
+
+- name: Flush stale kube-router iptables rules
+  ansible.builtin.shell: |
+    iptables-save | grep -iv kube-router | iptables-restore
+    ip6tables-save | grep -iv kube-router | ip6tables-restore
+  args:
+    executable: /bin/bash
+  changed_when: true
+  failed_when: false
+
+- name: Reboot node for clean network state
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+    msg: "Rebooting for clean iptables/CNI state after K3s uninstall"
