@@ -40,7 +40,9 @@
         k3s_install_server_ip: >-
           {{ hostvars[groups['k3s_servers'][0]]['primary_server_ip'] |
              default('chalupa-k3s.tailbecff0.ts.net') }}
-        k3s_install_token: "{{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] }}"
+        k3s_install_token: >-
+          {{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token']
+             | default(k3s_token) }}
     - tailscale_services
 
 - name: Provision K3s OCI Servers (Non-Scheduling Tiebreaker)
@@ -102,7 +104,9 @@
         k3s_install_server_ip: >-
           {{ hostvars[groups['k3s_servers'][0]]['primary_server_ip'] |
              default('chalupa-k3s.tailbecff0.ts.net') }}
-        k3s_install_token: "{{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] }}"
+        k3s_install_token: >-
+          {{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token']
+             | default(k3s_token) }}
 
 - name: Provision K3s VM Agents
   hosts: k3s_vm_agents
@@ -117,7 +121,9 @@
         k3s_install_server_ip: >-
           {{ hostvars[groups['k3s_servers'][0]]['primary_server_ip'] |
              default('chalupa-k3s.tailbecff0.ts.net') }}
-        k3s_install_token: "{{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token'] }}"
+        k3s_install_token: >-
+          {{ hostvars[groups['k3s_servers'][0]]['captured_k3s_token']
+             | default(k3s_token) }}
 
 - name: Finalize Cluster Configuration (ArgoCD, OpenBao & HA Hardening)
   hosts: k3s_servers

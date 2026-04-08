@@ -1,0 +1,45 @@
+---
+# Full K3s cleanup: uninstall, remove residual state, reboot.
+#
+# The official uninstall scripts (k3s-uninstall.sh / k3s-agent-uninstall.sh)
+# handle stopping services, killing containers, and removing binaries in one
+# atomic operation. We do NOT stop services separately — that can kill
+# Tailscale networking and drop the SSH connection before cleanup finishes.
+#
+# The reboot at the end clears iptables, CNI interfaces, and any other
+# residual network state. No need to flush those manually (which risks
+# breaking SSH mid-play).
+
+- name: Check for k3s uninstall scripts
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - /usr/local/bin/k3s-uninstall.sh
+    - /usr/local/bin/k3s-agent-uninstall.sh
+  register: uninstall_scripts
+
+- name: Run k3s server uninstall script
+  ansible.builtin.command: /usr/local/bin/k3s-uninstall.sh
+  changed_when: true
+  when: uninstall_scripts.results[0].stat.exists
+
+- name: Run k3s agent uninstall script
+  ansible.builtin.command: /usr/local/bin/k3s-agent-uninstall.sh
+  changed_when: true
+  when: uninstall_scripts.results[1].stat.exists
+
+- name: Remove residual K3s directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /var/lib/rancher/k3s
+    - /etc/rancher/k3s
+    - /run/k3s
+    - /var/lib/kubelet
+    - /etc/cni/net.d
+
+- name: Reboot node for clean network state
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+    msg: "Rebooting for clean network state after K3s uninstall"

@@ -4,17 +4,55 @@
     path: /usr/local/bin/k3s
   register: k3s_binary
 
-- name: Skip install if K3s already present
-  ansible.builtin.debug:
-    msg: "K3s already installed — skipping bootstrap. Use k3s_config role for config changes."
+- name: Get installed K3s version
+  ansible.builtin.command: k3s --version
+  register: k3s_installed_version
+  changed_when: false
   when: k3s_binary.stat.exists
+
+- name: Parse installed K3s version string
+  ansible.builtin.set_fact:
+    k3s_current_version: "{{ k3s_installed_version.stdout | regex_search('v[0-9]+\\.[0-9]+\\.[0-9]+\\+k3s[0-9]+') }}"
+  when: k3s_binary.stat.exists
+
+- name: Determine install state
+  ansible.builtin.set_fact:
+    k3s_install_needed: "{{ not k3s_binary.stat.exists or (k3s_current_version != k3s_version) }}"
+    k3s_is_upgrade: "{{ k3s_binary.stat.exists and (k3s_current_version is version(k3s_version, '<')) }}"
+    k3s_is_downgrade: "{{ k3s_binary.stat.exists and (k3s_current_version is version(k3s_version, '>')) }}"
+  when: k3s_binary.stat.exists
+
+- name: Determine install state (fresh)
+  ansible.builtin.set_fact:
+    k3s_install_needed: true
+    k3s_is_upgrade: false
+    k3s_is_downgrade: false
+  when: not k3s_binary.stat.exists
+
+- name: Skip install — version matches
+  ansible.builtin.debug:
+    msg: "K3s {{ k3s_version }} already installed — skipping."
+  when: not k3s_install_needed
+
+- name: Fail on downgrade — not supported by K3s
+  ansible.builtin.fail:
+    msg: >-
+      K3s downgrade detected: installed={{ k3s_current_version }}, expected={{ k3s_version }}.
+      Downgrades are not supported — data structures migrate forward.
+      To force reinstall, run the k3s_cleanup role first, then re-run bootstrap.
+  when: k3s_is_downgrade | default(false)
+
+- name: Upgrade detected
+  ansible.builtin.debug:
+    msg: "K3s upgrade: {{ k3s_current_version }} → {{ k3s_version }}. Re-running installer (in-place upgrade)."
+  when: k3s_is_upgrade | default(false)
 
 - name: Copy K3s install script
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../remote/install.sh"
     dest: /tmp/install.sh
     mode: "0755"
-  when: not k3s_binary.stat.exists
+  when: k3s_install_needed
 
 - name: Run K3s installation
   ansible.builtin.shell: >
@@ -24,11 +62,12 @@
   environment:
     TS_AUTHKEY: "{{ ts_authkey }}"
     K3S_TOKEN: "{{ k3s_install_token | default('') }}"
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
   args:
     executable: /bin/bash
   register: k3s_install_result
   changed_when: true
-  when: not k3s_binary.stat.exists
+  when: k3s_install_needed
 
 - name: Display K3s installation output
   ansible.builtin.debug:
@@ -39,4 +78,4 @@
   ansible.builtin.file:
     path: /tmp/install.sh
     state: absent
-  when: not k3s_binary.stat.exists
+  when: k3s_install_needed
