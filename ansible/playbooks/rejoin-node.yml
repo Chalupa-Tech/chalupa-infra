@@ -1,0 +1,61 @@
+---
+# Rejoin a node to the K3s cluster with a clean slate.
+#
+# Handles the full lifecycle: delete stale node object, clean up old K3s,
+# re-provision with pinned version.
+#
+# Usage:
+#   ansible-playbook playbooks/rejoin-node.yml -e target_node=tpi2 --ask-vault-pass
+#
+# The target node must be in a K3s host group (k3s_agents, k3s_ha_servers, etc.)
+# and reachable via SSH.
+
+- name: Validate target_node is set
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Fail if target_node not provided
+      ansible.builtin.fail:
+        msg: "Usage: ansible-playbook playbooks/rejoin-node.yml -e target_node=<hostname>"
+      when: target_node is not defined
+
+# Phase 1: Delete stale node object from cluster
+- name: Delete stale node object
+  hosts: k3s_servers
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Delete Kubernetes node object
+      ansible.builtin.command: "k3s kubectl delete node {{ target_node }} --ignore-not-found"
+      changed_when: true
+      run_once: true  # noqa: run-once
+
+# Phase 2: Clean up old K3s on target
+- name: Clean up K3s on target node
+  hosts: "{{ target_node }}"
+  become: true
+  gather_facts: false
+  roles:
+    - k3s_cleanup
+
+# Phase 3: Re-provision with pinned version
+- name: Re-provision node
+  hosts: "{{ target_node }}"
+  become: true
+  roles:
+    - preflight
+    - k3s_config
+    - role: k3s_install
+      vars:
+        k3s_install_server_ip: "chalupa-k3s.tailbecff0.ts.net"
+        k3s_install_token: "{{ k3s_token }}"
+
+# Phase 4: Verify
+- name: Verify node rejoined
+  hosts: k3s_servers
+  become: true
+  gather_facts: false
+  roles:
+    - role: k3s_verify
+      vars:
+        target_node: "{{ target_node }}"
