@@ -120,6 +120,8 @@ data:
       if_not_exists => TRUE);
 
     -- Periodic job: merge quote-derived candles into main candles table
+    -- Drop zero-arg overload if it exists (prevents "function is not unique" when job scheduler invokes with jsonb config)
+    DROP FUNCTION IF EXISTS merge_quote_candles();
     CREATE OR REPLACE FUNCTION merge_quote_candles(config jsonb DEFAULT NULL) RETURNS void AS $$
     BEGIN
       INSERT INTO candles (time, symbol, frequency, open, high, low, close, volume, source)
