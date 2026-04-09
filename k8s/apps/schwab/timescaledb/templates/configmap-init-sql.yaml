@@ -84,7 +84,8 @@ data:
     SELECT add_compression_policy('quotes', INTERVAL '7 days', if_not_exists => true);
 
     -- Frequency-based retention (daily candles kept forever)
-    CREATE OR REPLACE FUNCTION cleanup_old_candles(config jsonb DEFAULT NULL) RETURNS void AS $$
+    DROP FUNCTION IF EXISTS cleanup_old_candles(jsonb);
+    CREATE OR REPLACE FUNCTION cleanup_old_candles(job_id INT, config JSONB) RETURNS void AS $$
     BEGIN
         DELETE FROM candles WHERE frequency = '5m' AND time < now() - INTERVAL '90 days';
         DELETE FROM candles WHERE frequency = '1h' AND time < now() - INTERVAL '1 year';
@@ -175,7 +176,8 @@ data:
     -- Periodic job: merge quote-derived candles into main candles table
     -- Drop zero-arg overload if it exists (prevents "function is not unique" when job scheduler invokes with jsonb config)
     DROP FUNCTION IF EXISTS merge_quote_candles();
-    CREATE OR REPLACE FUNCTION merge_quote_candles(config jsonb DEFAULT NULL) RETURNS void AS $$
+    DROP FUNCTION IF EXISTS merge_quote_candles(jsonb);
+    CREATE OR REPLACE FUNCTION merge_quote_candles(job_id INT, config JSONB) RETURNS void AS $$
     BEGIN
       INSERT INTO candles (time, symbol, frequency, open, high, low, close, volume, source)
       SELECT time, symbol, frequency, open, high, low, close, volume, source
@@ -193,7 +195,8 @@ data:
 
     -- Periodic job: merge 1-hour quote-derived candles into main candles table
     DROP FUNCTION IF EXISTS merge_quote_candles_1h();
-    CREATE OR REPLACE FUNCTION merge_quote_candles_1h(config jsonb DEFAULT NULL) RETURNS void AS $$
+    DROP FUNCTION IF EXISTS merge_quote_candles_1h(jsonb);
+    CREATE OR REPLACE FUNCTION merge_quote_candles_1h(job_id INT, config JSONB) RETURNS void AS $$
     BEGIN
       INSERT INTO candles (time, symbol, frequency, open, high, low, close, volume, source)
       SELECT time, symbol, frequency, open, high, low, close, volume, source
@@ -211,7 +214,8 @@ data:
 
     -- Periodic job: merge 1-day quote-derived candles into main candles table
     DROP FUNCTION IF EXISTS merge_quote_candles_1d();
-    CREATE OR REPLACE FUNCTION merge_quote_candles_1d(config jsonb DEFAULT NULL) RETURNS void AS $$
+    DROP FUNCTION IF EXISTS merge_quote_candles_1d(jsonb);
+    CREATE OR REPLACE FUNCTION merge_quote_candles_1d(job_id INT, config JSONB) RETURNS void AS $$
     BEGIN
       INSERT INTO candles (time, symbol, frequency, open, high, low, close, volume, source)
       SELECT time, symbol, frequency, open, high, low, close, volume, source
