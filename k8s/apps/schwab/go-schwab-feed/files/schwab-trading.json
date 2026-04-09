@@ -404,10 +404,10 @@
       }
     },
     {
-      "title": "$symbol Source Variance",
+      "title": "$symbol Source Variance (%)",
       "type": "timeseries",
       "gridPos": {
-        "h": 6,
+        "h": 8,
         "w": 18,
         "x": 0,
         "y": 20
@@ -418,24 +418,44 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT s.time, ABS(s.close - q.close) AS variance, s.close AS schwab_close, q.close AS quote_close FROM candles s JOIN candles q ON s.time = q.time AND s.symbol = q.symbol AND s.frequency = q.frequency WHERE s.source = 'ddowell-individual' AND q.source IN ('quote', 'quote-derived') AND s.symbol = '$symbol' AND s.frequency = '5m' AND $__timeFilter(s.time) ORDER BY s.time",
+          "rawSql": "SELECT time, close_variance * 100 AS close_pct, high_variance * 100 AS high_pct, low_variance * 100 AS low_pct FROM candle_source_variance WHERE symbol = '$symbol' AND frequency = '5m' AND $__timeFilter(time) ORDER BY time",
           "format": "table",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD",
+          "unit": "percent",
           "custom": {
             "fillOpacity": 10,
-            "showPoints": "never"
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
           }
         },
         "overrides": [
           {
             "matcher": {
               "id": "byName",
-              "options": "variance"
+              "options": "close_pct"
             },
             "properties": [
               {
@@ -448,28 +468,42 @@
               {
                 "id": "custom.fillOpacity",
                 "value": 20
+              },
+              {
+                "id": "displayName",
+                "value": "Close Variance %"
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "schwab_close"
+              "options": "high_pct"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "green",
+                  "fixedColor": "red",
                   "mode": "fixed"
                 }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "High Variance %"
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "quote_close"
+              "options": "low_pct"
             },
             "properties": [
               {
@@ -478,6 +512,16 @@
                   "fixedColor": "blue",
                   "mode": "fixed"
                 }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "Low Variance %"
               }
             ]
           }
@@ -494,10 +538,58 @@
       }
     },
     {
+      "title": "$symbol Backfill Gaps",
+      "description": "Quote-derived candles with no matching historical data past expected backfill delay",
+      "type": "table",
+      "gridPos": {
+        "h": 6,
+        "w": 18,
+        "x": 0,
+        "y": 28
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT time AS \"Time\", symbol AS \"Symbol\", frequency AS \"Frequency\", quote_close AS \"Quote Close\", age AS \"Age\" FROM candle_backfill_gaps WHERE symbol = '$symbol' AND $__timeFilter(time) ORDER BY time DESC LIMIT 100",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Quote Close"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Time",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
       "title": "Quote Details",
       "type": "table",
       "gridPos": {
-        "h": 18,
+        "h": 28,
         "w": 6,
         "x": 18,
         "y": 6
@@ -607,7 +699,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 34
       },
       "collapsed": false
     },
@@ -618,7 +710,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 35
       },
       "datasource": "VictoriaMetrics",
       "targets": [
@@ -768,7 +860,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 35
+        "y": 43
       },
       "collapsed": false
     },
@@ -779,7 +871,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 36
+        "y": 44
       },
       "datasource": "VictoriaMetrics",
       "targets": [
@@ -813,7 +905,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 36
+        "y": 44
       },
       "datasource": "VictoriaMetrics",
       "targets": [
@@ -859,7 +951,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 52
       },
       "collapsed": false
     },
@@ -870,7 +962,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 53
       },
       "datasource": "VictoriaMetrics",
       "targets": [
@@ -1006,7 +1098,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 61
       },
       "collapsed": false
     },
@@ -1017,7 +1109,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 62
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1044,7 +1136,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 62
+        "y": 70
       },
       "collapsed": false
     },
@@ -1055,7 +1147,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 63
+        "y": 71
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1164,7 +1256,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 71
+        "y": 79
       },
       "collapsed": false
     },
@@ -1175,7 +1267,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 72
+        "y": 80
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -1231,7 +1323,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 80
+        "y": 88
       },
       "collapsed": true,
       "panels": [
@@ -1243,7 +1335,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 85
+            "y": 93
           },
           "datasource": "VictoriaMetrics",
           "targets": [
