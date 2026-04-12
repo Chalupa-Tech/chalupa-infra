@@ -1,7 +1,7 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-schwab-auth
-  tag: v0.4.0
+  tag: v0.5.0
 
 vault:
   addr: "http://openbao-active.openbao.svc.cluster.local:8200"
@@ -21,3 +21,15 @@ resources:
     memory: 32Mi
   limits:
     memory: 128Mi
+
+watcher:
+  image:
+    repository: chalupa-tech/go-schwab-auth-token-watcher
+    tag: v0.5.0
+  schedule: "*/15 * * * *"
+  resources:
+    requests:
+      cpu: 5m
+      memory: 16Mi
+    limits:
+      memory: 64Mi
