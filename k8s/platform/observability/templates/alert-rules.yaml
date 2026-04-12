@@ -43,6 +43,15 @@ spec:
             summary: "Certificate {{ "{{" }} $labels.name {{ "}}" }} expires in < 7 days"
             description: "Namespace {{ "{{" }} $labels.namespace {{ "}}" }}, cert {{ "{{" }} $labels.name {{ "}}" }}."
 
+        - alert: SchwabAuthDown
+          expr: absent(up{job="go-schwab-auth"}) == 1 or avg_over_time(up{job="go-schwab-auth"}[10m]) < 0.5
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "go-schwab-auth is down or flapping"
+            description: "go-schwab-auth has had <50% uptime over the last 10 minutes (sustained 5m). Token refresh scheduler is not running reliably; Schwab OAuth pipeline will fail silently when the current refresh token expires. Runbook: https://github.com/Chalupa-Tech/chalupa-brain/blob/main/docs/runbooks/auth-pod-incident.md"
+
     # ── Error ────────────────────────────────────────────────────────
     - name: error
       rules:
