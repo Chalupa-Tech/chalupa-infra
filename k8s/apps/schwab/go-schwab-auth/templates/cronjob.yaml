@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: token-expiration-watcher
+  labels:
+    app: go-schwab-auth
+    component: token-watcher
+spec:
+  schedule: {{ .Values.watcher.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 120
+      template:
+        metadata:
+          labels:
+            app: go-schwab-auth
+            component: token-watcher
+        spec:
+          serviceAccountName: go-schwab-auth
+          restartPolicy: Never
+          containers:
+            - name: token-watcher
+              image: "{{ .Values.image.registry }}/{{ .Values.watcher.image.repository }}:{{ .Values.watcher.image.tag }}"
+              env:
+                - name: APP_VERSION
+                  value: {{ .Values.watcher.image.tag | quote }}
+                - name: HOST_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP
+                - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                  value: "http://$(HOST_IP):4317"
+                - name: VAULT_ADDR
+                  value: {{ .Values.vault.addr | quote }}
+                - name: VAULT_ROLE
+                  value: "{{ .Release.Namespace }}-auth-role"
+                - name: NATS_URL
+                  value: {{ .Values.nats.url | quote }}
+                - name: EXTERNAL_URL
+                  value: "https://schwab-auth.chalupatech.com"
+              resources:
+                {{- toYaml .Values.watcher.resources | nindent 16 }}
