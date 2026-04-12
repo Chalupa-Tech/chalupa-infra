@@ -91,3 +91,44 @@ Remove the wg0 tunnel entirely:
 
 - **Tailscale subnet routing** — Advertise site subnets via Tailscale. Still routes
   through Tailscale's WireGuard. Same overhead concern as flannel-iface.
+
+## Troubleshooting: Non-gateway routes missing
+
+### Symptoms
+
+- Cross-site pod network unreachable from non-gateway nodes (dpi1, dpi3, fw1, tpi3)
+- `ip route` on affected nodes shows only default + local subnet — no 192.168.1.0/24, 10.0.0.0/24, 10.100.0.0/24 entries
+- wg0 tunnel on gateway nodes (dpi2, tpi1, oracle1) shows healthy handshakes
+- Pods on affected nodes can't reach pods on the other site (openbao raft join fails, NATS JetStream unavailable, etc.)
+
+### Diagnosis
+
+```bash
+# From affected node (or via kubectl debug pod with hostNetwork + nsenter):
+systemctl status wg-static-routes.service
+journalctl -u wg-static-routes.service --no-pager
+ip route | grep -E '192\.168\.1|10\.0\.0|10\.100\.0'
+ping -c2 -W2 <wg_local_gateway>   # 192.168.2.24 for site_dustin, 192.168.1.125 for site_tayven
+```
+
+### Root cause (2026-04-10 incident)
+
+Both dpi1 and dpi3 rebooted on 2026-04-10 ~05:25 UTC. The `wg-static-routes.service` runs `After=network-online.target`, but NetworkManager's DHCP takes ~40s to assign an IP. At service start, `eth0` had no address → the gateway wasn't in any connected subnet → `ip route replace` failed with `Error: Nexthop has invalid gateway`. The `Type=oneshot` service had no retry mechanism, so routes were permanently absent until manually restarted ~43 hours later.
+
+### Fix applied
+
+1. **Gateway-reachability wait loop** added to `wg-static-routes.sh.j2` — script waits up to 120s for the gateway to become routable before installing routes.
+2. **`Restart=on-failure` + `RestartSec=30`** added to the systemd unit — if the script still fails (e.g., gateway never comes up), systemd retries every 30s.
+
+### Quick recovery
+
+If routes are missing and the service is failed:
+```bash
+systemctl restart wg-static-routes.service
+ip route   # verify routes appeared
+```
+
+Or re-run Ansible:
+```bash
+ansible-playbook playbooks/wireguard.yml --limit <affected_nodes>
+```

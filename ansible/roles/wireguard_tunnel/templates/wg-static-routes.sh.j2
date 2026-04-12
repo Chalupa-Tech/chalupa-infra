@@ -1,6 +1,28 @@
 #!/bin/bash
 # Managed by Ansible — wireguard_tunnel role
 # Routes cross-site traffic via local WireGuard gateway
+#
+# Wait for the gateway to be in a connected subnet (DHCP may not have
+# settled when this service starts at boot). Without this, `ip route
+# replace` fails with "Nexthop has invalid gateway".
+# See: alert-triage phase-3 / 2026-04-10 incident root cause.
+
+GATEWAY="{{ wg_local_gateway }}"
+MAX_WAIT=120
+INTERVAL=2
+
+for (( i=0; i<MAX_WAIT; i+=INTERVAL )); do
+  if ip route get "$GATEWAY" &>/dev/null; then
+    break
+  fi
+  sleep "$INTERVAL"
+done
+
+if ! ip route get "$GATEWAY" &>/dev/null; then
+  echo "ERROR: gateway $GATEWAY not reachable after ${MAX_WAIT}s — aborting" >&2
+  exit 1
+fi
+
 {% for subnet in wg_remote_subnets %}
 ip route replace {{ subnet }} via {{ wg_local_gateway }}
 {% endfor %}
