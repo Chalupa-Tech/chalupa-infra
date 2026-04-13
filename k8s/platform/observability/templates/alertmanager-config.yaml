@@ -8,7 +8,7 @@ stringData:
     route:
       receiver: discord-warning
       group_by: ['alertname', 'namespace']
-      group_wait: 30s
+      group_wait: 1m
       group_interval: 5m
       repeat_interval: 4h
       routes:
@@ -33,6 +33,20 @@ stringData:
           receiver: discord-info
 
     inhibit_rules:
+      # Site-wide outage suppresses per-node NodeDown/NodeNotReady alerts —
+      # one page for the whole event instead of one per node.
+      - source_matchers:
+          - alertname = MultipleNodesDown
+        target_matchers:
+          - alertname =~ "NodeDown|NodeNotReady"
+      # A downed/unready node suppresses other alerts sharing its `node` label.
+      # Note: only covers alerts that carry a `node` label (kubelet/node-scoped);
+      # pod/deployment alerts don't, so MultipleNodesDown is the broader net.
+      - source_matchers:
+          - alertname =~ "NodeDown|NodeNotReady"
+        target_matchers:
+          - alertname !~ "NodeDown|NodeNotReady|MultipleNodesDown"
+        equal: ['node']
       - source_matchers:
           - severity = critical
         target_matchers:
