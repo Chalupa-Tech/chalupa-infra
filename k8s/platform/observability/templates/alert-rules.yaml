@@ -25,6 +25,19 @@ spec:
             summary: "Node {{ "{{" }} $labels.node {{ "}}" }} is NotReady"
             description: "Node has been in NotReady state for 5 minutes."
 
+        # Site/power-outage meta-alert: two or more nodes unready within a short
+        # window almost always means the whole site is down. Fires quickly and
+        # inhibits per-node NodeDown/NodeNotReady alerts so the event pages once.
+        - alert: MultipleNodesDown
+          expr: count(kube_node_status_condition{condition="Ready",status="true"} == 0) >= 2
+          for: 2m
+          labels:
+            severity: critical
+            scope: cluster
+          annotations:
+            summary: "Multiple nodes NotReady — likely site/power outage"
+            description: "{{ "{{" }} $value {{ "}}" }} nodes are NotReady simultaneously."
+
         - alert: DeploymentReplicasUnavailable
           expr: kube_deployment_status_available_replicas == 0 and kube_deployment_spec_replicas > 0
           for: 5m
