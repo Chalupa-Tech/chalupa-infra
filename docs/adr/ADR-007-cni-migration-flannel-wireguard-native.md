@@ -277,6 +277,37 @@ Cross-site pod-to-pod (e.g., dpi1 pod → tpi3 pod, current interim):
 
 ---
 
+## Port Allocation & Why We Need wg0 At All
+
+A recurring question: if flannel-wg is already a WireGuard overlay, why do we need a second WireGuard tunnel (wg0) to bridge sites?
+
+### Port allocation
+
+- **UDP 51820** — flannel-wg, bound on every K3s node. Default WireGuard port, K3s-managed.
+- **UDP 51821** — wg0 site-to-site tunnel, bound on gateway nodes (dpi2, tpi1). Non-default port chosen specifically because flannel-wg already owns 51820 on the same host — two WireGuard services cannot share a UDP port on the same host.
+- **UDP 41641** — Tailscale (default). Not in the pod data path. No port conflict with flannel-wg.
+
+### Why wg0 exists (and why it's temporary)
+
+flannel-wg *can* do cross-site directly — it's a full WireGuard mesh. The blocker is NAT: flannel-wg peers on different sites need to reach each other at a routable endpoint. Same-site peers use LAN IPs (automatic). Cross-site peers need `<router-public-ip>:51820` reachable, which requires a UDP 51820 port forward at each site's router to the local flannel-wg gateway node.
+
+**Those port forwards don't exist yet.** wg0 is the workaround: one site-to-site tunnel on 51821 (already forwarded at Dustin's router), through which cross-site flannel-wg peers tunnel using wg0 transit IPs (10.100.0.x) as their negotiated endpoints. This is the double-encapsulation we're paying for in the interim.
+
+### Why the Tailscale hijack (Phase 7e) was NOT a port conflict
+
+The Phase 7e incident looked like a "Tailscale collision" but it was a **routing-table hijack**, not a port clash. Tailscale's routing table 52 has priority 5270, checked before the main table (priority 32766). Tailscale had been configured to advertise pod CIDRs (10.42.0.0/16) as subnet routes, so pod traffic was being pulled into table 52 and sent via tailscale0 instead of flannel-wg — even though flannel-wg was bound correctly on UDP 51820. Fix was to clear `--advertise-routes` on all nodes, not anything port-related.
+
+### What removing wg0 requires
+
+Per-site router config (see "Removing the wg0 Tunnel" below):
+1. UDP 51820 port forward at each site's router → local flannel-wg gateway node
+2. flannel `public-ip` annotation (or K3s `--node-external-ip`) set to the router's public IP on cross-site gateway nodes
+3. OCI security list allows UDP 51820 inbound to oracle1
+
+Once those are in place, flannel-wg peers negotiate directly, wg0 is torn down, and the entire `wireguard_tunnel` role + static cross-site route machinery (`wg-static-routes.service`, `wg-static-routes.sh`) can be deleted. The 2026-04-07 outage — static routes flushed by DHCP — becomes structurally impossible because there are no static cross-site routes to flush.
+
+---
+
 ## Removing the wg0 Tunnel (Endgame)
 
 The wg0 site-to-site tunnel exists only because routers don't yet forward UDP 51820 to the flannel-wg gateway nodes. Once port forwarding is configured, flannel-wg peers will connect directly and the wg0 tunnel can be removed.
