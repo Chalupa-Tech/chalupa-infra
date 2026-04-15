@@ -67,6 +67,13 @@ k3s_version: "v1.34.5+k3s1"
 # independence from the secrets backend this account protects)
 gitea_admin_password: "{{ vault_gitea_admin_password }}"
 
+# Grafana admin credentials. Seeded into OpenBao at
+# secret/data/platform/grafana/admin-password by openbao_setup/platform_setup.yml
+# and consumed at runtime via ExternalSecret → GF_SECURITY_ADMIN_* env vars.
+# See docs/service-account-framework.md Appendix A and ADR-008.
+grafana_admin_user: admin
+grafana_admin_password: "{{ vault_grafana_admin_password }}"
+
 # OpenBao OIDC clients provisioned by openbao_setup/oidc_setup.yml
 # Each entry creates: OIDC key, assignment, client, and K8s Secret
 openbao_oidc_clients:

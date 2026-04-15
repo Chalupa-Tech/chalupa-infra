@@ -1,0 +1,54 @@
+---
+# Mints the `claude-desktop` Grafana service account (Viewer role) and
+# stores its token at secret/platform/grafana/claude-desktop-token.
+# Idempotent — skips on re-run unless ROTATE=true. Rotation is manual
+# per ADR-008 §Rotation.
+#
+# Runs as an ArgoCD PostSync hook: fires after the observability
+# Application syncs, so Grafana + OpenBao must be healthy first.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-sa-mint-claude-desktop
+  namespace: observability
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: grafana-sa-minter
+    spec:
+      serviceAccountName: grafana-sa-minter
+      restartPolicy: OnFailure
+      containers:
+        - name: mint
+          image: alpine:3.20
+          command:
+            - /bin/sh
+            - -c
+            - apk add --no-cache curl jq >/dev/null && sh /scripts/mint-grafana-sa.sh
+          env:
+            - name: SA_NAME
+              value: "claude-desktop"
+            - name: SA_ROLE
+              value: "Viewer"
+            - name: KV_PATH
+              value: "platform/grafana/claude-desktop-token"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+      volumes:
+        - name: scripts
+          configMap:
+            name: grafana-sa-mint-script
+            defaultMode: 0755

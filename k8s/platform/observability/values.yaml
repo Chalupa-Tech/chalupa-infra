@@ -50,6 +50,13 @@ victoria-metrics-k8s-stack:
         maxSurge: 1
     persistence:
       enabled: false
+    # Pin admin credentials to OpenBao-backed Secret so Grafana resets its
+    # SQLite admin hash from env vars on every pod boot. See
+    # docs/service-account-framework.md Appendix A and ADR-008.
+    admin:
+      existingSecret: grafana-admin-secret
+      userKey: admin-user
+      passwordKey: admin-password
     readinessProbe:
       httpGet:
         path: /api/health

@@ -1,0 +1,80 @@
+---
+# Mint script consumed by grafana-sa-mint-* Jobs. Idempotent: skips if a
+# token already exists at $KV_PATH unless $ROTATE=true. See
+# docs/service-account-framework.md Appendix B.3.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-sa-mint-script
+  namespace: observability
+data:
+  mint-grafana-sa.sh: |
+    #!/bin/sh
+    # Env: SA_NAME, SA_ROLE (Viewer|Editor|Admin), KV_PATH, ROTATE (optional)
+    set -eu
+
+    GRAFANA_URL="${GRAFANA_URL:-http://observability-grafana.observability.svc.cluster.local}"
+    BAO_ADDR="${BAO_ADDR:-http://openbao-active.openbao.svc.cluster.local:8200}"
+
+    # 1. Authenticate to OpenBao via projected K8s SA token
+    SA_JWT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    BAO_TOKEN=$(curl -sf -X POST "$BAO_ADDR/v1/auth/kubernetes/login" \
+      -d "{\"role\":\"grafana-sa-minter-role\",\"jwt\":\"$SA_JWT\"}" \
+      | jq -r '.auth.client_token')
+    [ -n "$BAO_TOKEN" ] && [ "$BAO_TOKEN" != "null" ] || { echo "bao auth failed"; exit 1; }
+
+    # 2. Fetch Grafana admin creds
+    ADMIN_RESP=$(curl -sf -H "X-Vault-Token: $BAO_TOKEN" \
+      "$BAO_ADDR/v1/secret/data/platform/grafana/admin-password")
+    ADMIN_USER=$(echo "$ADMIN_RESP" | jq -r '.data.data["admin-user"]')
+    ADMIN_PASS=$(echo "$ADMIN_RESP" | jq -r '.data.data["admin-password"]')
+
+    # 3. Skip if KV path already has a token and ROTATE is not set
+    if [ "${ROTATE:-false}" != "true" ]; then
+      EXIST=$(curl -sf -H "X-Vault-Token: $BAO_TOKEN" \
+        "$BAO_ADDR/v1/secret/data/$KV_PATH" 2>/dev/null \
+        | jq -r '.data.data.token // empty' || true)
+      if [ -n "$EXIST" ]; then
+        echo "token already present at $KV_PATH; skipping (set ROTATE=true to force)"
+        exit 0
+      fi
+    fi
+
+    # 4. Find or create the Grafana SA
+    SA_ID=$(curl -sf -u "$ADMIN_USER:$ADMIN_PASS" \
+      "$GRAFANA_URL/api/serviceaccounts/search?query=$SA_NAME" \
+      | jq -r ".serviceAccounts[] | select(.name==\"$SA_NAME\") | .id")
+
+    if [ -z "$SA_ID" ]; then
+      SA_ID=$(curl -sf -u "$ADMIN_USER:$ADMIN_PASS" \
+        -H "Content-Type: application/json" \
+        -X POST "$GRAFANA_URL/api/serviceaccounts" \
+        -d "{\"name\":\"$SA_NAME\",\"role\":\"$SA_ROLE\",\"isDisabled\":false}" \
+        | jq -r '.id')
+    fi
+    [ -n "$SA_ID" ] && [ "$SA_ID" != "null" ] || { echo "SA create failed"; exit 1; }
+
+    # 5. Delete any existing tokens on this SA (rotation / re-mint)
+    curl -sf -u "$ADMIN_USER:$ADMIN_PASS" \
+      "$GRAFANA_URL/api/serviceaccounts/$SA_ID/tokens" \
+      | jq -r '.[].id' \
+      | while read -r TID; do
+          curl -sf -u "$ADMIN_USER:$ADMIN_PASS" \
+            -X DELETE "$GRAFANA_URL/api/serviceaccounts/$SA_ID/tokens/$TID" >/dev/null
+        done
+
+    # 6. Mint a new token
+    TOKEN=$(curl -sf -u "$ADMIN_USER:$ADMIN_PASS" \
+      -H "Content-Type: application/json" \
+      -X POST "$GRAFANA_URL/api/serviceaccounts/$SA_ID/tokens" \
+      -d "{\"name\":\"$SA_NAME-$(date +%s)\"}" \
+      | jq -r '.key')
+    [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ] || { echo "token mint failed"; exit 1; }
+
+    # 7. Store in OpenBao
+    curl -sf -H "X-Vault-Token: $BAO_TOKEN" \
+      -H "Content-Type: application/json" \
+      -X POST "$BAO_ADDR/v1/secret/data/$KV_PATH" \
+      -d "{\"data\":{\"token\":\"$TOKEN\",\"sa_id\":\"$SA_ID\",\"role\":\"$SA_ROLE\"}}"
+
+    echo "minted SA $SA_NAME (id=$SA_ID), role=$SA_ROLE, stored at $KV_PATH"

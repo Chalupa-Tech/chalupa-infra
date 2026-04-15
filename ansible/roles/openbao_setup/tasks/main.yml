@@ -182,6 +182,9 @@
     - name: Setup Shared Namespace
       ansible.builtin.include_tasks: shared_setup.yml
 
+    - name: Setup Platform-scoped config (grafana admin pw, SA minter)
+      ansible.builtin.include_tasks: platform_setup.yml
+
     - name: Setup Users, Namespaces and SAs
       ansible.builtin.include_tasks: user_setup.yml
       loop: "{{ managed_users }}"
