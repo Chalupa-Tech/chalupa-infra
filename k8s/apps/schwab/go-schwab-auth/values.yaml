@@ -1,7 +1,7 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-schwab-auth
-  tag: v0.5.0
+  tag: v0.6.0
 
 vault:
   addr: "http://openbao-active.openbao.svc.cluster.local:8200"
