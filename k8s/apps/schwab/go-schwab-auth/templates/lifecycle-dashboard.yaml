@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-schwab-auth-lifecycle
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  schwab-auth-lifecycle.json: |
+{{ .Files.Get "files/schwab-auth-lifecycle.json" | indent 4 }}
