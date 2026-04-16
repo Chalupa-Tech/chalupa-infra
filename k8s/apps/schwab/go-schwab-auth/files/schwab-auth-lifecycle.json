@@ -2,7 +2,7 @@
   "annotations": {
     "list": []
   },
-  "editable": true,
+  "editable": false,
   "graphTooltip": 1,
   "title": "Schwab Auth — Token Lifecycle",
   "uid": "schwab-auth-lifecycle",
