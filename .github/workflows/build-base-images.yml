@@ -1,0 +1,41 @@
+---
+name: Build Base Images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'base-images/**'
+      - '.github/workflows/build-base-images.yml'
+    tags:
+      - 'v*'
+  schedule:
+    - cron: '0 4 * * 1'  # Monday 4am UTC — picks up CA cert and base image security updates
+  workflow_dispatch:
+
+jobs:
+  build-go:
+    name: Build chalupa-base-go
+    uses: Chalupa-Tech/chalupa-infra/.github/workflows/build-push-reusable.yml@main
+    with:
+      image_name: chalupa-base-go
+      context: base-images/chalupa-base-go
+    secrets:
+      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+      GITEA_REGISTRY_USER: ${{ secrets.GITEA_REGISTRY_USER }}
+      GITEA_REGISTRY_PASSWORD: ${{ secrets.GITEA_REGISTRY_PASSWORD }}
+
+  build-job:
+    name: Build chalupa-base-job
+    needs: build-go
+    uses: Chalupa-Tech/chalupa-infra/.github/workflows/build-push-reusable.yml@main
+    with:
+      image_name: chalupa-base-job
+      context: base-images/chalupa-base-job
+    secrets:
+      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+      GITEA_REGISTRY_USER: ${{ secrets.GITEA_REGISTRY_USER }}
+      GITEA_REGISTRY_PASSWORD: ${{ secrets.GITEA_REGISTRY_PASSWORD }}
