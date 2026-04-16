@@ -65,6 +65,35 @@ spec:
             summary: "go-schwab-auth is down or flapping"
             description: "go-schwab-auth is unreachable, absent from scrape, or has had <50% uptime over the last 10 minutes (sustained 5m). Token refresh scheduler is not running reliably; Schwab OAuth pipeline will fail silently when the current refresh token expires. Runbook: https://github.com/Chalupa-Tech/chalupa-brain/blob/main/docs/runbooks/auth-pod-incident.md"
 
+        # Primary alarm for the refresh loop. Counter-increase is less noisy
+        # than rate() and maps cleanly to "the auth pod couldn't renew 3+
+        # times in 15 min", which reliably means human attention is needed.
+        - alert: SchwabRefreshFailureSpike
+          expr: sum by (registration, failure_reason)(increase(schwab_auth_refresh_total{result="failure"}[15m])) >= 3
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Schwab auth refresh failing repeatedly ({{ "{{" }} $labels.registration {{ "}}" }})"
+            description: "3+ failed Schwab OAuth refreshes in the last 15m for registration {{ "{{" }} $labels.registration {{ "}}" }} (reason={{ "{{" }} $labels.failure_reason {{ "}}" }}). Access tokens will expire if refreshes keep failing. Runbook: https://github.com/Chalupa-Tech/chalupa-brain/blob/main/docs/runbooks/auth-pod-incident.md"
+
+        # Backstop. The primary signal is refresh-failure; this catches
+        # pathological cases where the refresh loop stops emitting
+        # attempts at all. The process_start_time_seconds guard defuses
+        # the well-known "gauge initialized to 0 on pod restart makes
+        # time()-metric huge" trap (Robust Perception pattern).
+        - alert: SchwabAccessTokenExpiringSoon
+          expr: |
+            (schwab_auth_token_expiry_timestamp_seconds{token_type="access"} - time()) < 600
+            and (time() - schwab_auth_last_successful_refresh_timestamp_seconds) > 300
+            and (time() - process_start_time_seconds{job="go-schwab-auth"}) > 300
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Schwab access token {{ "{{" }} $labels.registration {{ "}}" }} expires in <10m with no recent refresh"
+            description: "Access token for {{ "{{" }} $labels.registration {{ "}}" }} expires in <10m, last successful refresh was >5m ago, and the pod has been up >5m (so this isn't startup). Refresh loop is stuck. Runbook: https://github.com/Chalupa-Tech/chalupa-brain/blob/main/docs/runbooks/auth-pod-incident.md"
+
     # ── Error ────────────────────────────────────────────────────────
     - name: error
       rules:
@@ -169,6 +198,18 @@ spec:
           annotations:
             summary: "Certificate {{ "{{" }} $labels.name {{ "}}" }} expires in < 30 days"
             description: "Namespace {{ "{{" }} $labels.namespace {{ "}}" }}, cert {{ "{{" }} $labels.name {{ "}}" }}."
+
+        # Refresh tokens typically last days to weeks. 24h ahead of expiry
+        # is a pre-emptive warning (human re-auth will be needed), not a
+        # page-level urgency. `for: 10m` avoids flapping at the boundary.
+        - alert: SchwabRefreshTokenExpiringSoon
+          expr: (schwab_auth_token_expiry_timestamp_seconds{token_type="refresh"} - time()) < 86400
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Schwab refresh token {{ "{{" }} $labels.registration {{ "}}" }} expires in <24h"
+            description: "Refresh token for {{ "{{" }} $labels.registration {{ "}}" }} expires in {{ "{{" }} $value | printf \"%.0f\" {{ "}}" }}s. Human re-auth at https://go-schwab-auth.tailbecff0.ts.net/auth/start?registration={{ "{{" }} $labels.registration {{ "}}" }} is required before expiry. Runbook: https://github.com/Chalupa-Tech/chalupa-brain/blob/main/docs/runbooks/auth-pod-incident.md"
 
 
     # ── Info ─────────────────────────────────────────────────────────

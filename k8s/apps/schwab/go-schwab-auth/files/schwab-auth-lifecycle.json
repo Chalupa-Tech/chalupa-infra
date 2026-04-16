@@ -1,0 +1,329 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "title": "Schwab Auth — Token Lifecycle",
+  "uid": "schwab-auth-lifecycle",
+  "tags": [
+    "schwab",
+    "auth",
+    "oauth",
+    "observability"
+  ],
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "registration",
+        "type": "query",
+        "datasource": "VictoriaMetrics",
+        "query": "label_values(schwab_auth_token_expiry_timestamp_seconds, registration)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Auth-pod incident runbook",
+      "url": "https://github.com/Chalupa-Tech/chalupa-brain/blob/main/docs/runbooks/auth-pod-incident.md",
+      "type": "link",
+      "icon": "doc",
+      "targetBlank": true
+    },
+    {
+      "title": "Service RED",
+      "url": "/d/service-red",
+      "type": "link",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Logs Explorer",
+      "url": "/d/victorialogs-explorer",
+      "type": "link",
+      "icon": "doc",
+      "targetBlank": false
+    }
+  ],
+  "panels": [
+    {
+      "title": "Token expiry countdown",
+      "type": "row",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "collapsed": false
+    },
+    {
+      "title": "Access token — minutes until expiry",
+      "type": "stat",
+      "description": "Minutes remaining on the current access token. Healthy services refresh at ~50% of the access-token lifetime, so this value should normally oscillate between ~15 and 30 min.",
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 1},
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "(schwab_auth_token_expiry_timestamp_seconds{token_type=\"access\",registration=~\"$registration\"} - time()) / 60",
+          "legendFormat": "{{registration}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "green", "value": 15}
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": ""}
+      }
+    },
+    {
+      "title": "Refresh token — days until expiry",
+      "type": "stat",
+      "description": "Days remaining on the current refresh token. Refresh tokens typically last days to weeks; <1d requires human re-auth.",
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 1},
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "(schwab_auth_token_expiry_timestamp_seconds{token_type=\"refresh\",registration=~\"$registration\"} - time()) / 86400",
+          "legendFormat": "{{registration}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "d",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "green", "value": 3}
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": ""}
+      }
+    },
+    {
+      "title": "Time since last successful refresh",
+      "type": "stat",
+      "description": "Seconds since the last successful refresh. Absent until the first success after pod start — the last_successful_refresh gauge is deliberately never initialized. Alerts guard this with process_start_time_seconds.",
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 1},
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "time() - schwab_auth_last_successful_refresh_timestamp_seconds{registration=~\"$registration\"}",
+          "legendFormat": "{{registration}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 300},
+              {"color": "red", "value": 900}
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": ""}
+      }
+    },
+    {
+      "title": "Refresh rates",
+      "type": "row",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 7},
+      "collapsed": false
+    },
+    {
+      "title": "Refresh success ratio (5m)",
+      "type": "stat",
+      "description": "success / (success + failure) over the last 5 minutes.",
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 8},
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "sum(rate(schwab_auth_refresh_total{result=\"success\",registration=~\"$registration\"}[5m])) / clamp_min(sum(rate(schwab_auth_refresh_total{registration=~\"$registration\"}[5m])), 1e-9)",
+          "legendFormat": "success ratio",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 0.9},
+              {"color": "green", "value": 0.99}
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": ""}
+      }
+    },
+    {
+      "title": "Refresh failures by reason (per minute)",
+      "type": "timeseries",
+      "description": "Per-minute failure rate by classified reason. `invalid_grant` means the refresh token is dead — expect this only at the refresh-token TTL horizon.",
+      "gridPos": {"h": 8, "w": 16, "x": 8, "y": 8},
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "sum by (failure_reason)(rate(schwab_auth_refresh_total{result=\"failure\",registration=~\"$registration\"}[5m])) * 60",
+          "legendFormat": "{{failure_reason}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "stacking": {"mode": "normal"},
+            "lineWidth": 1,
+            "fillOpacity": 80
+          }
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["sum", "lastNotNull"]}
+      }
+    },
+    {
+      "title": "Lifecycle timeline",
+      "type": "row",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 16},
+      "collapsed": false
+    },
+    {
+      "title": "Token remaining lifetime (both types)",
+      "type": "timeseries",
+      "description": "(expiry - time()) for each token_type. Refresh token is the long horizon; access token should sawtooth every ~30 min as the service auto-renews.",
+      "gridPos": {"h": 8, "w": 16, "x": 0, "y": 17},
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "schwab_auth_token_expiry_timestamp_seconds{token_type=\"access\",registration=~\"$registration\"} - time()",
+          "legendFormat": "access ({{registration}})"
+        },
+        {
+          "expr": "schwab_auth_token_expiry_timestamp_seconds{token_type=\"refresh\",registration=~\"$registration\"} - time()",
+          "legendFormat": "refresh ({{registration}})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "min"]}
+      }
+    },
+    {
+      "title": "Refresh attempts (per minute)",
+      "type": "timeseries",
+      "description": "Successful vs failed refresh attempts, summed per minute.",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 17},
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "sum(rate(schwab_auth_refresh_total{result=\"success\",registration=~\"$registration\"}[5m])) * 60",
+          "legendFormat": "success"
+        },
+        {
+          "expr": "sum(rate(schwab_auth_refresh_total{result=\"failure\",registration=~\"$registration\"}[5m])) * 60",
+          "legendFormat": "failure"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80
+          }
+        }
+      }
+    },
+    {
+      "title": "Refresh duration p50 / p95 / p99",
+      "type": "timeseries",
+      "description": "End-to-end refresh latency. A rising p95 often precedes failures.",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 25},
+      "datasource": "VictoriaMetrics",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le)(rate(schwab_auth_refresh_duration_seconds_bucket{registration=~\"$registration\"}[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le)(rate(schwab_auth_refresh_duration_seconds_bucket{registration=~\"$registration\"}[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le)(rate(schwab_auth_refresh_duration_seconds_bucket{registration=~\"$registration\"}[5m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "weekStart": ""
+}
