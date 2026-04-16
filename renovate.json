@@ -4,6 +4,15 @@
   "helmv3": {
     "fileMatch": ["k8s/.+/Chart\\.yaml$"]
   },
+  "dockerfile": {
+    "fileMatch": ["(^|/)Dockerfile[^/]*$"]
+  },
+  "hostRules": [
+    {
+      "matchHost": "gitea.tailbecff0.ts.net",
+      "hostType": "docker"
+    }
+  ],
   "packageRules": [
     {
       "description": "Group all Helm chart updates into a single PR",
@@ -14,6 +23,26 @@
     {
       "description": "Pin major version updates for manual review",
       "matchManagers": ["helmv3"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Auto-merge patch and minor base image updates",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "gitea.tailbecff0.ts.net/chalupa-tech/chalupa-base-go",
+        "gitea.tailbecff0.ts.net/chalupa-tech/chalupa-base-job"
+      ],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true
+    },
+    {
+      "description": "Major base image updates require dashboard approval",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "gitea.tailbecff0.ts.net/chalupa-tech/chalupa-base-go",
+        "gitea.tailbecff0.ts.net/chalupa-tech/chalupa-base-job"
+      ],
       "matchUpdateTypes": ["major"],
       "dependencyDashboardApproval": true
     }

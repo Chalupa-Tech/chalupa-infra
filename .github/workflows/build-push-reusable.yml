@@ -23,6 +23,11 @@ on:
         required: false
         type: string
         default: ''
+      context:
+        description: 'Docker build context path (relative to repo root)'
+        required: false
+        type: string
+        default: '.'
     secrets:
       TS_OAUTH_CLIENT_ID:
         required: true
@@ -113,7 +118,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${{ inputs.context }}
           platforms: ${{ inputs.platforms }}
           push: true
           build-args: |
