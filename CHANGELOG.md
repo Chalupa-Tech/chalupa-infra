@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and nonroot user (UID 65532). Replaces the repeated `FROM scratch` + CA cert copy pattern across
   all Go services.
 - `base-images/chalupa-base-job`: Tier 2 shared base image extending `chalupa-base-go` with static
-  `bao` (OpenBao CLI v2.2.0), `nats` (natscli v0.2.3), and `jq` binaries for job/CronJob workloads.
+  `bao` (OpenBao CLI v2.2.0), `nats` (natscli v0.2.3), and `jq` (official static v1.7.1) binaries
+  for job/CronJob workloads.
 - `.github/workflows/build-base-images.yml`: CI pipeline that builds and pushes both base images to
   the Gitea registry. Triggers on `base-images/**` path changes to main, weekly schedule (Monday
   4am UTC for security updates), manual dispatch, and semver git tags (`v*`). `chalupa-base-job`

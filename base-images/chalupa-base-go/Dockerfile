@@ -1,4 +1,4 @@
-FROM golang:1.25-alpine AS certs
+FROM alpine:3.21 AS certs
 RUN apk add --no-cache ca-certificates
 
 FROM scratch

@@ -31,7 +31,7 @@ interact with OpenBao (secrets) and NATS (messaging).
 **Contents (in addition to chalupa-base-go):**
 - `/usr/local/bin/bao` — OpenBao CLI v2.2.0 (static binary, Vault-compatible)
 - `/usr/local/bin/nats` — natscli v0.2.3 (static binary)
-- `/usr/bin/jq` — jq (from Alpine apk, statically linked)
+- `/usr/local/bin/jq` — jq v1.7.1 (official static binary from jqlang/jq)
 
 **Known limitations:**
 - Same timezone limitation as `chalupa-base-go`
