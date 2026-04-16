@@ -182,6 +182,13 @@ victoria-metrics-k8s-stack:
     dashboards:
       node-exporter-full:
         enabled: false
+      # Grafana-native alerting is intentionally off (vmalert is sole engine).
+      # The upstream dashboard's "Firing Alerts" panel queries
+      # grafana_alerting_result_total, which has zero series in this cluster —
+      # disable the whole dashboard rather than ship a misleading "0 firing"
+      # number. See docs/grafana-dashboards.md §15.
+      grafana-overview:
+        enabled: false
 
   ## Alertmanager
   alertmanager:
