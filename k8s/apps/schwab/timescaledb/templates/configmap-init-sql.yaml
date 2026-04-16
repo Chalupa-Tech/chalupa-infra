@@ -213,12 +213,14 @@ data:
       AND h.symbol = q.symbol
       AND h.frequency = q.frequency
     WHERE h.source = 'ddowell-individual'
-      AND q.source IN ('quote', 'quote-derived');
+      AND q.source = 'quote';
 
-    -- Backfill gap detection: 5m quote-derived candles with no matching historical data
+    -- Backfill gap detection: 5m quote candles with no matching historical data
     -- Scoped to 5m only — ddowell-individual has no 1h data, and 1d uses 05:00 UTC
-    -- bucketing vs quote-derived 00:00 UTC so row-level joins don't work at those frequencies.
+    -- bucketing vs quote 00:00 UTC so row-level joins don't work at those frequencies.
     -- Bucket-aligned 1d/1h reconciliation is a separate problem.
+    -- Uses `q.source = 'quote'` only (authoritative). `quote-derived` is excluded
+    -- because derived rows can be flawed and would inflate false-positive gap counts.
     CREATE OR REPLACE VIEW candle_backfill_gaps AS
     SELECT
       q.time,
@@ -232,7 +234,7 @@ data:
       AND q.symbol = h.symbol
       AND q.frequency = h.frequency
       AND h.source = 'ddowell-individual'
-    WHERE q.source IN ('quote', 'quote-derived')
+    WHERE q.source = 'quote'
       AND q.frequency = '5m'
       AND h.time IS NULL
       AND q.time < now() - INTERVAL '4 hours';
