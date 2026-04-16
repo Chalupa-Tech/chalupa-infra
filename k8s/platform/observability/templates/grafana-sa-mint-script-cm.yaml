@@ -43,7 +43,7 @@ data:
     # 4. Find or create the Grafana SA
     SA_ID=$(curl -sf -u "$ADMIN_USER:$ADMIN_PASS" \
       "$GRAFANA_URL/api/serviceaccounts/search?query=$SA_NAME" \
-      | jq -r ".serviceAccounts[] | select(.name==\"$SA_NAME\") | .id")
+      | jq -r --arg name "$SA_NAME" '.serviceAccounts[] | select(.name==$name) | .id')
 
     if [ -z "$SA_ID" ]; then
       SA_ID=$(curl -sf -u "$ADMIN_USER:$ADMIN_PASS" \

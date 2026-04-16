@@ -542,9 +542,12 @@ spec:
           emptyDir: {}
 ```
 
-Simpler alternative: use an image with curl+jq pre-installed (e.g.,
-`curlimages/curl` + separate jq, or `alpine/curl:latest` with inline
-apk add in the main container). Phase-2b picks one.
+Simpler alternative (chosen in phase-2b's shipped implementation):
+single-container `alpine:3.20` with inline `apk add --no-cache curl jq`
+in the container command. The initContainer pattern above is retained
+as a reference for cases where Job startup latency or mirror
+availability are concerns — e.g., high-frequency rotation CronJobs.
+For once-per-sync PostSync hooks the inline install is preferable.
 
 ### B.5 ConfigMap
 
