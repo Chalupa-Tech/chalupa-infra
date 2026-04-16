@@ -1,0 +1,102 @@
+---
+# Platform-scoped OpenBao configuration.
+#
+# Platform SAs live under secret/data/platform/<service>/... — distinct from
+# per-tenant app secrets provisioned by app_setup.yml. See
+# docs/service-account-framework.md and docs/adr/ADR-008 for rationale.
+#
+# This file is included unconditionally from main.yml's "Configure OpenBao"
+# block. All tasks are idempotent.
+
+# ----- Grafana admin password (phase-2a) -----
+#
+# Pins the Grafana admin password to an OpenBao-backed secret. The Grafana
+# subchart reads it via ExternalSecret → k8s Secret → GF_SECURITY_ADMIN_*
+# env vars, so SQLite admin-hash drift cannot persist across pod restarts.
+
+- name: Write grafana-admin-reader policy
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/policies/acl/grafana-admin-reader-policy"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      policy: |
+        # Read-only access to Grafana admin credentials.
+        path "secret/data/platform/grafana/admin-password" {
+          capabilities = ["read"]
+        }
+    status_code: [200, 204]
+    validate_certs: false
+  no_log: true
+
+- name: Write grafana-admin-reader K8s auth role
+  ansible.builtin.shell: |
+    kubectl exec -n openbao openbao-0 -- sh -c "
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write auth/kubernetes/role/grafana-admin-reader-role \
+        bound_service_account_names=observability-grafana \
+        bound_service_account_namespaces=observability \
+        policies=grafana-admin-reader-policy \
+        ttl=1h
+    "
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+  no_log: true
+
+- name: Seed Grafana admin password at secret/platform/grafana/admin-password
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/platform/grafana/admin-password"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      data:
+        admin-user: "{{ grafana_admin_user }}"
+        admin-password: "{{ grafana_admin_password }}"
+    status_code: [200, 204]
+    validate_certs: false
+  no_log: true
+
+# ----- Grafana SA minter (phase-2b) -----
+#
+# Policy + role used by the grafana-sa-mint-* Jobs to create and rotate
+# Grafana service-account tokens. Reads admin password, writes minted
+# tokens under secret/data/platform/grafana/*.
+
+- name: Write grafana-sa-minter policy
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/policies/acl/grafana-sa-minter-policy"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      policy: |
+        # Read Grafana admin creds (to authenticate against Grafana API).
+        path "secret/data/platform/grafana/admin-password" {
+          capabilities = ["read"]
+        }
+        # Write minted SA tokens under platform/grafana/*.
+        path "secret/data/platform/grafana/*" {
+          capabilities = ["create", "update", "patch", "read"]
+        }
+    status_code: [200, 204]
+    validate_certs: false
+  no_log: true
+
+- name: Write grafana-sa-minter K8s auth role
+  ansible.builtin.shell: |
+    kubectl exec -n openbao openbao-0 -- sh -c "
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write auth/kubernetes/role/grafana-sa-minter-role \
+        bound_service_account_names=grafana-sa-minter \
+        bound_service_account_namespaces=observability \
+        policies=grafana-sa-minter-policy \
+        ttl=10m
+    "
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+  no_log: true
