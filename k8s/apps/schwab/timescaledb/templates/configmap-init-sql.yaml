@@ -84,7 +84,8 @@ data:
     SELECT add_compression_policy('quotes', INTERVAL '7 days', if_not_exists => true);
 
     -- Frequency-based retention (daily candles kept forever)
-    CREATE OR REPLACE FUNCTION cleanup_old_candles(config jsonb DEFAULT NULL) RETURNS void AS $$
+    DROP FUNCTION IF EXISTS cleanup_old_candles(jsonb);
+    CREATE OR REPLACE FUNCTION cleanup_old_candles(job_id INT, config JSONB) RETURNS void AS $$
     BEGIN
         DELETE FROM candles WHERE frequency = '5m' AND time < now() - INTERVAL '90 days';
         DELETE FROM candles WHERE frequency = '1h' AND time < now() - INTERVAL '1 year';
@@ -119,10 +120,64 @@ data:
       schedule_interval => INTERVAL '5 minutes',
       if_not_exists => TRUE);
 
+    -- Enable real-time aggregation (queries see data beyond last refresh)
+    ALTER MATERIALIZED VIEW candles_from_quotes SET (timescaledb.materialized_only = false);
+
+    -- Hierarchical continuous aggregate: 1-hour candles from 5-minute candles
+    CREATE MATERIALIZED VIEW IF NOT EXISTS candles_1h
+    WITH (timescaledb.continuous) AS
+    SELECT
+      time_bucket('1 hour', time) AS time,
+      symbol,
+      '1h'::text AS frequency,
+      first(open, time) AS open,
+      max(high) AS high,
+      min(low) AS low,
+      last(close, time) AS close,
+      sum(volume) AS volume,
+      'quote'::text AS source
+    FROM candles_from_quotes
+    GROUP BY 1, 2
+    WITH NO DATA;
+
+    ALTER MATERIALIZED VIEW candles_1h SET (timescaledb.materialized_only = false);
+
+    SELECT add_continuous_aggregate_policy('candles_1h',
+      start_offset => INTERVAL '3 days',
+      end_offset => INTERVAL '1 hour',
+      schedule_interval => INTERVAL '1 hour',
+      if_not_exists => TRUE);
+
+    -- Hierarchical continuous aggregate: 1-day candles from 1-hour candles
+    CREATE MATERIALIZED VIEW IF NOT EXISTS candles_1d
+    WITH (timescaledb.continuous) AS
+    SELECT
+      time_bucket('1 day', time) AS time,
+      symbol,
+      '1d'::text AS frequency,
+      first(open, time) AS open,
+      max(high) AS high,
+      min(low) AS low,
+      last(close, time) AS close,
+      sum(volume) AS volume,
+      'quote'::text AS source
+    FROM candles_1h
+    GROUP BY 1, 2
+    WITH NO DATA;
+
+    ALTER MATERIALIZED VIEW candles_1d SET (timescaledb.materialized_only = false);
+
+    SELECT add_continuous_aggregate_policy('candles_1d',
+      start_offset => INTERVAL '7 days',
+      end_offset => INTERVAL '1 day',
+      schedule_interval => INTERVAL '1 day',
+      if_not_exists => TRUE);
+
     -- Periodic job: merge quote-derived candles into main candles table
     -- Drop zero-arg overload if it exists (prevents "function is not unique" when job scheduler invokes with jsonb config)
     DROP FUNCTION IF EXISTS merge_quote_candles();
-    CREATE OR REPLACE FUNCTION merge_quote_candles(config jsonb DEFAULT NULL) RETURNS void AS $$
+    DROP FUNCTION IF EXISTS merge_quote_candles(jsonb);
+    CREATE OR REPLACE FUNCTION merge_quote_candles(job_id INT, config JSONB) RETURNS void AS $$
     BEGIN
       INSERT INTO candles (time, symbol, frequency, open, high, low, close, volume, source)
       SELECT time, symbol, frequency, open, high, low, close, volume, source
@@ -135,6 +190,44 @@ data:
     $$ LANGUAGE plpgsql;
     DO $$ BEGIN
       PERFORM add_job('merge_quote_candles', INTERVAL '5 minutes');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    -- Periodic job: merge 1-hour quote-derived candles into main candles table
+    DROP FUNCTION IF EXISTS merge_quote_candles_1h();
+    DROP FUNCTION IF EXISTS merge_quote_candles_1h(jsonb);
+    CREATE OR REPLACE FUNCTION merge_quote_candles_1h(job_id INT, config JSONB) RETURNS void AS $$
+    BEGIN
+      INSERT INTO candles (time, symbol, frequency, open, high, low, close, volume, source)
+      SELECT time, symbol, frequency, open, high, low, close, volume, source
+      FROM candles_1h
+      WHERE time > now() - INTERVAL '3 days'
+      ON CONFLICT (time, symbol, frequency, source) DO UPDATE SET
+        open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
+        close = EXCLUDED.close, volume = EXCLUDED.volume;
+    END;
+    $$ LANGUAGE plpgsql;
+    DO $$ BEGIN
+      PERFORM add_job('merge_quote_candles_1h', INTERVAL '1 hour');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    -- Periodic job: merge 1-day quote-derived candles into main candles table
+    DROP FUNCTION IF EXISTS merge_quote_candles_1d();
+    DROP FUNCTION IF EXISTS merge_quote_candles_1d(jsonb);
+    CREATE OR REPLACE FUNCTION merge_quote_candles_1d(job_id INT, config JSONB) RETURNS void AS $$
+    BEGIN
+      INSERT INTO candles (time, symbol, frequency, open, high, low, close, volume, source)
+      SELECT time, symbol, frequency, open, high, low, close, volume, source
+      FROM candles_1d
+      WHERE time > now() - INTERVAL '7 days'
+      ON CONFLICT (time, symbol, frequency, source) DO UPDATE SET
+        open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
+        close = EXCLUDED.close, volume = EXCLUDED.volume;
+    END;
+    $$ LANGUAGE plpgsql;
+    DO $$ BEGIN
+      PERFORM add_job('merge_quote_candles_1d', INTERVAL '1 day');
     EXCEPTION WHEN duplicate_object THEN NULL;
     END $$;
 
