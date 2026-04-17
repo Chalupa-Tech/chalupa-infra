@@ -283,3 +283,51 @@ data:
     SELECT create_hypertable('movers', 'time', if_not_exists => TRUE);
     CREATE INDEX IF NOT EXISTS idx_movers_index_time ON movers (index_symbol, time DESC);
     SELECT add_retention_policy('movers', INTERVAL '90 days', if_not_exists => TRUE);
+
+    -- Reconciliation view: compare quote-derived vs historical candles
+    -- Computes relative variance for close, high, low where both sources overlap
+    CREATE OR REPLACE VIEW candle_source_variance AS
+    SELECT
+      h.time,
+      h.symbol,
+      h.frequency,
+      h.close  AS hist_close,
+      q.close  AS quote_close,
+      h.high   AS hist_high,
+      q.high   AS quote_high,
+      h.low    AS hist_low,
+      q.low    AS quote_low,
+      CASE WHEN h.close != 0 THEN ABS(h.close - q.close) / ABS(h.close) ELSE NULL END AS close_variance,
+      CASE WHEN h.high  != 0 THEN ABS(h.high  - q.high)  / ABS(h.high)  ELSE NULL END AS high_variance,
+      CASE WHEN h.low   != 0 THEN ABS(h.low   - q.low)   / ABS(h.low)   ELSE NULL END AS low_variance
+    FROM candles h
+    JOIN candles q
+      ON h.time = q.time
+      AND h.symbol = q.symbol
+      AND h.frequency = q.frequency
+    WHERE h.source = 'ddowell-individual'
+      AND q.source = 'quote';
+
+    -- Backfill gap detection: 5m quote candles with no matching historical data
+    -- Scoped to 5m only — ddowell-individual has no 1h data, and 1d uses 05:00 UTC
+    -- bucketing vs quote 00:00 UTC so row-level joins don't work at those frequencies.
+    -- Bucket-aligned 1d/1h reconciliation is a separate problem.
+    -- Uses `q.source = 'quote'` only (authoritative). `quote-derived` is excluded
+    -- because derived rows can be flawed and would inflate false-positive gap counts.
+    CREATE OR REPLACE VIEW candle_backfill_gaps AS
+    SELECT
+      q.time,
+      q.symbol,
+      q.frequency,
+      q.close AS quote_close,
+      now() - q.time AS age
+    FROM candles q
+    LEFT JOIN candles h
+      ON q.time = h.time
+      AND q.symbol = h.symbol
+      AND q.frequency = h.frequency
+      AND h.source = 'ddowell-individual'
+    WHERE q.source = 'quote'
+      AND q.frequency = '5m'
+      AND h.time IS NULL
+      AND q.time < now() - INTERVAL '4 hours';
