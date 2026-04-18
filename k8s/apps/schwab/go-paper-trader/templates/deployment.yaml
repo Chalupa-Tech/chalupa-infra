@@ -74,11 +74,6 @@ spec:
               value: {{ .Values.nats.url | quote }}
             - name: DATABASE_URL
               value: "postgresql://{{ .Values.database.user }}:$(DB_PASSWORD)@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}?sslmode=disable"
-            # One-shot backfill flag for the phase-4a → phase-4b boundary.
-            # EnsureSchema runs BackfillMissingRealizedPL only when this is set.
-            # Remove after null_sell==0 is verified on the cluster DB (phase-4c).
-            - name: PAPER_TRADER_ALLOW_REALIZED_PL_BACKFILL
-              value: "1"
           ports:
             - containerPort: {{ .Values.metrics.port }}
               name: metrics
