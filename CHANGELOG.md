@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `go-paper-trader` deploy: image tag `v0.2.0` → `v0.3.0` (bundles phase-4 hotfix + phase-4a + phase-4b). Adds
-  one-shot `PAPER_TRADER_ALLOW_REALIZED_PL_BACKFILL=1` env to roll the pre-phase-4a NULL `realized_pl` SELL
-  rows through `BackfillMissingRealizedPL`; flag removed in follow-up PR once `null_sell == 0` is verified
-  on the cluster `market` DB. (paper-trading phase-4c)
+- `go-paper-trader` deploy: image tag `v0.2.0` → `v0.3.0` (bundles phase-4 hotfix + phase-4a + phase-4b). The
+  one-shot `PAPER_TRADER_ALLOW_REALIZED_PL_BACKFILL=1` env was used to roll pre-phase-4a NULL `realized_pl`
+  SELL rows through `BackfillMissingRealizedPL` on the cluster `market` DB, then removed once `null_sell == 0`
+  was verified on the cluster. Backfill outcome: `scanned=49 updated=24 null_before=24 null_after=0`.
+  (paper-trading phase-4c)
 
 ### Added
 
