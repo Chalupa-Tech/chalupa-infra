@@ -50,6 +50,16 @@ spec:
           name: timescaledb-grafana-secret
         inRoles:
           - pg_read_all_data
+      # papertrader owns its own tables (paper_fills, paper_positions,
+      # paper_cash) via EnsureSchema at app startup; CREATE + USAGE on
+      # schema public is granted in timescaledb-init-roles. No blanket
+      # pg_read_all_data / pg_write_all_data — least-privilege to the
+      # execution-state tables it creates.
+      - name: {{ .Values.database.papertraderUser }}
+        ensure: present
+        login: true
+        passwordSecret:
+          name: timescaledb-papertrader-secret
     services:
       additional:
         - selectorType: rw

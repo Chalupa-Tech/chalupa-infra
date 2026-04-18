@@ -426,14 +426,14 @@
         "y": 30
       },
       "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(paper_fills_total)",
-          "instant": true
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS total FROM paper_fills WHERE $__timeFilter(time) AND strategy IN ($strategy)"
         }
       ],
       "fieldConfig": {
@@ -454,14 +454,14 @@
         "y": 30
       },
       "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(paper_fills_total{side=\"BUY\"})",
-          "instant": true
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS buys FROM paper_fills WHERE side = 'BUY' AND $__timeFilter(time) AND strategy IN ($strategy)"
         }
       ],
       "fieldConfig": {
@@ -486,14 +486,14 @@
         "y": 30
       },
       "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(paper_fills_total{side=\"SELL\"})",
-          "instant": true
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS sells FROM paper_fills WHERE side = 'SELL' AND $__timeFilter(time) AND strategy IN ($strategy)"
         }
       ],
       "fieldConfig": {
