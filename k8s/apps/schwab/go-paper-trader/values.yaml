@@ -2,7 +2,7 @@
 image:
   registry: ghcr.io
   repository: chalupa-tech/go-paper-trader
-  tag: "0.1.0"
+  tag: "0.2.0"
   pullPolicy: IfNotPresent
 
 nats:
