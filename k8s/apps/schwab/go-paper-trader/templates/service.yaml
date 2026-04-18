@@ -1,0 +1,18 @@
+---
+# ClusterIP service targeting the /metrics endpoint. VMServiceScrape
+# selects this service by the `app: go-paper-trader` label.
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-paper-trader
+  labels:
+    app: go-paper-trader
+spec:
+  type: ClusterIP
+  selector:
+    app: go-paper-trader
+  ports:
+    - name: metrics
+      port: {{ .Values.metrics.port }}
+      targetPort: metrics
+      protocol: TCP

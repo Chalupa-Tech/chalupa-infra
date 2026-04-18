@@ -1,0 +1,41 @@
+---
+# Safety guarantee #6 from the paper-trading architecture brief:
+# any paper-trading dashboard must visibly segregate itself from
+# live-account dashboards. This workflow hard-fails if any
+# k8s/apps/**/files/paper-*.json loses the literal banner string.
+name: Paper Dashboard Banner Lint
+
+on:
+  pull_request:
+    paths:
+      - 'k8s/apps/**/files/paper-*.json'
+      - '.github/workflows/paper-dashboard-banner-lint.yml'
+
+jobs:
+  banner-lint:
+    name: Assert PAPER TRADING banner present
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check banner in every paper-*.json
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          files=(k8s/apps/**/files/paper-*.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No paper-*.json files changed."
+            exit 0
+          fi
+          failures=0
+          for f in "${files[@]}"; do
+            if grep -q "PAPER TRADING" "$f"; then
+              echo "OK: $f contains PAPER TRADING banner"
+            else
+              echo "::error file=$f::missing literal 'PAPER TRADING' banner (safety guarantee #6)"
+              failures=$((failures + 1))
+            fi
+          done
+          if [ $failures -gt 0 ]; then
+            exit 1
+          fi

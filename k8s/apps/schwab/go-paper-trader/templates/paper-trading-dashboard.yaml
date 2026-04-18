@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-paper-trading
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  paper-trading.json: |
+{{ .Files.Get "files/paper-trading.json" | indent 4 }}
