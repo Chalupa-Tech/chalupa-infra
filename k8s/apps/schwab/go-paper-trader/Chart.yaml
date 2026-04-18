@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: go-paper-trader
+description: Paper-trading execution service. Simulates fills against live NATS quotes; writes paper_fills + paper_positions to cluster TimescaleDB. No live-trading code.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

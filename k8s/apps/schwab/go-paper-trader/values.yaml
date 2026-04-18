@@ -1,0 +1,46 @@
+---
+image:
+  registry: ghcr.io
+  repository: chalupa-tech/go-paper-trader
+  tag: "0.2.0"
+  pullPolicy: IfNotPresent
+
+nats:
+  url: "nats://nats.nats.svc.cluster.local:4222"
+
+# paper-trader connects to the cluster TimescaleDB with a dedicated
+# role (papertrader) that has INSERT, SELECT on paper_fills and
+# paper_positions only. No other table access, no Schwab Trader
+# credentials.
+database:
+  host: "timescaledb.schwab-ddowell.svc.cluster.local"
+  port: 5432
+  name: market
+  user: papertrader
+
+# OpenBao path for the papertrader DB credentials. Seeded manually
+# pre-merge with:
+#   bao kv put secret/schwab-ddowell/timescaledb/papertrader \
+#     APP_PASSWORD=$(openssl rand -base64 24)
+vault:
+  secretPath: "secret/data/schwab-ddowell/timescaledb/papertrader"
+
+metrics:
+  port: 9090
+
+paperTrader:
+  strategy: alternator
+  symbol: AMZN
+  quantity: 1
+  startingCash: 10000
+  maxQuoteAge: 30s
+  mtmInterval: 5s
+  snapshotInterval: 60s
+  alternatorCadence: 60s
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi

@@ -1,0 +1,94 @@
+---
+# Paper-trader is single-replica by design. Multiple replicas would
+# race on EnsureSchema (create_hypertable isn't concurrency-safe) and
+# double-fill on every strategy signal (each replica runs the
+# strategy independently). HA is a separate design (leader election,
+# single-writer) — not a v1 concern.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-paper-trader
+  labels:
+    app: go-paper-trader
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 120
+  minReadySeconds: 10
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: go-paper-trader
+  template:
+    metadata:
+      labels:
+        app: go-paper-trader
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until PGPASSWORD="$DB_PASSWORD" psql -h {{ .Values.database.host }} -p {{ .Values.database.port }} -U {{ .Values.database.user }} -d {{ .Values.database.name }} -c 'SELECT 1' >/dev/null 2>&1; do
+                echo "waiting for database connectivity..."
+                sleep 3
+              done
+              echo "database ready"
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: papertrader-db-secrets
+                  key: APP_PASSWORD
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              memory: 32Mi
+      containers:
+        - name: go-paper-trader
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "--strategy={{ .Values.paperTrader.strategy }}"
+            - "--symbol={{ .Values.paperTrader.symbol }}"
+            - "--qty={{ .Values.paperTrader.quantity }}"
+            - "--starting-cash={{ .Values.paperTrader.startingCash }}"
+            - "--max-quote-age={{ .Values.paperTrader.maxQuoteAge }}"
+            - "--mark-to-market-interval={{ .Values.paperTrader.mtmInterval }}"
+            - "--snapshot-interval={{ .Values.paperTrader.snapshotInterval }}"
+            - "--alternator-cadence={{ .Values.paperTrader.alternatorCadence }}"
+            - "--nats-url=$(NATS_URL)"
+            - "--postgres-url=$(DATABASE_URL)"
+            - "--metrics-addr=:{{ .Values.metrics.port }}"
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: papertrader-db-secrets
+                  key: APP_PASSWORD
+            - name: NATS_URL
+              value: {{ .Values.nats.url | quote }}
+            - name: DATABASE_URL
+              value: "postgresql://{{ .Values.database.user }}:$(DB_PASSWORD)@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}?sslmode=disable"
+          ports:
+            - containerPort: {{ .Values.metrics.port }}
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: metrics
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
