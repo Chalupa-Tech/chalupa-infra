@@ -109,7 +109,7 @@
         {
           "refId": "A",
           "format": "time_series",
-          "rawSql": "SELECT pc.time AS \"time\", pc.cash + COALESCE((SELECT SUM(pp.quantity * pp.mark_price) FROM paper_positions pp WHERE pp.time = pc.time), 0) AS equity FROM paper_cash pc WHERE $__timeFilter(pc.time) ORDER BY pc.time"
+          "rawSql": "SELECT pc.time AS \"time\", pc.cash + COALESCE(pos.equity, 0) AS equity FROM paper_cash pc LEFT JOIN (SELECT time, SUM(quantity * mark_price) AS equity FROM paper_positions GROUP BY time) pos ON pc.time = pos.time WHERE $__timeFilter(pc.time) ORDER BY pc.time"
         }
       ],
       "fieldConfig": {
@@ -224,7 +224,7 @@
         {
           "refId": "A",
           "format": "time_series",
-          "rawSql": "SELECT t AS \"time\", 100.0 * (equity - MAX(equity) OVER (ORDER BY t ROWS UNBOUNDED PRECEDING)) / NULLIF(MAX(equity) OVER (ORDER BY t ROWS UNBOUNDED PRECEDING), 0) AS drawdown_pct FROM (SELECT pc.time AS t, pc.cash + COALESCE((SELECT SUM(pp.quantity * pp.mark_price) FROM paper_positions pp WHERE pp.time = pc.time), 0) AS equity FROM paper_cash pc WHERE $__timeFilter(pc.time)) sub ORDER BY t"
+          "rawSql": "SELECT t AS \"time\", 100.0 * (equity - MAX(equity) OVER (ORDER BY t ROWS UNBOUNDED PRECEDING)) / NULLIF(MAX(equity) OVER (ORDER BY t ROWS UNBOUNDED PRECEDING), 0) AS drawdown_pct FROM (SELECT pc.time AS t, pc.cash + COALESCE(pos.equity, 0) AS equity FROM paper_cash pc LEFT JOIN (SELECT time, SUM(quantity * mark_price) AS equity FROM paper_positions GROUP BY time) pos ON pc.time = pos.time WHERE $__timeFilter(pc.time)) sub ORDER BY t"
         }
       ],
       "fieldConfig": {
