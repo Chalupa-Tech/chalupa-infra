@@ -6,6 +6,7 @@ database:
   name: market
   appUser: marketstore
   grafanaUser: grafana
+  papertraderUser: papertrader
 
 storage:
   size: 10Gi
@@ -23,3 +24,4 @@ monitoring:
 
 vault:
   secretPath: "secret/data/schwab-ddowell/timescaledb"
+  papertraderSecretPath: "secret/data/schwab-ddowell/timescaledb/papertrader"
