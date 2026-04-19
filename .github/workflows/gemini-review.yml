@@ -93,6 +93,7 @@ jobs:
           CTX_DIR="/tmp/brain/workstreams/${WORKSTREAM}"
           if [ ! -d "$CTX_DIR" ]; then
             echo "::warning::workstream directory not found in chalupa-brain: ${WORKSTREAM}"
+            rm -rf /tmp/brain
             echo "available=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
