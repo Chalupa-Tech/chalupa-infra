@@ -105,7 +105,7 @@ jobs:
               for brief in "$CTX_DIR/briefs/"*.md; do
                 [ -f "$brief" ] || continue
                 # Skip archived briefs (frontmatter `status: archived`)
-                if head -20 "$brief" | grep -qE '^status:[[:space:]]*archived'; then
+                if head -20 "$brief" | grep -qiE '^status:[[:space:]]*archived'; then
                   continue
                 fi
                 echo "---"
