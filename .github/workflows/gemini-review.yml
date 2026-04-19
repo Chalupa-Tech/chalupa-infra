@@ -44,6 +44,34 @@ jobs:
       - name: 'Checkout repository'
         uses: 'actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8' # ratchet:actions/checkout@v6
 
+      - name: 'Compose additional context'
+        id: 'compose_context'
+        env:
+          INBOUND_CONTEXT: '${{ inputs.additional_context }}'
+          REPO_NAME: '${{ github.event.repository.name }}'
+        run: |-
+          set -euo pipefail
+          ADDENDUM_FILE=".github/commands/addenda/${REPO_NAME}-review.md"
+          {
+            if [ -f "$ADDENDUM_FILE" ]; then
+              echo "## Repo-Specific Review Focus"
+              echo
+              cat "$ADDENDUM_FILE"
+            fi
+            if [ -n "${INBOUND_CONTEXT:-}" ]; then
+              echo
+              echo "## Per-PR Additional Context"
+              echo
+              printf '%s\n' "$INBOUND_CONTEXT"
+            fi
+          } > /tmp/composed_context.txt
+          {
+            echo 'context<<COMPOSED_EOF'
+            cat /tmp/composed_context.txt
+            echo 'COMPOSED_EOF'
+          } >> "$GITHUB_OUTPUT"
+          echo "Composed context size: $(wc -c </tmp/composed_context.txt) bytes" >&2
+
       - name: 'Run Gemini pull request review'
         uses: 'google-github-actions/run-gemini-cli@v0' # ratchet:exclude
         id: 'gemini_pr_review'
@@ -53,7 +81,7 @@ jobs:
           ISSUE_BODY: '${{ github.event.pull_request.body || github.event.issue.body }}'
           PULL_REQUEST_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
           REPOSITORY: '${{ github.repository }}'
-          ADDITIONAL_CONTEXT: '${{ inputs.additional_context }}'
+          ADDITIONAL_CONTEXT: '${{ steps.compose_context.outputs.context }}'
         with:
           gcp_location: '${{ vars.GOOGLE_CLOUD_LOCATION }}'
           gcp_project_id: '${{ vars.GOOGLE_CLOUD_PROJECT }}'
