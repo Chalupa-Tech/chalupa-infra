@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `go-paper-trader` deploy: image tag `v0.3.0` → `v0.4.0` (paper-trading phase-5 multi-book). Chart bumped
+  to `0.2.0`. `values.yaml` replaces scalar `paperTrader.strategy`/`.symbol`/`.quantity`/`.startingCash`/
+  `.alternatorCadence` with a `paperTrader.books:` list. New `templates/configmap.yaml` renders
+  `books.yaml` from the list; mounted at `/etc/paper-trader/books.yaml`. Deployment passes
+  `--config=/etc/paper-trader/books.yaml`; the scalar flags are gone. Default config runs two alternator
+  books (`ddowell-alt-30s`, `ddowell-alt-60s`) on the 23-symbol watchlist (24 minus AAPL, which is not
+  in the feed's watchlist), each starting with $10k cash. Pod resource bumps 32Mi→48Mi requests,
+  64Mi→96Mi limits, 10m→20m CPU requests (two adapters + per-book NATS connections). The v0.4.0 image
+  ships a schema migration that ALTERs `paper_fills` / `paper_positions` / `paper_cash` to add
+  `book_id TEXT NOT NULL`, backfilling pre-phase-5 rows with the sentinel `ddowell-alt-v03`, then
+  dropping the DEFAULT so future INSERTs must specify book_id. `UNIQUE(order_id)` replaced with
+  `UNIQUE(book_id, order_id)` on `paper_fills`. Migration runs on pod start via
+  `store.EnsureSchema` — same path phase-3a and phase-4b used. (paper-trading phase-5)
 - `go-paper-trader` deploy: image tag `v0.2.0` → `v0.3.0` (bundles phase-4 hotfix + phase-4a + phase-4b). The
   one-shot `PAPER_TRADER_ALLOW_REALIZED_PL_BACKFILL=1` env was used to roll pre-phase-4a NULL `realized_pl`
   SELL rows through `BackfillMissingRealizedPL` on the cluster `market` DB, then removed once `null_sell == 0`

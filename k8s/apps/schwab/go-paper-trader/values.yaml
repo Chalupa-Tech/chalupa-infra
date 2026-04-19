@@ -2,7 +2,7 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-paper-trader
-  tag: "v0.3.0"
+  tag: "v0.4.0"
   pullPolicy: IfNotPresent
 
 nats:
@@ -28,19 +28,96 @@ vault:
 metrics:
   port: 9090
 
+# Pod-level cadences — apply to every book.
 paperTrader:
-  strategy: alternator
-  symbol: AMZN
-  quantity: 1
-  startingCash: 10000
   maxQuoteAge: 30s
   mtmInterval: 5s
   snapshotInterval: 60s
-  alternatorCadence: 60s
+
+  # books is the list of isolated (strategy, cash, positions,
+  # order_id) pools this pod runs concurrently. Phase-5 turns the
+  # paper-trader from a single-book deployment into a research
+  # utility where each book's cumulative P&L is directly comparable
+  # against its siblings on shared Grafana panels.
+  #
+  # Each entry becomes one SimAdapter in the process. book_ids must
+  # be globally unique across every paper-trader pod writing to the
+  # same Timescale DB — they are the discriminator on paper_fills /
+  # paper_positions / paper_cash.
+  #
+  # The two-book default is the phase-5 research question:
+  # "does tighter alternator cadence pay?" — ddowell-alt-30s vs
+  # ddowell-alt-60s on the same 24-symbol watchlist minus AAPL
+  # (AAPL is NOT in the feed's watchlist; see brain memory
+  # reference_feed_quote_cadence).
+  #
+  # Historical pre-phase-5 fills live under the sentinel
+  # `ddowell-alt-v03` (applied by the one-shot schema migration's
+  # DEFAULT clause; the clause is then dropped so future INSERTs
+  # must specify book_id explicitly).
+  books:
+    - bookID: ddowell-alt-30s
+      strategy: alternator
+      quantity: 1
+      alternatorCadence: 30s
+      startingCash: 10000
+      symbols:
+        - AMZN
+        - NVDA
+        - GOOG
+        - MSFT
+        - META
+        - TSLA
+        - NFLX
+        - AMD
+        - INTC
+        - BAC
+        - JPM
+        - WMT
+        - HD
+        - COST
+        - PG
+        - UNH
+        - DIS
+        - PEP
+        - KO
+        - V
+        - MA
+        - XOM
+        - CVX
+    - bookID: ddowell-alt-60s
+      strategy: alternator
+      quantity: 1
+      alternatorCadence: 60s
+      startingCash: 10000
+      symbols:
+        - AMZN
+        - NVDA
+        - GOOG
+        - MSFT
+        - META
+        - TSLA
+        - NFLX
+        - AMD
+        - INTC
+        - BAC
+        - JPM
+        - WMT
+        - HD
+        - COST
+        - PG
+        - UNH
+        - DIS
+        - PEP
+        - KO
+        - V
+        - MA
+        - XOM
+        - CVX
 
 resources:
   requests:
-    cpu: 10m
-    memory: 32Mi
+    cpu: 20m
+    memory: 48Mi
   limits:
-    memory: 64Mi
+    memory: 96Mi
