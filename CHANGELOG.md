@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `go-paper-trader` chart `0.3.0` → `0.3.1`: `paper-trading.json` multi-series colouring fix. The
+  drawdown % panel and the cumulative realized P&L panel both still carried single-series
+  `color.mode: thresholds`, which paints every series by value instead of by identity — with
+  three books (`ddowell-alt-30s`, `ddowell-alt-60s`, `ddowell-alt-v03`) clustered near 0 %
+  drawdown all three rendered in the same green shade and were visually indistinguishable.
+  Switched both panels to `color.mode: palette-classic` (the default Grafana classic palette) so
+  each book gets its own colour — matches the equity-curve panel's behaviour. Dropped the
+  threshold colour stops that were no longer doing anything useful on a multi-series chart.
+  (paper-trading phase-5a follow-up)
 - `go-paper-trader` chart `0.2.0` → `0.3.0`: `paper-trading.json` dashboard split by `book_id`. New
   `$book_id` multi-select template variable (populated from `SELECT DISTINCT book_id FROM paper_fills`).
   Equity curve + drawdown % panels now render one series per selected book (GROUP BY / PARTITION BY
