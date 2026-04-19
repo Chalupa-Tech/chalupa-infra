@@ -44,15 +44,100 @@ jobs:
       - name: 'Checkout repository'
         uses: 'actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8' # ratchet:actions/checkout@v6
 
+      - name: 'Detect workstream'
+        id: 'detect_workstream'
+        env:
+          REPO_NAME: '${{ github.event.repository.name }}'
+          PR_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
+          GH_TOKEN: '${{ steps.mint_identity_token.outputs.token || secrets.GITHUB_TOKEN || github.token }}'
+        run: |-
+          set -euo pipefail
+          WS=""
+          CHANGED="$(gh pr diff "$PR_NUMBER" --repo "${{ github.repository }}" --name-only 2>/dev/null || true)"
+          case "$REPO_NAME" in
+            chalupa-infra)
+              if printf '%s\n' "$CHANGED" | grep -qE '^k8s/apps/schwab/(go-paper-trader|watchlists)/'; then
+                WS="paper-trading"
+              fi
+              ;;
+          esac
+          echo "workstream=$WS" >> "$GITHUB_OUTPUT"
+          echo "Detected workstream: ${WS:-<none>}" >&2
+
+      - name: 'Fetch workstream context'
+        id: 'fetch_ws_context'
+        if: steps.detect_workstream.outputs.workstream != ''
+        env:
+          WORKSTREAM: '${{ steps.detect_workstream.outputs.workstream }}'
+          BRAIN_READ_TOKEN: '${{ secrets.BRAIN_READ_TOKEN }}'
+        run: |-
+          set -euo pipefail
+          OUT=/tmp/ws_context.md
+          : > "$OUT"
+          if [ -z "${BRAIN_READ_TOKEN:-}" ]; then
+            echo "::warning::BRAIN_READ_TOKEN not set — skipping workstream context injection for workstream=${WORKSTREAM}"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! git clone --depth 1 --single-branch --quiet \
+              "https://x-access-token:${BRAIN_READ_TOKEN}@github.com/Chalupa-Tech/chalupa-brain.git" \
+              /tmp/brain; then
+            echo "::warning::chalupa-brain clone failed — skipping workstream context injection"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CTX_DIR="/tmp/brain/workstreams/${WORKSTREAM}"
+          if [ ! -d "$CTX_DIR" ]; then
+            echo "::warning::workstream directory not found in chalupa-brain: ${WORKSTREAM}"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "# Workstream context: ${WORKSTREAM}"
+            echo
+            if [ -f "$CTX_DIR/workstream.md" ]; then
+              echo "## workstream.md"
+              echo
+              cat "$CTX_DIR/workstream.md"
+              echo
+            fi
+            if [ -d "$CTX_DIR/briefs" ]; then
+              for brief in "$CTX_DIR/briefs/"*.md; do
+                [ -f "$brief" ] || continue
+                # Skip archived briefs (frontmatter `status: archived`)
+                if head -20 "$brief" | grep -qE '^status:[[:space:]]*archived'; then
+                  continue
+                fi
+                echo "---"
+                echo "## brief: $(basename "$brief")"
+                echo
+                cat "$brief"
+                echo
+              done
+            fi
+          } > "$OUT"
+          SIZE=$(wc -c <"$OUT")
+          echo "Workstream context size: $SIZE bytes" >&2
+          if [ "$SIZE" -gt 80000 ]; then
+            echo "::warning::Workstream context exceeds 80K soft cap — consider archiving older briefs"
+          fi
+          rm -rf /tmp/brain
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
       - name: 'Compose additional context'
         id: 'compose_context'
         env:
           INBOUND_CONTEXT: '${{ inputs.additional_context }}'
           REPO_NAME: '${{ github.event.repository.name }}'
+          WS_CONTEXT_AVAILABLE: '${{ steps.fetch_ws_context.outputs.available }}'
         run: |-
           set -euo pipefail
           ADDENDUM_FILE=".github/commands/addenda/${REPO_NAME}-review.md"
           {
+            if [ "${WS_CONTEXT_AVAILABLE:-false}" = "true" ] && [ -f /tmp/ws_context.md ]; then
+              cat /tmp/ws_context.md
+              echo
+            fi
             if [ -f "$ADDENDUM_FILE" ]; then
               cat "$ADDENDUM_FILE"
             fi
