@@ -1,0 +1,90 @@
+---
+# Phase-5a.2 safety: paper-trader's books[].symbols MUST be a subset of
+# go-schwab-feed's feed.watchlist (otherwise books silently starve on
+# quotes for unsubscribed symbols). Additionally, feed.watchlist MUST
+# be a subset of the per-registration catalog in watchlists/*.yaml.
+#
+# Rationale: see k8s/apps/schwab/watchlists/ddowell-individual.yaml
+# and the paper-trading workstream's phase-5a.2 retro.
+name: Paper Trader Symbol Coverage Lint
+
+on:
+  pull_request:
+    paths:
+      - 'k8s/apps/schwab/go-schwab-feed/values.yaml'
+      - 'k8s/apps/schwab/go-paper-trader/values.yaml'
+      - 'k8s/apps/schwab/watchlists/**.yaml'
+      - '.github/workflows/paper-trader-symbol-coverage-lint.yml'
+
+jobs:
+  symbol-coverage:
+    name: Assert books.symbols ⊆ feed.watchlist ⊆ catalog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          set -euo pipefail
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Validate coverage
+        run: |
+          set -euo pipefail
+          FEED=k8s/apps/schwab/go-schwab-feed/values.yaml
+          TRADER=k8s/apps/schwab/go-paper-trader/values.yaml
+          CATALOG=k8s/apps/schwab/watchlists/ddowell-individual.yaml
+
+          # Extract feed.watchlist (comma-separated string) → sorted lines.
+          wl_raw=$(yq -r '.feed.watchlist' "$FEED")
+          if [ -z "$wl_raw" ] || [ "$wl_raw" = "null" ]; then
+            echo "::error file=$FEED::feed.watchlist must be frozen (non-empty) as of phase-5a.2"
+            exit 1
+          fi
+          feed_symbols=$(echo "$wl_raw" | tr ',' '\n' | sed 's/[[:space:]]//g' | grep -v '^$' | sort -u)
+
+          # Extract catalog symbols → sorted lines.
+          if [ ! -f "$CATALOG" ]; then
+            echo "::error file=$CATALOG::catalog file missing"
+            exit 1
+          fi
+          catalog_symbols=$(yq -r '.symbols[]' "$CATALOG" | sort -u)
+
+          fail=0
+
+          # Check 1: feed.watchlist ⊆ catalog.symbols
+          missing_from_catalog=$(comm -23 <(echo "$feed_symbols") <(echo "$catalog_symbols") || true)
+          if [ -n "$missing_from_catalog" ]; then
+            echo "::error file=$FEED::feed.watchlist contains symbols not in catalog ($CATALOG):"
+            echo "$missing_from_catalog" | sed 's/^/  - /'
+            fail=1
+          fi
+
+          # Check 2: catalog.symbols ⊆ feed.watchlist (sanity — catalog should be what feed polls)
+          missing_from_feed=$(comm -13 <(echo "$feed_symbols") <(echo "$catalog_symbols") || true)
+          if [ -n "$missing_from_feed" ]; then
+            echo "::warning file=$FEED::catalog lists symbols not in feed.watchlist (feed won't poll them):"
+            echo "$missing_from_feed" | sed 's/^/  - /'
+          fi
+
+          # Check 3: each paperTrader.books[].symbols ⊆ feed.watchlist
+          book_count=$(yq -r '.paperTrader.books | length' "$TRADER")
+          for i in $(seq 0 $((book_count - 1))); do
+            bid=$(yq -r ".paperTrader.books[$i].bookID" "$TRADER")
+            book_symbols=$(yq -r ".paperTrader.books[$i].symbols[]" "$TRADER" | sort -u)
+            missing=$(comm -23 <(echo "$book_symbols") <(echo "$feed_symbols") || true)
+            if [ -n "$missing" ]; then
+              echo "::error file=$TRADER::book '$bid' references symbols not in feed.watchlist (would silently starve):"
+              echo "$missing" | sed 's/^/  - /'
+              fail=1
+            fi
+          done
+
+          if [ $fail -eq 0 ]; then
+            echo "OK: all paper-trader books ⊆ feed.watchlist ⊆ catalog ($(echo "$feed_symbols" | wc -l | tr -d ' ') symbols)"
+          else
+            exit 1
+          fi

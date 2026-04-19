@@ -47,9 +47,18 @@ paperTrader:
   #
   # The two-book default is the phase-5 research question:
   # "does tighter alternator cadence pay?" — ddowell-alt-30s vs
-  # ddowell-alt-60s on the same 24-symbol watchlist minus AAPL
-  # (AAPL is NOT in the feed's watchlist; see brain memory
-  # reference_feed_quote_cadence).
+  # ddowell-alt-60s on the same 24-symbol watchlist.
+  #
+  # Phase-5a.2 (2026-04-19) converged books[].symbols with
+  # go-schwab-feed feed.watchlist. Source-of-truth catalog lives at
+  # k8s/apps/schwab/watchlists/ddowell-individual.yaml.
+  # Every symbol below must be in that catalog and in the feed's
+  # watchlist — enforced by
+  # .github/workflows/paper-trader-symbol-coverage-lint.yml.
+  #
+  # Phase-5b may curate per-book subsets for research reproducibility;
+  # the ⊆ constraint (not ==) in the lint allows this without
+  # template changes.
   #
   # Historical pre-phase-5 fills live under the sentinel
   # `ddowell-alt-v03` (applied by the one-shot schema migration's
@@ -62,58 +71,60 @@ paperTrader:
       alternatorCadence: 30s
       startingCash: 10000
       symbols:
-        - AMZN
-        - NVDA
-        - GOOG
-        - MSFT
-        - META
-        - TSLA
-        - NFLX
         - AMD
-        - INTC
-        - BAC
-        - JPM
-        - WMT
-        - HD
-        - COST
-        - PG
+        - AMZN
+        - BNTX
+        - BRK.B
+        - DDOG
+        - GE
+        - GEHC
+        - GEV
+        - GMED
+        - GOOG
+        - GRMN
+        - GTBIF
+        - MDB
+        - NU
+        - NVDA
+        - PANW
+        - RNMBY
+        - TEVA
+        - TEX
+        - U
         - UNH
-        - DIS
-        - PEP
-        - KO
+        - UPS
         - V
-        - MA
-        - XOM
-        - CVX
+        - WING
     - bookID: ddowell-alt-60s
       strategy: alternator
       quantity: 1
       alternatorCadence: 60s
       startingCash: 10000
       symbols:
-        - AMZN
-        - NVDA
-        - GOOG
-        - MSFT
-        - META
-        - TSLA
-        - NFLX
         - AMD
-        - INTC
-        - BAC
-        - JPM
-        - WMT
-        - HD
-        - COST
-        - PG
+        - AMZN
+        - BNTX
+        - BRK.B
+        - DDOG
+        - GE
+        - GEHC
+        - GEV
+        - GMED
+        - GOOG
+        - GRMN
+        - GTBIF
+        - MDB
+        - NU
+        - NVDA
+        - PANW
+        - RNMBY
+        - TEVA
+        - TEX
+        - U
         - UNH
-        - DIS
-        - PEP
-        - KO
+        - UPS
         - V
-        - MA
-        - XOM
-        - CVX
+        - WING
 
 resources:
   requests:

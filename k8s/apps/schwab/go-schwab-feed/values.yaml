@@ -27,7 +27,12 @@ feed:
   positionInterval: "15m"
   historyInterval: "24h"
   intradayInterval: "30m"
-  watchlist: ""
+  # Frozen 2026-04-19 (phase-5a.2). Source-of-truth is the catalog at
+  # k8s/apps/schwab/watchlists/ddowell-individual.yaml — this string
+  # must match the catalog's symbols list, enforced by
+  # .github/workflows/paper-trader-symbol-coverage-lint.yml.
+  # Paper-trader books[].symbols must be a subset of this list.
+  watchlist: "AMD,AMZN,BNTX,BRK.B,DDOG,GE,GEHC,GEV,GMED,GOOG,GRMN,GTBIF,MDB,NU,NVDA,PANW,RNMBY,TEVA,TEX,U,UNH,UPS,V,WING"
 
 resources:
   requests:
