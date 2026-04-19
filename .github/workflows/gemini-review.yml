@@ -38,7 +38,7 @@ defaults:
 jobs:
   review:
     runs-on: 'ubuntu-latest'
-    timeout-minutes: 7
+    timeout-minutes: 10
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -60,6 +60,59 @@ jobs:
 
       - name: 'Checkout repository'
         uses: 'actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8' # ratchet:actions/checkout@v6
+
+      - name: 'Tailscale join'
+        # Required because vm-write / vlogs-write resolve to a Tailscale IP
+        # (see reference_chalupatech_tailscale_ingress memory). Matches the
+        # secret names + tag used by deploy-infra.yml. Continues on error
+        # so a missing token only skips telemetry — review still runs.
+        if: |-
+          ${{ secrets.TELEMETRY_TOKEN != '' }}
+        id: 'tailscale'
+        continue-on-error: true
+        uses: 'tailscale/github-action@v2' # ratchet:exclude
+        with:
+          oauth-client-id: '${{ secrets.TS_OAUTH_CLIENT_ID }}'
+          oauth-secret: '${{ secrets.TS_OAUTH_CLIENT_SECRET }}'
+          tags: 'tag:ci'
+
+      - name: 'Start Alloy telemetry sidecar'
+        # Gemini CLI emits OTLP → Alloy → VictoriaMetrics.
+        # See .github/alloy/gemini-review.alloy for the pipeline.
+        # Log fan-out to VictoriaLogs is deferred to phase-44.
+        if: |-
+          ${{ secrets.TELEMETRY_TOKEN != '' && steps.tailscale.outcome == 'success' }}
+        id: 'alloy'
+        env:
+          TELEMETRY_TOKEN: '${{ secrets.TELEMETRY_TOKEN }}'
+          GEMINI_MODEL_LABEL: '${{ vars.GEMINI_MODEL || ''unset'' }}'
+        run: |-
+          set -euo pipefail
+          docker run -d \
+            --name alloy \
+            --network host \
+            -v "${PWD}/.github/alloy/gemini-review.alloy:/etc/alloy/config.alloy:ro" \
+            -e VM_WRITE_URL \
+            -e TELEMETRY_TOKEN \
+            -e OTEL_RESOURCE_ATTRIBUTES="service.name=gemini-review,service.namespace=chalupa-ci,github.run_id=${GITHUB_RUN_ID},github.repository=${GITHUB_REPOSITORY},github.workflow=${GITHUB_WORKFLOW},github.actor=${GITHUB_ACTOR},gen_ai.system=gemini,gen_ai.request.model=${GEMINI_MODEL_LABEL}" \
+            grafana/alloy:v1.15.1 \
+            run \
+              --server.http.listen-addr=127.0.0.1:12345 \
+              --stability.level=public-preview \
+              /etc/alloy/config.alloy
+          # Wait for Alloy to become ready before Gemini starts emitting.
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:12345/-/ready >/dev/null 2>&1; then
+              echo "Alloy ready after ${i}s"
+              echo "started=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::warning::Alloy sidecar did not become ready in 20s — continuing without telemetry"
+          docker logs alloy || true
+          docker rm -f alloy >/dev/null 2>&1 || true
+          echo "started=false" >> "$GITHUB_OUTPUT"
 
       - name: 'Detect workstream'
         id: 'detect_workstream'
@@ -208,7 +261,9 @@ jobs:
               },
               "telemetry": {
                 "enabled": true,
-                "target": "local",
+                "target": "${{ steps.alloy.outputs.started == 'true' && 'otlp' || 'local' }}",
+                "otlpEndpoint": "http://127.0.0.1:4318",
+                "otlpProtocol": "http/protobuf",
                 "outfile": ".gemini/telemetry.log"
               },
               "mcpServers": {
@@ -243,3 +298,28 @@ jobs:
               }
             }
           prompt: '/gemini-review'
+
+      - name: 'Flush + stop Alloy sidecar'
+        # SIGTERM gives the OTel batch processor a chance to drain
+        # the final batch before the runner exits. 5s is well under
+        # the 5s batch timeout plus the 10s remote_write retry budget.
+        if: |-
+          ${{ always() && steps.alloy.outputs.started == 'true' }}
+        run: |-
+          set -euo pipefail
+          docker stop -t 10 alloy || true
+          echo "--- Alloy logs (last 40 lines) ---"
+          docker logs --tail 40 alloy 2>&1 || true
+          docker rm -f alloy >/dev/null 2>&1 || true
+
+      - name: 'Upload telemetry log as artifact'
+        # Insurance: even with Alloy working, keep the raw JSONL for
+        # offline debugging of token-count / duration math.
+        if: |-
+          ${{ always() && hashFiles('.gemini/telemetry.log') != '' }}
+        uses: 'actions/upload-artifact@v4' # ratchet:exclude
+        with:
+          name: 'gemini-telemetry-${{ github.run_id }}-${{ github.run_attempt }}'
+          path: '.gemini/telemetry.log'
+          retention-days: 30
+          if-no-files-found: 'ignore'

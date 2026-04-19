@@ -2,7 +2,7 @@ apiVersion: v2
 name: observability-wrapper
 description: Wrapper chart for VictoriaMetrics K8s Stack
 type: application
-version: 0.2.0
+version: 0.3.0
 appVersion: "v1.138.0"
 dependencies:
   - name: victoria-metrics-k8s-stack
