@@ -1,0 +1,37 @@
+---
+# Renders books.yaml from .Values.paperTrader.books. Mounted at
+# /etc/paper-trader/books.yaml in the go-paper-trader container;
+# the binary's --config flag defaults to that path.
+#
+# Phase-5: replaces the scalar --strategy / --symbol / --qty CLI
+# flags with per-book entries. Each entry becomes one SimAdapter in
+# the process with its own cash pool, position map, and order_id
+# sequence.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: go-paper-trader-books
+  labels:
+    app: go-paper-trader
+data:
+  books.yaml: |
+    books:
+{{- range .Values.paperTrader.books }}
+      - bookID: {{ .bookID | quote }}
+        strategy: {{ .strategy | quote }}
+        quantity: {{ .quantity }}
+{{- if .alternatorCadence }}
+        alternatorCadence: {{ .alternatorCadence | quote }}
+{{- end }}
+{{- if .smaFast }}
+        smaFast: {{ .smaFast | quote }}
+{{- end }}
+{{- if .smaSlow }}
+        smaSlow: {{ .smaSlow | quote }}
+{{- end }}
+        startingCash: {{ .startingCash }}
+        symbols:
+{{- range .symbols }}
+          - {{ . | quote }}
+{{- end }}
+{{- end }}

@@ -48,19 +48,19 @@ spec:
               memory: 16Mi
             limits:
               memory: 32Mi
+      volumes:
+        - name: books-config
+          configMap:
+            name: go-paper-trader-books
       containers:
         - name: go-paper-trader
           image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
-            - "--strategy={{ .Values.paperTrader.strategy }}"
-            - "--symbol={{ .Values.paperTrader.symbol }}"
-            - "--qty={{ .Values.paperTrader.quantity }}"
-            - "--starting-cash={{ .Values.paperTrader.startingCash }}"
+            - "--config=/etc/paper-trader/books.yaml"
             - "--max-quote-age={{ .Values.paperTrader.maxQuoteAge }}"
             - "--mark-to-market-interval={{ .Values.paperTrader.mtmInterval }}"
             - "--snapshot-interval={{ .Values.paperTrader.snapshotInterval }}"
-            - "--alternator-cadence={{ .Values.paperTrader.alternatorCadence }}"
             - "--nats-url=$(NATS_URL)"
             - "--postgres-url=$(DATABASE_URL)"
             - "--metrics-addr=:{{ .Values.metrics.port }}"
@@ -74,6 +74,10 @@ spec:
               value: {{ .Values.nats.url | quote }}
             - name: DATABASE_URL
               value: "postgresql://{{ .Values.database.user }}:$(DB_PASSWORD)@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}?sslmode=disable"
+          volumeMounts:
+            - name: books-config
+              mountPath: /etc/paper-trader
+              readOnly: true
           ports:
             - containerPort: {{ .Values.metrics.port }}
               name: metrics
