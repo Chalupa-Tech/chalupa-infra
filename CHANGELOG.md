@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `go-paper-trader` chart `0.2.0` → `0.3.0`: `paper-trading.json` dashboard split by `book_id`. New
+  `$book_id` multi-select template variable (populated from `SELECT DISTINCT book_id FROM paper_fills`).
+  Equity curve + drawdown % panels now render one series per selected book (GROUP BY / PARTITION BY
+  `book_id`). New `Cumulative realized P&L by book` timeseries panel (id 20) placed directly under the
+  equity curve for side-by-side research-question comparison (alternator-30s vs alternator-60s). Live
+  positions table + trade-log table gain a `book_id` column and `WHERE book_id IN ($book_id)` filter;
+  activity stats (total fills / buys / sells / notional) add the same filter. Pod-wide Prometheus
+  stats (current equity, open positions, simulator-health row) are left unfiltered — their backing
+  metrics do not carry a `book_id` label today; per-book equity is visible on the curve. PAPER TRADING
+  banner retained (safety guarantee #6); `paper-dashboard-banner-lint.yml` passes. Image/appVersion
+  unchanged. (paper-trading phase-5a)
 - `go-paper-trader` deploy: image tag `v0.3.0` → `v0.4.0` (paper-trading phase-5 multi-book). Chart bumped
   to `0.2.0`. `values.yaml` replaces scalar `paperTrader.strategy`/`.symbol`/`.quantity`/`.startingCash`/
   `.alternatorCadence` with a `paperTrader.books:` list. New `templates/configmap.yaml` renders
