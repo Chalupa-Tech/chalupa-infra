@@ -69,7 +69,11 @@ jobs:
         if: steps.detect_workstream.outputs.workstream != ''
         env:
           WORKSTREAM: '${{ steps.detect_workstream.outputs.workstream }}'
-          BRAIN_READ_TOKEN: '${{ secrets.BRAIN_READ_TOKEN }}'
+          # Reuses the existing GOPRIVATE credential (org scope
+          # Chalupa-Tech/*, read-only by convention). A dedicated
+          # brain-read token or GH App is a future hygiene phase —
+          # see docs/runbooks/github-token-provisioning.md.
+          BRAIN_READ_TOKEN: '${{ secrets.GH_PAT }}'
         run: |-
           set -euo pipefail
           OUT=/tmp/ws_context.md
