@@ -1,0 +1,60 @@
+---
+# Mint script for the GitHub Actions telemetry bearer token.
+#
+# Generates a 32-byte random token + an htpasswd line (user `gh-actions`,
+# apr1-hashed token) and stores both at
+# secret/data/platform/telemetry/gh-actions. Idempotent — skips if a
+# token already exists unless ROTATE=true. See
+# docs/runbooks/gh-actions-telemetry-token-rotation.md.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gh-actions-telemetry-mint-script
+  namespace: observability
+data:
+  mint-gh-actions-telemetry.sh: |
+    #!/bin/sh
+    # Env: KV_PATH, BASIC_AUTH_USER, ROTATE (optional).
+    set -eu
+
+    BAO_ADDR="${BAO_ADDR:-http://openbao-active.openbao.svc.cluster.local:8200}"
+    KV_PATH="${KV_PATH:-platform/telemetry/gh-actions}"
+    BASIC_AUTH_USER="${BASIC_AUTH_USER:-gh-actions}"
+
+    # 1. Authenticate to OpenBao via projected K8s SA token.
+    SA_JWT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    BAO_TOKEN=$(curl -sf -X POST "$BAO_ADDR/v1/auth/kubernetes/login" \
+      -d "{\"role\":\"gh-actions-telemetry-minter-role\",\"jwt\":\"$SA_JWT\"}" \
+      | jq -r '.auth.client_token')
+    [ -n "$BAO_TOKEN" ] && [ "$BAO_TOKEN" != "null" ] || { echo "bao auth failed"; exit 1; }
+
+    # 2. Skip if a token is already stored and ROTATE is not set.
+    if [ "${ROTATE:-false}" != "true" ]; then
+      EXIST=$(curl -sf -H "X-Vault-Token: $BAO_TOKEN" \
+        "$BAO_ADDR/v1/secret/data/$KV_PATH" 2>/dev/null \
+        | jq -r '.data.data.token // empty' || true)
+      if [ -n "$EXIST" ]; then
+        echo "token already present at $KV_PATH; skipping (set ROTATE=true to force)"
+        exit 0
+      fi
+    fi
+
+    # 3. Generate a new token + its apr1 htpasswd line.
+    TOKEN=$(openssl rand -hex 32)
+    HASH=$(openssl passwd -apr1 "$TOKEN")
+    HTPASSWD_LINE="${BASIC_AUTH_USER}:${HASH}"
+
+    # 4. Store both at $KV_PATH. `token` is the raw bearer for GitHub
+    #    Actions; `htpasswd` is what Traefik BasicAuth consumes.
+    curl -sf -H "X-Vault-Token: $BAO_TOKEN" \
+      -H "Content-Type: application/json" \
+      -X POST "$BAO_ADDR/v1/secret/data/$KV_PATH" \
+      -d "$(jq -nc \
+          --arg token "$TOKEN" \
+          --arg htpasswd "$HTPASSWD_LINE" \
+          --arg user "$BASIC_AUTH_USER" \
+          '{data: {token: $token, htpasswd: $htpasswd, user: $user}}')" \
+      >/dev/null
+
+    echo "minted gh-actions-telemetry token, stored at secret/$KV_PATH"
+    echo "operator: copy via \`bao kv get -field=token secret/$KV_PATH\` into the org-level TELEMETRY_TOKEN secret"

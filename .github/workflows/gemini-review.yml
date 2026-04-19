@@ -7,6 +7,23 @@ on:
         type: 'string'
         description: 'Any additional context from the request'
         required: false
+    secrets:
+      TELEMETRY_TOKEN:
+        description: >-
+          Bearer token for the vm-write / vlogs-write cluster ingresses.
+          Provisioned as an org-level secret, minted by the
+          gh-actions-telemetry-mint Job in the observability namespace
+          (see docs/runbooks/gh-actions-telemetry-token-rotation.md).
+          Optional — telemetry emit in phase-39c degrades to log-only
+          when unset.
+        required: false
+
+# Write-only cluster endpoints for GitHub Actions telemetry. Auth is
+# the TELEMETRY_TOKEN bearer declared above; path restriction is
+# enforced at the Traefik IngressRoute. 39c wires the actual emit step.
+env:
+  VM_WRITE_URL: 'https://vm-write.chalupatech.com/api/v1/write'
+  VLOGS_WRITE_URL: 'https://vlogs-write.chalupatech.com/insert/jsonline'
 
 concurrency:
   group: >-

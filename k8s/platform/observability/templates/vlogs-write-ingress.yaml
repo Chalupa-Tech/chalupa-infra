@@ -1,0 +1,39 @@
+---
+# Public write-only ingress for VictoriaLogs, gated by the shared
+# gh-actions-telemetry BasicAuth middleware. Route match restricts to
+# POST /insert/jsonline; read paths (LogsQL, /select/*) return 404 from
+# Traefik. Read access stays cluster-internal via Grafana's VictoriaLogs
+# datasource.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vlogs-write-tls
+  namespace: observability
+spec:
+  secretName: vlogs-write-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - vlogs-write.chalupatech.com
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: vlogs-write
+  namespace: observability
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "100.72.211.115"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`vlogs-write.chalupatech.com`) && Method(`POST`) && PathPrefix(`/insert/jsonline`)
+      kind: Rule
+      middlewares:
+        - name: gh-actions-telemetry-auth
+      services:
+        - name: victoria-logs-victoria-logs-single-server
+          port: 9428
+  tls:
+    secretName: vlogs-write-tls

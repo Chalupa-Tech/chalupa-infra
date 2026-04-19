@@ -1,0 +1,39 @@
+---
+# Public write-only ingress for VictoriaMetrics remote_write, gated by
+# the gh-actions-telemetry BasicAuth middleware. Route match restricts
+# to POST /api/v1/write so read endpoints (/api/v1/query*, /metrics,
+# anything else) return 404 from Traefik. Read access to VM stays
+# cluster-internal via vmsingle-vmstack:8428.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vm-write-tls
+  namespace: observability
+spec:
+  secretName: vm-write-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - vm-write.chalupatech.com
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: vm-write
+  namespace: observability
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "100.72.211.115"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`vm-write.chalupatech.com`) && Method(`POST`) && PathPrefix(`/api/v1/write`)
+      kind: Rule
+      middlewares:
+        - name: gh-actions-telemetry-auth
+      services:
+        - name: vmsingle-vmstack
+          port: 8428
+  tls:
+    secretName: vm-write-tls
