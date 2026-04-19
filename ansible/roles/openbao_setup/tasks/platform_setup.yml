@@ -100,3 +100,74 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
   no_log: true
+
+# ----- GitHub Actions telemetry token (phase-39b) -----
+#
+# Mint-side policy/role: writes a rotatable bearer token + apr1 htpasswd
+# line to secret/data/platform/telemetry/gh-actions. Consumed by
+# k8s/platform/observability/templates/gh-actions-telemetry-mint-job.yaml.
+#
+# Read-side policy/role: scoped to the same single path. Used by ESO to
+# materialise the Traefik BasicAuth Secret.
+
+- name: Write gh-actions-telemetry-minter policy
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/policies/acl/gh-actions-telemetry-minter-policy"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      policy: |
+        # Write + read the gh-actions telemetry token entry.
+        path "secret/data/platform/telemetry/gh-actions" {
+          capabilities = ["create", "update", "patch", "read"]
+        }
+    status_code: [200, 204]
+    validate_certs: false
+  no_log: true
+
+- name: Write gh-actions-telemetry-minter K8s auth role
+  ansible.builtin.shell: |
+    kubectl exec -n openbao openbao-0 -- sh -c "
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write auth/kubernetes/role/gh-actions-telemetry-minter-role \
+        bound_service_account_names=gh-actions-telemetry-minter \
+        bound_service_account_namespaces=observability \
+        policies=gh-actions-telemetry-minter-policy \
+        ttl=10m
+    "
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+  no_log: true
+
+- name: Write gh-actions-telemetry-reader policy
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/policies/acl/gh-actions-telemetry-reader-policy"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      policy: |
+        # Read-only access for ESO to materialise the Traefik BasicAuth Secret.
+        path "secret/data/platform/telemetry/gh-actions" {
+          capabilities = ["read"]
+        }
+    status_code: [200, 204]
+    validate_certs: false
+  no_log: true
+
+- name: Write gh-actions-telemetry-reader K8s auth role
+  ansible.builtin.shell: |
+    kubectl exec -n openbao openbao-0 -- sh -c "
+      BAO_TOKEN={{ openbao_setup_root_token }} bao write auth/kubernetes/role/gh-actions-telemetry-reader-role \
+        bound_service_account_names=gh-actions-telemetry-reader \
+        bound_service_account_namespaces=observability \
+        policies=gh-actions-telemetry-reader-policy \
+        ttl=1h
+    "
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+  no_log: true

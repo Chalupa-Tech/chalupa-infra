@@ -1,0 +1,20 @@
+---
+# Shared BasicAuth middleware used by vm-write + vlogs-write
+# IngressRoutes. The `gh-actions-telemetry-users` Secret is materialised
+# from OpenBao by the ExternalSecret of the same name; rotating the
+# OpenBao token (via the mint Job with ROTATE=true) propagates here
+# within the ExternalSecret refreshInterval (1h).
+#
+# removeHeader: true strips the Authorization header before the request
+# reaches VictoriaMetrics/VictoriaLogs — those services don't need it
+# and we don't want the token echoed into backend logs.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: gh-actions-telemetry-auth
+  namespace: observability
+spec:
+  basicAuth:
+    secret: gh-actions-telemetry-users
+    removeHeader: true
+    realm: "gh-actions-telemetry"
