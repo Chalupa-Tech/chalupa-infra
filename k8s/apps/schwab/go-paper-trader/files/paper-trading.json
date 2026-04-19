@@ -19,6 +19,21 @@
   "templating": {
     "list": [
       {
+        "name": "book_id",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "timescaledb"
+        },
+        "query": "SELECT DISTINCT book_id FROM paper_fills ORDER BY book_id",
+        "rawSql": "SELECT DISTINCT book_id FROM paper_fills ORDER BY book_id",
+        "definition": "SELECT DISTINCT book_id FROM paper_fills ORDER BY book_id",
+        "multi": true,
+        "includeAll": true,
+        "current": {},
+        "refresh": 1
+      },
+      {
         "name": "symbol",
         "type": "query",
         "datasource": {
@@ -94,7 +109,7 @@
     {
       "id": 3,
       "type": "timeseries",
-      "title": "Equity curve (cash + mark)",
+      "title": "Equity curve (cash + mark) by book",
       "gridPos": {
         "h": 9,
         "w": 16,
@@ -109,7 +124,7 @@
         {
           "refId": "A",
           "format": "time_series",
-          "rawSql": "SELECT pc.time AS \"time\", pc.cash + COALESCE(pos.equity, 0) AS equity FROM paper_cash pc LEFT JOIN (SELECT time, SUM(quantity * mark_price) AS equity FROM paper_positions GROUP BY time) pos ON pc.time = pos.time WHERE $__timeFilter(pc.time) ORDER BY pc.time"
+          "rawSql": "SELECT pc.time AS \"time\", pc.book_id AS metric, pc.cash + COALESCE(pos.equity, 0) AS equity FROM paper_cash pc LEFT JOIN (SELECT time, book_id, SUM(quantity * mark_price) AS equity FROM paper_positions GROUP BY time, book_id) pos ON pc.time = pos.time AND pc.book_id = pos.book_id WHERE $__timeFilter(pc.time) AND pc.book_id IN ($book_id) ORDER BY pc.time"
         }
       ],
       "fieldConfig": {
@@ -132,7 +147,7 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Current equity",
+      "title": "Current equity (pod-wide)",
       "gridPos": {
         "h": 4,
         "w": 8,
@@ -177,7 +192,7 @@
     {
       "id": 5,
       "type": "stat",
-      "title": "Open positions",
+      "title": "Open positions (pod-wide)",
       "gridPos": {
         "h": 5,
         "w": 8,
@@ -207,9 +222,9 @@
       }
     },
     {
-      "id": 6,
+      "id": 20,
       "type": "timeseries",
-      "title": "Drawdown % (peak-to-trough)",
+      "title": "Cumulative realized P&L by book",
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -224,7 +239,61 @@
         {
           "refId": "A",
           "format": "time_series",
-          "rawSql": "SELECT t AS \"time\", 100.0 * (equity - MAX(equity) OVER (ORDER BY t ROWS UNBOUNDED PRECEDING)) / NULLIF(MAX(equity) OVER (ORDER BY t ROWS UNBOUNDED PRECEDING), 0) AS drawdown_pct FROM (SELECT pc.time AS t, pc.cash + COALESCE(pos.equity, 0) AS equity FROM paper_cash pc LEFT JOIN (SELECT time, SUM(quantity * mark_price) AS equity FROM paper_positions GROUP BY time) pos ON pc.time = pos.time WHERE $__timeFilter(pc.time)) sub ORDER BY t"
+          "rawSql": "SELECT time, book_id AS metric, SUM(realized_pl) OVER (PARTITION BY book_id ORDER BY time) AS cumulative_realized_pl FROM paper_fills WHERE realized_pl IS NOT NULL AND $__timeFilter(time) AND book_id IN ($book_id) ORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Drawdown % by book (peak-to-trough)",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawSql": "SELECT t AS \"time\", book_id AS metric, 100.0 * (equity - MAX(equity) OVER (PARTITION BY book_id ORDER BY t ROWS UNBOUNDED PRECEDING)) / NULLIF(MAX(equity) OVER (PARTITION BY book_id ORDER BY t ROWS UNBOUNDED PRECEDING), 0) AS drawdown_pct FROM (SELECT pc.time AS t, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity FROM paper_cash pc LEFT JOIN (SELECT time, book_id, SUM(quantity * mark_price) AS equity FROM paper_positions GROUP BY time, book_id) pos ON pc.time = pos.time AND pc.book_id = pos.book_id WHERE $__timeFilter(pc.time) AND pc.book_id IN ($book_id)) sub ORDER BY t"
         }
       ],
       "fieldConfig": {
@@ -267,7 +336,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 21
+        "y": 29
       },
       "collapsed": false
     },
@@ -279,7 +348,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 22
+        "y": 30
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -289,7 +358,7 @@
         {
           "refId": "A",
           "format": "table",
-          "rawSql": "SELECT DISTINCT ON (symbol) symbol, quantity, avg_price, mark_price, unrealized_pl FROM paper_positions WHERE symbol IN ($symbol) ORDER BY symbol, time DESC"
+          "rawSql": "SELECT DISTINCT ON (book_id, symbol) book_id, symbol, quantity, avg_price, mark_price, unrealized_pl FROM paper_positions WHERE symbol IN ($symbol) AND book_id IN ($book_id) ORDER BY book_id, symbol, time DESC"
         }
       ],
       "fieldConfig": {
@@ -368,7 +437,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 22
+        "y": 30
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -378,7 +447,7 @@
         {
           "refId": "A",
           "format": "table",
-          "rawSql": "SELECT time, symbol, side, quantity, price, strategy FROM paper_fills WHERE symbol IN ($symbol) AND strategy IN ($strategy) ORDER BY time DESC LIMIT 50"
+          "rawSql": "SELECT time, book_id, symbol, side, quantity, price, strategy FROM paper_fills WHERE symbol IN ($symbol) AND strategy IN ($strategy) AND book_id IN ($book_id) ORDER BY time DESC LIMIT 50"
         }
       ],
       "fieldConfig": {
@@ -411,7 +480,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 37
       },
       "collapsed": false
     },
@@ -423,7 +492,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 30
+        "y": 38
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -433,7 +502,7 @@
         {
           "refId": "A",
           "format": "table",
-          "rawSql": "SELECT COUNT(*) AS total FROM paper_fills WHERE $__timeFilter(time) AND strategy IN ($strategy)"
+          "rawSql": "SELECT COUNT(*) AS total FROM paper_fills WHERE $__timeFilter(time) AND strategy IN ($strategy) AND book_id IN ($book_id)"
         }
       ],
       "fieldConfig": {
@@ -451,7 +520,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 30
+        "y": 38
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -461,7 +530,7 @@
         {
           "refId": "A",
           "format": "table",
-          "rawSql": "SELECT COUNT(*) AS buys FROM paper_fills WHERE side = 'BUY' AND $__timeFilter(time) AND strategy IN ($strategy)"
+          "rawSql": "SELECT COUNT(*) AS buys FROM paper_fills WHERE side = 'BUY' AND $__timeFilter(time) AND strategy IN ($strategy) AND book_id IN ($book_id)"
         }
       ],
       "fieldConfig": {
@@ -483,7 +552,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 30
+        "y": 38
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -493,7 +562,7 @@
         {
           "refId": "A",
           "format": "table",
-          "rawSql": "SELECT COUNT(*) AS sells FROM paper_fills WHERE side = 'SELL' AND $__timeFilter(time) AND strategy IN ($strategy)"
+          "rawSql": "SELECT COUNT(*) AS sells FROM paper_fills WHERE side = 'SELL' AND $__timeFilter(time) AND strategy IN ($strategy) AND book_id IN ($book_id)"
         }
       ],
       "fieldConfig": {
@@ -515,7 +584,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 30
+        "y": 38
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -525,7 +594,7 @@
         {
           "refId": "A",
           "format": "table",
-          "rawSql": "SELECT SUM(quantity * price) AS notional FROM paper_fills WHERE $__timeFilter(time) AND strategy IN ($strategy)"
+          "rawSql": "SELECT SUM(quantity * price) AS notional FROM paper_fills WHERE $__timeFilter(time) AND strategy IN ($strategy) AND book_id IN ($book_id)"
         }
       ],
       "fieldConfig": {
@@ -543,7 +612,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 42
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -574,7 +643,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 40
+        "y": 48
       },
       "collapsed": false
     },
@@ -586,7 +655,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 41
+        "y": 49
       },
       "datasource": {
         "type": "prometheus",
@@ -634,7 +703,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 41
+        "y": 49
       },
       "datasource": {
         "type": "prometheus",
@@ -675,7 +744,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 41
+        "y": 49
       },
       "datasource": {
         "type": "prometheus",
