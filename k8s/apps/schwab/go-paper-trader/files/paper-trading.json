@@ -25,9 +25,9 @@
           "type": "grafana-postgresql-datasource",
           "uid": "timescaledb"
         },
-        "query": "SELECT DISTINCT book_id FROM paper_fills ORDER BY book_id",
-        "rawSql": "SELECT DISTINCT book_id FROM paper_fills ORDER BY book_id",
-        "definition": "SELECT DISTINCT book_id FROM paper_fills ORDER BY book_id",
+        "query": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills UNION SELECT book_id FROM paper_cash) sub ORDER BY book_id",
+        "rawSql": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills UNION SELECT book_id FROM paper_cash) sub ORDER BY book_id",
+        "definition": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills UNION SELECT book_id FROM paper_cash) sub ORDER BY book_id",
         "multi": true,
         "includeAll": true,
         "current": {},
