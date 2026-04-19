@@ -1,0 +1,51 @@
+---
+# Per-registration symbol catalog for ddowell-individual.
+#
+# This file is the authoritative universe of symbols polled by the
+# schwab-ddowell namespace's go-schwab-feed instance. Every paper-trader
+# book's `symbols` list must be a subset of this catalog (enforced by
+# .github/workflows/paper-trader-symbol-coverage-lint.yml).
+#
+# Why it exists: phase-5a.2 (2026-04-19) promoted the feed watchlist
+# from casual account-level config (Schwab UI dynamic) to a contract
+# checked into git. Downstream consumers (paper-trader, market-store,
+# dashboards) can now rely on a stable symbol surface.
+#
+# Subscribe: append a symbol here + to go-schwab-feed/values.yaml
+# `feed.watchlist` in the same PR. Paper-trader picks up automatically
+# on next chart bump if it wants to trade the new symbol.
+#
+# Unsubscribe: remove from every paper-trader book first (merge),
+# then from this catalog + feed.watchlist (second merge), to avoid a
+# window where books reference an unpolled symbol.
+#
+# Multi-registration forward-compat: when Tayven onboards, add a
+# sibling file here (e.g. tayven-individual.yaml) and deploy a
+# second go-schwab-feed instance in the schwab-tayven namespace.
+# The lint iterates watchlists/*.yaml so no workflow changes needed.
+registration: ddowell-individual
+symbols:
+  - AMD
+  - AMZN
+  - BNTX
+  - BRK.B
+  - DDOG
+  - GE
+  - GEHC
+  - GEV
+  - GMED
+  - GOOG
+  - GRMN
+  - GTBIF
+  - MDB
+  - NU
+  - NVDA
+  - PANW
+  - RNMBY
+  - TEVA
+  - TEX
+  - U
+  - UNH
+  - UPS
+  - V
+  - WING
