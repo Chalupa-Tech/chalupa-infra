@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-gemini-review-spend
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  gemini-review-spend.json: |
+{{ .Files.Get "files/gemini-review-spend.json" | indent 4 }}

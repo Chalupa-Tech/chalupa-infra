@@ -1,0 +1,166 @@
+---
+# Recording rules for Gemini (and future Claude / Codex) review spend.
+#
+# Input metric: gen_ai_client_token_usage_total{gen_ai_system, gen_ai_request_model,
+#   gen_ai_token_type, github_repository, …} — emitted by Grafana Alloy
+#   sidecar in .github/workflows/gemini-review.yml, via OTLP from
+#   Gemini CLI's native OTel instrumentation (phase-39c).
+#
+# Pricing source of truth: chalupa-brain/docs/gen-ai-pricing-table.yaml.
+# Rates encoded below as `vector()` expressions — keep in sync with the
+# YAML manually (drift is caught by the GeminiPricingTableStale alert
+# in gen-ai-alert-rules.yaml after `staleness_warning_days` = 180).
+#
+# Phase-44 will likely replace this hand-kept block with either:
+#   - a Helm --values render from the brain YAML at chart-render time, or
+#   - a lightweight text-exporter that serves the YAML as metrics.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: gen-ai-review-pricing
+  namespace: observability
+spec:
+  groups:
+    # ── Pricing rates (USD per 1M tokens) ────────────────────────────
+    # Encoded as constant metrics so the cost rule below can `group_left`
+    # against them. Update `vector()` values when vendor pricing drifts;
+    # also bump `docs/gen-ai-pricing-table.yaml` in chalupa-brain and
+    # the `gen_ai_pricing_table_as_of_timestamp` rule below.
+    - name: gen-ai-pricing-rates
+      interval: 5m
+      rules:
+        # gemini-2.5-flash
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.30)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-flash", gen_ai_token_type: input}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(2.50)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-flash", gen_ai_token_type: output}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(2.50)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-flash", gen_ai_token_type: thought}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.075)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-flash", gen_ai_token_type: cached}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.0)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-flash", gen_ai_token_type: tool}
+
+        # gemini-2.5-flash-lite
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.10)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-flash-lite", gen_ai_token_type: input}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.40)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-flash-lite", gen_ai_token_type: output}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.40)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-flash-lite", gen_ai_token_type: thought}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.025)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-flash-lite", gen_ai_token_type: cached}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.0)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-flash-lite", gen_ai_token_type: tool}
+
+        # gemini-2.5-pro (≤200K context)
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(1.25)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-pro", gen_ai_token_type: input}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(10.00)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-pro", gen_ai_token_type: output}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(10.00)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-pro", gen_ai_token_type: thought}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.3125)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-pro", gen_ai_token_type: cached}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.0)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-pro", gen_ai_token_type: tool}
+
+        # gemini-2.5-pro-long (>200K context)
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(2.50)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-pro-long", gen_ai_token_type: input}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(15.00)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-pro-long", gen_ai_token_type: output}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(15.00)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-pro-long", gen_ai_token_type: thought}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.625)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-pro-long", gen_ai_token_type: cached}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.0)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-2.5-pro-long", gen_ai_token_type: tool}
+
+        # gemini-3-flash-preview — free-tier gated as of 2026-04; using
+        # gemini-2.5-flash rates as a conservative fallback so dashboards
+        # still produce a non-zero number if preview-tier is actually live.
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.30)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-3-flash-preview", gen_ai_token_type: input}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(2.50)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-3-flash-preview", gen_ai_token_type: output}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(2.50)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-3-flash-preview", gen_ai_token_type: thought}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.075)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-3-flash-preview", gen_ai_token_type: cached}
+        - record: gen_ai_pricing_usd_per_mtoken
+          expr: vector(0.0)
+          labels: {gen_ai_system: gemini, gen_ai_request_model: "gemini-3-flash-preview", gen_ai_token_type: tool}
+
+    # ── Pricing-table staleness ─────────────────────────────────────
+    # Keep this timestamp in sync with `as_of:` in
+    # chalupa-brain/docs/gen-ai-pricing-table.yaml. 2026-04-19T00:00Z UTC = 1776556800.
+    - name: gen-ai-pricing-staleness
+      interval: 1h
+      rules:
+        - record: gen_ai_pricing_table_as_of_timestamp
+          expr: vector(1776556800)
+          labels:
+            schema_version: v1
+
+        - record: gen_ai_pricing_table_age_days
+          expr: (time() - gen_ai_pricing_table_as_of_timestamp) / 86400
+
+    # ── Cost aggregation ─────────────────────────────────────────────
+    # Cost = tokens-in-window * rate-per-1M / 1M
+    #
+    # 30d rolling window matches the dashboard's default range. For the
+    # alert thresholds ($16/$20/$50 soft/soft/hard) in
+    # gen-ai-alert-rules.yaml, the same metric is consumed.
+    #
+    # Labels preserved on output: gen_ai_system, gen_ai_request_model,
+    # github_repository. Token-type label is summed out.
+    - name: gen-ai-cost
+      interval: 5m
+      rules:
+        - record: gen_ai_review_cost_usd:monthly
+          expr: |-
+            sum by (gen_ai_system, gen_ai_request_model, github_repository) (
+              (
+                increase(gen_ai_client_token_usage_total[30d]) / 1e6
+              )
+              * on(gen_ai_system, gen_ai_request_model, gen_ai_token_type) group_left
+              gen_ai_pricing_usd_per_mtoken
+            )
+
+        # Per-review cost for the "cost per review (p50/p95)" panel.
+        # Uses the run_id resource attr to group tokens emitted within
+        # one CI job — each run is one Gemini review.
+        - record: gen_ai_review_cost_usd:per_run
+          expr: |-
+            sum by (gen_ai_system, gen_ai_request_model, github_repository, github_run_id) (
+              (
+                increase(gen_ai_client_token_usage_total[1h]) / 1e6
+              )
+              * on(gen_ai_system, gen_ai_request_model, gen_ai_token_type) group_left
+              gen_ai_pricing_usd_per_mtoken
+            )

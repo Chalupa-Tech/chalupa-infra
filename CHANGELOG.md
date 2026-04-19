@@ -7,8 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Gemini review telemetry emit + dashboard + alerts** (phase-39c). Gemini
+  CLI emits OTLP metrics over a backgrounded Grafana Alloy sidecar
+  (`grafana/alloy:v1.15.1`) launched in `gemini-review.yml`; Alloy fans
+  out to VictoriaMetrics `remote_write` at `vm-write.chalupatech.com`
+  via the BasicAuth ingress from phase-39b. Log fan-out (finding
+  classification events) and extraction into a reusable composite
+  action are deferred to phase-44.
+  - `.github/alloy/gemini-review.alloy` — Alloy River config
+    (OTLP receiver → resource-detect → batch → prometheus.remote_write).
+  - `k8s/platform/observability/templates/gen-ai-pricing-rules.yaml` —
+    VMRule with per-model pricing rates and monthly/per-run cost
+    recording rules (`gen_ai_review_cost_usd:monthly`,
+    `gen_ai_review_cost_usd:per_run`), plus a
+    `gen_ai_pricing_table_age_days` staleness metric.
+  - `k8s/platform/observability/templates/gen-ai-alert-rules.yaml` —
+    four VMRules: `GeminiSpendSoftCap80` (info, >$16/mo),
+    `GeminiSpendSoftCap100` (warning, >$20/mo, `auto_comment_pr`
+    label), `GeminiSpendHardCap` (critical, >$50/mo, `page` label),
+    `GeminiPricingTableStale` (warning, >180d).
+  - `k8s/platform/observability/templates/gemini-review-spend-dashboard.yaml`
+    + `files/gemini-review-spend.json` — Grafana dashboard (monthly
+    spend gauge, token-type stacked timeseries, latency p50/p95,
+    cost per review, pricing-table age).
+  - `docs/runbooks/gemini-review-spend-cap.md` — operator runbook
+    including the manual `gh api` hard-cap halt procedure pending
+    the alertmanager→GitHub Actions bridge in phase-44.
+
 ### Changed
 
+- **Gemini Dispatch gate on `GEMINI_DISPATCH_ENABLED` org var**
+  (phase-39c). `gemini-dispatch.yml` now refuses to spawn
+  review/triage/invoke jobs when the org var is set to `false`.
+  Undefined or any other value keeps dispatch enabled (backward
+  compatible). Intended to be flipped by `GeminiSpendHardCap` once
+  the alertmanager webhook bridge lands.
 - `go-paper-trader` chart `0.3.0` → `0.3.1`: `paper-trading.json` multi-series colouring fix. The
   drawdown % panel and the cumulative realized P&L panel both still carried single-series
   `color.mode: thresholds`, which paints every series by value instead of by identity — with
