@@ -54,15 +54,13 @@ jobs:
           ADDENDUM_FILE=".github/commands/addenda/${REPO_NAME}-review.md"
           {
             if [ -f "$ADDENDUM_FILE" ]; then
-              echo "## Repo-Specific Review Focus"
-              echo
               cat "$ADDENDUM_FILE"
             fi
             if [ -n "${INBOUND_CONTEXT:-}" ]; then
               echo
               echo "## Per-PR Additional Context"
               echo
-              printf '%s\n' "$INBOUND_CONTEXT"
+              printf -- '%s\n' "$INBOUND_CONTEXT"
             fi
           } > /tmp/composed_context.txt
           {
