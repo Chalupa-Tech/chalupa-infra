@@ -21,6 +21,14 @@ spec:
       app: go-paper-trader
   template:
     metadata:
+      annotations:
+        # Forces a rolling update whenever books.yaml changes. Without
+        # this, a `paperTrader.books` edit updates the ConfigMap but
+        # the running pod keeps its old books.yaml in memory until it
+        # restarts for unrelated reasons. Cluster-wide equivalent is
+        # the stakater/reloader operator (see config-propagation-audit
+        # follow-up phase).
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
       labels:
         app: go-paper-trader
     spec:
