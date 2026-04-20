@@ -102,7 +102,10 @@ jobs:
     steps:
       - name: 'Mint identity token'
         id: 'mint_identity_token'
-        if: ${{ inputs.mint_token && vars.APP_ID != '' }}
+        # Truthy check on vars.APP_ID matches phase-39c's working
+        # pattern — equality-comparing to '' evaluates differently
+        # under null/unset vars context.
+        if: ${{ inputs.mint_token && vars.APP_ID }}
         # ratchet:actions/create-github-app-token@v2
         uses: 'actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf'
         with:
@@ -143,6 +146,28 @@ jobs:
           # each line is emitted verbatim into $GITHUB_ENV.
           printf '%s\n' "$EXTRA_ENV" >> "$GITHUB_ENV"
 
+      - name: 'Resolve telemetry target'
+        id: 'telemetry_target'
+        # Rewrite settings_json at runtime: if the Alloy sidecar started,
+        # keep whatever the caller asked for (usually "otlp"); otherwise
+        # force "local" so Gemini CLI writes the telemetry log to disk
+        # instead of crashing on a dead 127.0.0.1:4318.
+        env:
+          SETTINGS_IN: ${{ inputs.settings_json }}
+        run: |-
+          set -euo pipefail
+          if [ "${SIDECAR_STARTED:-false}" = "true" ]; then
+            RESOLVED="$SETTINGS_IN"
+          else
+            RESOLVED="$(printf '%s' "$SETTINGS_IN" | jq -c '.telemetry.target = "local"')"
+            echo "::notice::Telemetry sidecar is not running — forcing telemetry.target=local"
+          fi
+          {
+            echo 'settings<<SETTINGS_EOF'
+            printf '%s\n' "$RESOLVED"
+            echo 'SETTINGS_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: 'Run Gemini CLI'
         id: 'run_gemini'
         uses: 'google-github-actions/run-gemini-cli@v0' # ratchet:exclude
@@ -172,12 +197,11 @@ jobs:
           use_vertex_ai: '${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}'
           upload_artifacts: '${{ vars.UPLOAD_ARTIFACTS }}'
           workflow_name: '${{ inputs.workflow_name }}'
-          # Callers pass a settings JSON blob whose "telemetry" section
-          # references $SIDECAR_STARTED — emitted by the composite action —
-          # so we can use "target: otlp" only when the sidecar is up.
-          # We inject the concrete target at runtime via envsubst to avoid
-          # requiring callers to duplicate the conditional.
-          settings: ${{ inputs.settings_json }}
+          # settings.telemetry.target is patched at runtime by the
+          # 'Resolve telemetry target' step so callers can set "otlp"
+          # unconditionally — we downgrade to "local" automatically when
+          # the Alloy sidecar didn't start (e.g. TELEMETRY_TOKEN unset).
+          settings: ${{ steps.telemetry_target.outputs.settings }}
           prompt: '${{ inputs.prompt }}'
 
       - name: 'Capture outputs'
