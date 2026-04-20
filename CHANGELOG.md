@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Artifact-based ingest of Gemini review telemetry to VictoriaMetrics**
+  (phase-51c). Replaces the Alloy OTLP sidecar path (never actually
+  delivered metrics — see phase-51 retro) with a post-review parse of
+  `.gemini/telemetry.log` and POST to VM `/api/v1/import/prometheus`.
+  Emits `gen_ai_client_token_usage_total` (counter, per token type) and
+  `gen_ai_client_operation_duration_seconds_{bucket,sum,count}`
+  (histogram) with the labels the phase-39c recording rules expect
+  (`gen_ai_system`, `gen_ai_request_model`, `gen_ai_token_type`,
+  `github_repository`, `github_run_id`). Runs with `if: always()` so
+  `FatalTurnLimitedError` runs still emit tokens (cost observability
+  does not depend on review success). Alloy sidecar retirement is a
+  follow-up PR (phase-51c AI3).
+  - `scripts/ingest-gemini-telemetry.py` — parser + pusher.
+  - `.github/workflows/gemini-cli-reusable.yml` — new
+    `Ingest telemetry to VictoriaMetrics` step before the artifact
+    upload, gated on `SIDECAR_STARTED` (piggybacks on the sidecar's
+    Tailscale join).
+  - `k8s/platform/observability/templates/vm-write-ingress.yaml` —
+    second Traefik route adds `POST /api/v1/import/prometheus` under
+    the existing `gh-actions-telemetry-auth` middleware.
+
 ### Fixed
 
 - **Gemini reviews all failing with `Invalid telemetry target: otlp`** (phase-51 PR 1).

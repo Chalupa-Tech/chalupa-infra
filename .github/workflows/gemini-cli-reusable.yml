@@ -235,6 +235,31 @@ jobs:
           docker logs --tail 40 "${CONTAINER}" 2>&1 || true
           docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true
 
+      # Phase-51c artifact-based ingest. Parses .gemini/telemetry.log and
+      # POSTs gen_ai_client_token_usage_total + duration histogram samples
+      # to VictoriaMetrics via /api/v1/import/prometheus. Runs on success
+      # AND failure so FatalTurnLimitedError reviews still emit token
+      # counts (waste visibility). Gated on SIDECAR_STARTED so we know
+      # Tailscale joined and TELEMETRY_TOKEN is set; piggybacks on the
+      # sidecar's Tailscale session until AI3 retires Alloy entirely.
+      #
+      # Gated on hashFiles() of the script: when a caller repo hasn't
+      # yet vendored scripts/ingest-gemini-telemetry.py the step skips
+      # cleanly (same pattern as the cross-repo workflow/action
+      # duplication documented in reference_gemini_workflow_cross_repo_
+      # blocked memory).
+      - name: 'Ingest telemetry to VictoriaMetrics'
+        if: >-
+          always() && env.SIDECAR_STARTED == 'true'
+          && hashFiles('.gemini/telemetry.log') != ''
+          && hashFiles('scripts/ingest-gemini-telemetry.py') != ''
+        continue-on-error: true
+        env:
+          VM_WRITE_URL: '${{ env.VM_WRITE_URL }}'
+          TELEMETRY_TOKEN: '${{ secrets.TELEMETRY_TOKEN }}'
+        run: |-
+          python3 scripts/ingest-gemini-telemetry.py .gemini/telemetry.log
+
       - name: 'Upload telemetry log as artifact'
         if: always() && hashFiles('.gemini/telemetry.log') != ''
         uses: 'actions/upload-artifact@v4' # ratchet:exclude
