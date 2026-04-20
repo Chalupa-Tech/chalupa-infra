@@ -1,0 +1,211 @@
+name: 'Reusable Gemini CLI with telemetry'
+
+# Wraps google-github-actions/run-gemini-cli with:
+#   - optional identity-token mint (disabled for triage's analysis job,
+#     which runs on untrusted input and intentionally uses an empty token)
+#   - optional checkout (needed for review; skipped for invoke/triage)
+#   - Alloy telemetry sidecar via .github/actions/telemetry-sidecar
+#   - artifact upload of .gemini/telemetry.log (always, as a fallback
+#     if the sidecar failed to start)
+#
+# Callers: gemini-review.yml (PR 1), gemini-invoke.yml + gemini-triage.yml
+# (PR 3).
+
+on:
+  workflow_call:
+    inputs:
+      workflow_name:
+        description: 'Used as OTel service.name and run-gemini-cli workflow_name.'
+        type: string
+        required: true
+      prompt:
+        description: 'The /gemini-* slash command to run.'
+        type: string
+        required: true
+      settings_json:
+        description: >-
+          Full settings JSON blob for run-gemini-cli. Must include
+          "telemetry" config; the job fills in otlpEndpoint/target based on
+          whether the telemetry sidecar came up.
+        type: string
+        required: true
+      additional_context:
+        description: 'Composed context string forwarded to run-gemini-cli.'
+        type: string
+        required: false
+        default: ''
+      mint_token:
+        description: 'Mint a GitHub App identity token and pass it to gemini-cli.'
+        type: boolean
+        required: false
+        default: true
+      timeout_minutes:
+        description: 'Job timeout.'
+        type: number
+        required: false
+        default: 10
+      extra_env:
+        description: >-
+          Extra KEY=VALUE pairs (one per line) exported to the
+          run-gemini-cli step. Used by callers that need workflow-specific
+          env vars (AVAILABLE_LABELS, EVENT_NAME, IS_PULL_REQUEST, etc.).
+        type: string
+        required: false
+        default: ''
+      cancel_in_progress:
+        description: 'Reserved — callers set this on their own concurrency block.'
+        type: boolean
+        required: false
+        default: true
+    secrets:
+      TELEMETRY_TOKEN:
+        description: 'BasicAuth password for vm-write / vlogs-write. Optional.'
+        required: false
+      TS_OAUTH_CLIENT_ID:
+        description: 'Tailscale OAuth client id. Required iff TELEMETRY_TOKEN is set.'
+        required: false
+      TS_OAUTH_CLIENT_SECRET:
+        description: 'Tailscale OAuth secret.'
+        required: false
+      GEMINI_API_KEY:
+        required: false
+      GOOGLE_API_KEY:
+        required: false
+      APP_PRIVATE_KEY:
+        required: false
+      GH_PAT:
+        required: false
+    outputs:
+      selected_labels:
+        description: 'SELECTED_LABELS env captured by run-gemini-cli (used by gemini-triage).'
+        value: ${{ jobs.run.outputs.selected_labels }}
+
+env:
+  VM_WRITE_URL: 'https://vm-write.chalupatech.com/api/v1/write'
+  VLOGS_WRITE_URL: 'https://vlogs-write.chalupatech.com/insert/jsonline'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+      pull-requests: write
+    outputs:
+      selected_labels: ${{ steps.capture_outputs.outputs.selected_labels }}
+    steps:
+      - name: 'Mint identity token'
+        id: 'mint_identity_token'
+        if: ${{ inputs.mint_token && vars.APP_ID != '' }}
+        # ratchet:actions/create-github-app-token@v2
+        uses: 'actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf'
+        with:
+          app-id: '${{ vars.APP_ID }}'
+          private-key: '${{ secrets.APP_PRIVATE_KEY }}'
+          permission-contents: 'read'
+          permission-issues: 'write'
+          permission-pull-requests: 'write'
+
+      - name: 'Checkout repository'
+        # Always required — the telemetry sidecar mounts
+        # .github/alloy/default.alloy from the workspace. The repo
+        # contents are read-only from here; triage's analysis step still
+        # runs with empty GITHUB_TOKEN so this doesn't widen that
+        # workflow's trust boundary.
+        uses: 'actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8' # ratchet:actions/checkout@v6
+
+      - name: 'Start telemetry sidecar'
+        id: 'sidecar'
+        uses: './.github/actions/telemetry-sidecar'
+        env:
+          TELEMETRY_TOKEN: '${{ secrets.TELEMETRY_TOKEN }}'
+          VM_WRITE_URL: '${{ env.VM_WRITE_URL }}'
+          TS_OAUTH_CLIENT_ID: '${{ secrets.TS_OAUTH_CLIENT_ID }}'
+          TS_OAUTH_CLIENT_SECRET: '${{ secrets.TS_OAUTH_CLIENT_SECRET }}'
+        with:
+          service-name: '${{ inputs.workflow_name }}'
+          extra-resource-attrs: 'gen_ai.system=gemini,gen_ai.request.model=${{ vars.GEMINI_MODEL || ''unset'' }}'
+
+      - name: 'Apply extra env'
+        if: ${{ inputs.extra_env != '' }}
+        env:
+          EXTRA_ENV: ${{ inputs.extra_env }}
+        run: |-
+          set -euo pipefail
+          # Export caller-supplied KEY=VALUE lines so they're visible to the
+          # run-gemini-cli step. Safe even if the values contain '=' because
+          # each line is emitted verbatim into $GITHUB_ENV.
+          printf '%s\n' "$EXTRA_ENV" >> "$GITHUB_ENV"
+
+      - name: 'Run Gemini CLI'
+        id: 'run_gemini'
+        uses: 'google-github-actions/run-gemini-cli@v0' # ratchet:exclude
+        env:
+          GITHUB_TOKEN: '${{ inputs.mint_token && (steps.mint_identity_token.outputs.token || secrets.GITHUB_TOKEN || github.token) || '''' }}'
+          REPOSITORY: '${{ github.repository }}'
+          ISSUE_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
+          ISSUE_TITLE: '${{ github.event.pull_request.title || github.event.issue.title }}'
+          ISSUE_BODY: '${{ github.event.pull_request.body || github.event.issue.body }}'
+          PULL_REQUEST_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
+          TITLE: '${{ github.event.pull_request.title || github.event.issue.title }}'
+          DESCRIPTION: '${{ github.event.pull_request.body || github.event.issue.body }}'
+          EVENT_NAME: '${{ github.event_name }}'
+          IS_PULL_REQUEST: '${{ !!github.event.pull_request }}'
+          ADDITIONAL_CONTEXT: '${{ inputs.additional_context }}'
+        with:
+          gcp_location: '${{ vars.GOOGLE_CLOUD_LOCATION }}'
+          gcp_project_id: '${{ vars.GOOGLE_CLOUD_PROJECT }}'
+          gcp_service_account: '${{ vars.SERVICE_ACCOUNT_EMAIL }}'
+          gcp_workload_identity_provider: '${{ vars.GCP_WIF_PROVIDER }}'
+          gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
+          gemini_cli_version: '${{ vars.GEMINI_CLI_VERSION }}'
+          gemini_debug: '${{ fromJSON(vars.GEMINI_DEBUG || vars.ACTIONS_STEP_DEBUG || false) }}'
+          gemini_model: '${{ vars.GEMINI_MODEL }}'
+          google_api_key: '${{ secrets.GOOGLE_API_KEY }}'
+          use_gemini_code_assist: '${{ vars.GOOGLE_GENAI_USE_GCA }}'
+          use_vertex_ai: '${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}'
+          upload_artifacts: '${{ vars.UPLOAD_ARTIFACTS }}'
+          workflow_name: '${{ inputs.workflow_name }}'
+          # Callers pass a settings JSON blob whose "telemetry" section
+          # references $SIDECAR_STARTED — emitted by the composite action —
+          # so we can use "target: otlp" only when the sidecar is up.
+          # We inject the concrete target at runtime via envsubst to avoid
+          # requiring callers to duplicate the conditional.
+          settings: ${{ inputs.settings_json }}
+          prompt: '${{ inputs.prompt }}'
+
+      - name: 'Capture outputs'
+        id: 'capture_outputs'
+        if: always()
+        run: |-
+          # gemini-triage writes SELECTED_LABELS to $GITHUB_ENV during its
+          # run-gemini-cli step. Surface it as a job output so the chained
+          # label-applying job can consume it. The shell inherits
+          # $GITHUB_ENV from prior steps automatically.
+          echo "selected_labels=${SELECTED_LABELS:-}" >> "$GITHUB_OUTPUT"
+
+      - name: 'Flush + stop telemetry sidecar'
+        if: always() && env.SIDECAR_STARTED == 'true'
+        env:
+          CONTAINER: 'alloy'
+        run: |-
+          set -euo pipefail
+          docker stop -t 10 "${CONTAINER}" || true
+          echo "--- Alloy logs (last 40 lines) ---"
+          docker logs --tail 40 "${CONTAINER}" 2>&1 || true
+          docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true
+
+      - name: 'Upload telemetry log as artifact'
+        if: always() && hashFiles('.gemini/telemetry.log') != ''
+        uses: 'actions/upload-artifact@v4' # ratchet:exclude
+        with:
+          name: 'gemini-telemetry-${{ inputs.workflow_name }}-${{ github.run_id }}-${{ github.run_attempt }}'
+          path: '.gemini/telemetry.log'
+          retention-days: 30
+          if-no-files-found: 'ignore'
