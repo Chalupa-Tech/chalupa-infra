@@ -1,0 +1,88 @@
+// Shared Alloy config for the chalupa-infra telemetry sidecar composite
+// action (.github/actions/telemetry-sidecar/). Used by every CI workflow
+// that emits OTLP to VictoriaMetrics / VictoriaLogs.
+//
+// Pipeline:
+//   Any OTel emitter ──OTLP HTTP/gRPC──▶ otelcol.receiver.otlp
+//                                          │
+//                                          ├── metrics ──▶ prometheus.remote_write → VictoriaMetrics
+//                                          └── logs    ──▶ (dropped in phase-44 PR 1; PR 2 wires to VictoriaLogs)
+//
+// Auth: BasicAuth via TELEMETRY_TOKEN env var (see
+// docs/runbooks/gh-actions-telemetry-token-rotation.md).
+//
+// Labels: service.name, github.*, gen_ai.* are stamped by the caller
+// via OTEL_RESOURCE_ATTRIBUTES before launching Alloy.
+
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+otelcol.receiver.otlp "default" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  output {
+    metrics = [otelcol.processor.resourcedetection.default.input]
+    logs    = [otelcol.processor.resourcedetection.default.input]
+    traces  = []
+  }
+}
+
+// Stamp every signal with runner-side context (env, system) so dashboards
+// can slice by runner host / architecture if needed. GitHub-specific
+// attributes come in through the OTEL_RESOURCE_ATTRIBUTES env var.
+otelcol.processor.resourcedetection "default" {
+  detectors = ["env", "system"]
+  timeout   = "2s"
+
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+  }
+}
+
+// CI jobs are short-lived; keep the batch window tight so the final
+// flush on SIGTERM drains within the teardown budget (10s).
+otelcol.processor.batch "default" {
+  send_batch_size = 512
+  timeout         = "5s"
+
+  output {
+    metrics = [otelcol.exporter.prometheus.default.input]
+    // Logs are intentionally sunk here in PR 1. PR 2 adds VLogs ingress
+    // at /insert/opentelemetry/v1/logs and replaces this with an
+    // otelcol.exporter.otlphttp export.
+    logs = []
+  }
+}
+
+otelcol.exporter.prometheus "default" {
+  forward_to = [prometheus.remote_write.vm.receiver]
+}
+
+prometheus.remote_write "vm" {
+  endpoint {
+    url = sys.env("VM_WRITE_URL")
+
+    basic_auth {
+      username = "gh-actions"
+      password = sys.env("TELEMETRY_TOKEN")
+    }
+
+    queue_config {
+      capacity             = 2500
+      max_shards           = 2
+      max_samples_per_send = 500
+    }
+  }
+
+  external_labels = {
+    source = "gh-actions",
+  }
+}
