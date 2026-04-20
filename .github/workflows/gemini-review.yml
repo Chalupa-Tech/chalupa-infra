@@ -183,7 +183,7 @@ jobs:
             "enabled": true,
             "target": "otlp",
             "otlpEndpoint": "http://127.0.0.1:4318",
-            "otlpProtocol": "http/protobuf",
+            "otlpProtocol": "http",
             "outfile": ".gemini/telemetry.log"
           },
           "mcpServers": {

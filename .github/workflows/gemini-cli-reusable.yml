@@ -148,18 +148,21 @@ jobs:
 
       - name: 'Resolve telemetry target'
         id: 'telemetry_target'
-        # Rewrite settings_json at runtime: if the Alloy sidecar started,
-        # keep whatever the caller asked for (usually "otlp"); otherwise
-        # force "local" so Gemini CLI writes the telemetry log to disk
-        # instead of crashing on a dead 127.0.0.1:4318.
+        # Rewrite settings_json at runtime to fit Gemini CLI 0.38.2's
+        # telemetry schema (packages/cli/src/config/settingsSchema.ts):
+        #   - otlpProtocol ∈ {'grpc','http'} (not 'http/protobuf')
+        #   - when target=local, strip otlpEndpoint/otlpProtocol so the
+        #     additionalProperties:false validator doesn't choke.
+        # Callers set "target": "otlp" declaratively; we downgrade to
+        # "local" automatically when $SIDECAR_STARTED != true.
         env:
           SETTINGS_IN: ${{ inputs.settings_json }}
         run: |-
           set -euo pipefail
           if [ "${SIDECAR_STARTED:-false}" = "true" ]; then
-            RESOLVED="$SETTINGS_IN"
+            RESOLVED="$(printf '%s' "$SETTINGS_IN" | jq -c '.telemetry.target = "otlp" | .telemetry.otlpProtocol = "http"')"
           else
-            RESOLVED="$(printf '%s' "$SETTINGS_IN" | jq -c '.telemetry.target = "local"')"
+            RESOLVED="$(printf '%s' "$SETTINGS_IN" | jq -c '.telemetry.target = "local" | del(.telemetry.otlpEndpoint, .telemetry.otlpProtocol)')"
             echo "::notice::Telemetry sidecar is not running — forcing telemetry.target=local"
           fi
           {
