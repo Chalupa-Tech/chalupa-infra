@@ -148,22 +148,30 @@ jobs:
 
       - name: 'Resolve telemetry target'
         id: 'telemetry_target'
-        # Rewrite settings_json at runtime to fit Gemini CLI 0.38.2's
-        # telemetry schema (packages/cli/src/config/settingsSchema.ts):
-        #   - otlpProtocol ∈ {'grpc','http'} (not 'http/protobuf')
-        #   - when target=local, strip otlpEndpoint/otlpProtocol so the
-        #     additionalProperties:false validator doesn't choke.
-        # Callers set "target": "otlp" declaratively; we downgrade to
-        # "local" automatically when $SIDECAR_STARTED != true.
+        # Normalize settings_json to the Gemini CLI v0.38.2 schema:
+        #   - TelemetryTarget enum is {local, gcp, genkit} — "otlp" is
+        #     NOT valid (rejected by parseTelemetryTargetValue at load;
+        #     validation tightened by upstream PR #22282). OTLP export
+        #     is layered on top of target=local via useCollector +
+        #     otlpEndpoint, NOT a separate target value.
+        #   - outfile and otlpEndpoint are mutually exclusive: when both
+        #     are set, otlpEndpoint wins and outfile is silently
+        #     ignored (upstream issue #5523). Strip OTLP fields here so
+        #     the outfile path wins deterministically.
+        #
+        # Phase-51 PR 1 scope: target=local + outfile only, regardless
+        # of sidecar state. Reviews get unblocked; telemetry is file-
+        # based (artifact). Phase-51b / PR 2 will restore live OTLP
+        # export to the Alloy sidecar by re-introducing the SIDECAR_
+        # STARTED branch with useCollector=true + otlpEndpoint on the
+        # up-branch.
         env:
           SETTINGS_IN: ${{ inputs.settings_json }}
         run: |-
           set -euo pipefail
-          if [ "${SIDECAR_STARTED:-false}" = "true" ]; then
-            RESOLVED="$(printf '%s' "$SETTINGS_IN" | jq -c '.telemetry.target = "otlp" | .telemetry.otlpProtocol = "http"')"
-          else
-            RESOLVED="$(printf '%s' "$SETTINGS_IN" | jq -c '.telemetry.target = "local" | del(.telemetry.otlpEndpoint, .telemetry.otlpProtocol)')"
-            echo "::notice::Telemetry sidecar is not running — forcing telemetry.target=local"
+          RESOLVED="$(printf '%s' "$SETTINGS_IN" | jq -c '.telemetry.target = "local" | del(.telemetry.otlpEndpoint, .telemetry.otlpProtocol)')"
+          if [ "${SIDECAR_STARTED:-false}" != "true" ]; then
+            echo "::notice::Telemetry sidecar is not running — telemetry falls back to outfile"
           fi
           {
             echo 'settings<<SETTINGS_EOF'
@@ -200,10 +208,9 @@ jobs:
           use_vertex_ai: '${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}'
           upload_artifacts: '${{ vars.UPLOAD_ARTIFACTS }}'
           workflow_name: '${{ inputs.workflow_name }}'
-          # settings.telemetry.target is patched at runtime by the
-          # 'Resolve telemetry target' step so callers can set "otlp"
-          # unconditionally — we downgrade to "local" automatically when
-          # the Alloy sidecar didn't start (e.g. TELEMETRY_TOKEN unset).
+          # settings.telemetry is normalized by the 'Resolve telemetry
+          # target' step to target=local + stripped OTLP fields. See the
+          # comment on that step for the schema rationale.
           settings: ${{ steps.telemetry_target.outputs.settings }}
           prompt: '${{ inputs.prompt }}'
 
