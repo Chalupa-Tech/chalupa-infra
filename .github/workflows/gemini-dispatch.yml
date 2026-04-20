@@ -119,7 +119,7 @@ jobs:
             const request = process.env.REQUEST;
             core.setOutput('request', request);
 
-            if (eventType === 'pull_request.opened') {
+            if (['pull_request.opened', 'pull_request.synchronize'].includes(eventType)) {
               core.setOutput('command', 'review');
             } else if (['issues.opened', 'issues.reopened'].includes(eventType)) {
               core.setOutput('command', 'triage');
@@ -138,6 +138,12 @@ jobs:
             }
 
       - name: 'Acknowledge request'
+        # Skip the ack on synchronize — reviewer-iteration pushes fire
+        # this workflow frequently, and an ack per push would spam the
+        # PR with bot comments. The dispatched review still runs; its
+        # completion is visible in the checks panel.
+        if: |-
+          github.event.action != 'synchronize'
         env:
           GITHUB_TOKEN: '${{ steps.mint_identity_token.outputs.token || secrets.GITHUB_TOKEN || github.token }}'
           ISSUE_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
@@ -220,6 +226,12 @@ jobs:
           permission-pull-requests: 'write'
 
       - name: 'Send failure comment'
+        # Same rationale as 'Acknowledge request' — silence the
+        # failure comment on synchronize so reviewer-iteration pushes
+        # don't spam the PR. Check conclusions remain visible in the
+        # checks panel.
+        if: |-
+          github.event.action != 'synchronize'
         env:
           GITHUB_TOKEN: '${{ steps.mint_identity_token.outputs.token || secrets.GITHUB_TOKEN || github.token }}'
           ISSUE_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
