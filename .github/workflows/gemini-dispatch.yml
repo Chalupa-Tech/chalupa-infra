@@ -1,5 +1,18 @@
 name: '🔀 Gemini Dispatch'
 
+# Cost guardrails bounding runaway spend on the triggers below:
+#   1. gemini-review.yml / gemini-triage.yml set `concurrency.cancel-in-
+#      progress: true` keyed on PR/issue number + event_name, so back-to-
+#      back `synchronize` pushes cancel the in-flight review and only the
+#      latest completes.
+#   2. `vars.GEMINI_DISPATCH_ENABLED` (org var) is a hard kill switch —
+#      the `dispatch` job gates on it (see the `if:` below). Flip to
+#      `false` to halt all Gemini activity instantly.
+#   3. `GeminiSpendHardCap` VMRule (k8s/platform/observability/templates/
+#      gen-ai-alert-rules.yaml) pages when monthly spend exceeds the
+#      configured dollar cap; the page playbook flips #2.
+# Removing `synchronize` below without weighing these guardrails would
+# force reviewer-iteration PRs back into the close+reopen workaround.
 on:
   pull_request_review_comment:
     types:
@@ -10,6 +23,7 @@ on:
   pull_request:
     types:
       - 'opened'
+      - 'synchronize'
   issues:
     types:
       - 'opened'
