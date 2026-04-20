@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Gemini reviews all failing with `Invalid telemetry target: otlp`** (phase-51 PR 1).
+  `gemini-cli-reusable.yml` was rewriting `settings.telemetry.target` to
+  `"otlp"` when the Alloy sidecar came up, but Gemini CLI v0.38.2's
+  `TelemetryTarget` enum is `{local, gcp, genkit}` — `otlp` was never
+  valid, and upstream PR #22282 (shipped in v0.38.x) tightened
+  validation so `settings.json` with `target: "otlp"` now fails loudly
+  at load. OTLP export is layered on top of `target=local` via
+  `useCollector: true` + `otlpEndpoint`, not a separate target.
+  PR 1 normalizes to `target=local` + strips OTLP fields universally,
+  so reviews run green again against the `.gemini/telemetry.log`
+  outfile (file-based telemetry). Restoring live OTLP export to the
+  Alloy sidecar is deferred to phase-51b / PR 2. Requires
+  `vars.GEMINI_CLI_VERSION=0.38.2` pinned at the org level to prevent
+  implicit `'latest'` drift. (`.github/workflows/gemini-cli-reusable.yml`)
+
 ### Added
 
 - **Gemini review telemetry emit + dashboard + alerts** (phase-39c). Gemini
