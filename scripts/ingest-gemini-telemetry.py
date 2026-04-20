@@ -92,7 +92,12 @@ def api_response_events(records: list[dict]) -> list[dict]:
 
 
 def escape_label(v: str) -> str:
-    return v.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+    return (
+        v.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+    )
 
 
 def format_labels(labels: dict[str, str]) -> str:
@@ -177,9 +182,13 @@ def post_samples(lines: list[str], import_url: str, auth: tuple[str, str]) -> No
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        if resp.status >= 300:
-            raise RuntimeError(f"VM returned HTTP {resp.status}")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            if resp.status >= 300:
+                raise RuntimeError(f"VM returned HTTP {resp.status}")
+    except urllib.error.HTTPError as e:
+        detail = (e.read() or b"").decode("utf-8", errors="replace")[:500]
+        raise RuntimeError(f"VM returned HTTP {e.code}: {detail}") from None
 
 
 def main(argv: list[str]) -> int:
