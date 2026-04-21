@@ -227,13 +227,21 @@ jobs:
       workflow_name: 'gemini-review'
       prompt: '/gemini-review'
       mint_token: true
-      # 4 minutes is roomy for the happy path (industry median for
-      # working review bots is 2–3 min; our current best was 5m32s
-      # on the PAT-only fix). If we exceed 4 minutes something is
-      # wrong and we'd rather fail loud than burn more tokens.
-      timeout_minutes: 4
+      # 8 minutes covers observed P95 wallclock with ~2min headroom.
+      # Phase-55 telemetry (10 runs over 30d) showed turn counts 6–69
+      # with mean ~29, and estimated wallclock up to 6min on 69-turn
+      # runs — the prior 4min ceiling was timing out healthy runs.
+      # 8min is still "fail loud if something is wrong" (industry
+      # median bot is 2–3min; true happy path here is ~2m); it just
+      # stops killing the tail of the distribution.
+      timeout_minutes: 8
       mcp_preflight: true
       additional_context: ${{ needs.compose_context.outputs.composed_context }}
+      # settings_json: maxSessionTurns=75 is calibrated against
+      # phase-55 telemetry (10 runs over 30d) — observed max 69 turns,
+      # so 75 has ~6 turns of headroom. Pairs with timeout_minutes=8:
+      # at observed ~5s/turn, 75 turns × 5s = 375s, under the 480s
+      # timeout. Raise both together if the ceiling starts biting.
       settings_json: |-
         {
           "model": {

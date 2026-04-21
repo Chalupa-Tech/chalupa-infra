@@ -9,22 +9,36 @@ reference_gemini_cli_telemetry_log_schema memory).
 Output: HTTP POST(s) to ${VM_WRITE_URL%/api/v1/write}/api/v1/import/prometheus
 with BasicAuth gh-actions:${TELEMETRY_TOKEN}.
 
-Metrics emitted (names align with phase-39c's gen-ai-pricing-rules.yaml
-recording rules so the Gemini Review Spend dashboard lights up without
-further changes):
+Metric shape (phase-55 reshape — OTel SemConv GenAI compliant):
 
-- gen_ai_client_token_usage_total{gen_ai_system, gen_ai_request_model,
-    gen_ai_operation_name, gen_ai_token_type, github_repository,
-    github_run_id}
-    Counter. One sample per (token_type, model) seen across
-    gemini_cli.api_response events in the log. Value = sum of the
-    corresponding *_token_count field.
+- gen_ai_client_token_usage_bucket / _sum / _count{gen_ai_system,
+    gen_ai_request_model, gen_ai_operation_name, gen_ai_token_type,
+    github_repository, le}
+    Histogram. Boundaries from OTel GenAI spec for token counts:
+    [1, 4, 16, 64, 256, 1024, 4096, 16384, 65536, 262144, 1048576,
+    4194304, 16777216, 67108864]. One observation per
+    gemini_cli.api_response event × token_type present.
 
 - gen_ai_client_operation_duration_seconds_bucket / _sum / _count{
     gen_ai_system, gen_ai_request_model, gen_ai_operation_name,
-    github_repository, github_run_id, le}
-    Histogram. Bucketed per phase-39c's schema (le=0.1/0.5/1/2/5/10/
-    30/60/180/420/600/+Inf). One bucket series per (model, le).
+    github_repository, le}
+    Histogram. Boundaries: [0.1, 0.5, 1, 2, 5, 10, 30, 60, 180, 420,
+    600]. One observation per api_response event.
+
+NOTE: github_run_id is NOT on METRIC labels. Unbounded cardinality is a
+Prometheus anti-pattern (see research in phase-55 retro); OTel SemConv
+steers per-request identifiers to spans/events rather than metric
+attributes. Per-run drill-down will land via VictoriaLogs event records
+in phase-44's log fan-out.
+
+TEMPORALITY NOTE: emission is DELTA, not cumulative. The GitHub Actions
+runner is ephemeral — each `ingest-gemini-telemetry.py` invocation posts
+that run's totals as a fresh sample, with no across-run accumulation.
+Dashboard queries MUST use `sum_over_time()` / `count_over_time()` /
+`quantile_over_time()` / `histogram_quantile(sum by(le) (sum_over_time
+(bucket[range])))`, NOT `rate()` / `increase()` — `rate()` assumes
+cumulative counters and interprets each smaller sample as a counter
+reset, undercounting by ~50% on typical review distributions.
 
 Environment:
 - VM_WRITE_URL        Default https://vm-write.chalupatech.com/api/v1/write.
@@ -33,7 +47,8 @@ Environment:
 - TELEMETRY_TOKEN     BasicAuth password (username hardcoded to
                       gh-actions, matching .github/alloy/default.alloy).
 - GITHUB_REPOSITORY   e.g. Chalupa-Tech/chalupa-infra. Required.
-- GITHUB_RUN_ID       e.g. 24690185334. Required.
+- GITHUB_RUN_ID       e.g. 24690185334. Required (retained for logging
+                      + future VLogs event emission; NOT a metric label).
 
 Exit codes:
 - 0 on success, or if the log exists but contains no api_response
@@ -62,6 +77,13 @@ TOKEN_FIELDS = [
     ("cached_content_token_count", "cached"),
     ("thoughts_token_count", "thought"),
     ("tool_token_count", "tool"),
+]
+
+# OTel GenAI semconv mandated histogram boundaries for token counts.
+# Source: https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/
+TOKEN_BUCKETS = [
+    1, 4, 16, 64, 256, 1024, 4096, 16384, 65536, 262144, 1048576,
+    4194304, 16777216, 67108864,
 ]
 
 DURATION_BUCKETS_S = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 180.0, 420.0, 600.0]
@@ -107,6 +129,15 @@ def format_labels(labels: dict[str, str]) -> str:
 def build_samples(
     events: list[dict], github_repository: str, github_run_id: str
 ) -> list[str]:
+    """Build Prometheus exposition lines for a Gemini review run.
+
+    Token + duration data are emitted as Histograms (OTel SemConv GenAI).
+    github_run_id is deliberately NOT a metric label (unbounded
+    cardinality). The run_id arg is accepted for symmetry with future
+    VLogs event emission and for logging.
+    """
+    del github_run_id  # not a metric label; kept in the signature for callers
+
     if not events:
         return []
 
@@ -114,10 +145,12 @@ def build_samples(
         "gen_ai_system": GEN_AI_SYSTEM,
         "gen_ai_operation_name": GEN_AI_OPERATION_NAME,
         "github_repository": github_repository,
-        "github_run_id": github_run_id,
     }
 
-    token_totals: dict[tuple[str, str], int] = {}
+    # Per-event token observations, keyed by (model, token_type) → list[int].
+    # One histogram observation per event × token_type present.
+    token_obs: dict[tuple[str, str], list[int]] = {}
+    # Per-event duration observations, keyed by model → list[float seconds].
     duration_by_model: dict[str, list[float]] = {}
 
     for ev in events:
@@ -126,8 +159,7 @@ def build_samples(
         for field, token_type in TOKEN_FIELDS:
             v = a.get(field)
             if isinstance(v, (int, float)) and v > 0:
-                key = (model, token_type)
-                token_totals[key] = token_totals.get(key, 0) + int(v)
+                token_obs.setdefault((model, token_type), []).append(int(v))
         dur_ms = a.get("duration_ms")
         if isinstance(dur_ms, (int, float)):
             duration_by_model.setdefault(model, []).append(float(dur_ms) / 1000.0)
@@ -135,14 +167,29 @@ def build_samples(
     now_ms = int(time.time() * 1000)
     lines: list[str] = []
 
-    for (model, token_type), total in sorted(token_totals.items()):
+    for (model, token_type), obs in sorted(token_obs.items()):
         labels = {
             **base_labels,
             "gen_ai_request_model": model,
             "gen_ai_token_type": token_type,
         }
+        count = len(obs)
+        total = sum(obs)
+        for boundary in TOKEN_BUCKETS:
+            n = sum(1 for o in obs if o <= boundary)
+            bucket_labels = {**labels, "le": str(boundary)}
+            lines.append(
+                f"gen_ai_client_token_usage_bucket{{{format_labels(bucket_labels)}}} {n} {now_ms}"
+            )
+        inf_labels = {**labels, "le": "+Inf"}
         lines.append(
-            f"gen_ai_client_token_usage_total{{{format_labels(labels)}}} {total} {now_ms}"
+            f"gen_ai_client_token_usage_bucket{{{format_labels(inf_labels)}}} {count} {now_ms}"
+        )
+        lines.append(
+            f"gen_ai_client_token_usage_sum{{{format_labels(labels)}}} {total} {now_ms}"
+        )
+        lines.append(
+            f"gen_ai_client_token_usage_count{{{format_labels(labels)}}} {count} {now_ms}"
         )
 
     for model, durations in sorted(duration_by_model.items()):

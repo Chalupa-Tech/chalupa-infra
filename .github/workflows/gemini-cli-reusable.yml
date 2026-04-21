@@ -287,7 +287,8 @@ jobs:
           docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true
 
       # Phase-51c artifact-based ingest. Parses .gemini/telemetry.log and
-      # POSTs gen_ai_client_token_usage_total + duration histogram samples
+      # POSTs gen_ai_client_token_usage + duration histogram samples
+      # (phase-55 reshape: both are Histograms, no github_run_id label)
       # to VictoriaMetrics via /api/v1/import/prometheus. Runs on success
       # AND failure so FatalTurnLimitedError reviews still emit token
       # counts (waste visibility). Gated on SIDECAR_STARTED so we know

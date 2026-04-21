@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Gen-AI metrics use delta temporality — queries switch from
+  `rate()` to `sum_over_time()`** (phase-55, Gemini PR #403 review
+  catch). The stateless GitHub Actions ingester emits per-run
+  totals, not cumulative counters. `rate()`/`increase()` interpret
+  each smaller sample as a counter reset and undercount by ~50%.
+  Dashboard and recording rules now use `sum_over_time()` for
+  window-aggregate math, and per-run cost uses the raw sample
+  (one dot per review).
+- **Cost-per-review panel restored with delta-temp math + $1 cap**
+  (phase-55). Replaced the intermediate "Tokens per API call" pivot
+  with a bounded per-run cost scatter: `min: 0`, `max: 1.00`,
+  thresholds `$0.25` (yellow) / `$0.50` (red). Worst-case pricing
+  (`gemini-2.5-pro-long` on a pathological review) tops out
+  ~$3.50; any single review at $0.50 is already "investigate."
+  Pre-fix the panel auto-scaled to $100 — two orders of magnitude
+  past reality.
+- **Gen-AI metrics reshape to OTel SemConv Histogram** (phase-55).
+  Pre-phase-55 emitted `gen_ai_client_token_usage_total` as a counter
+  with absolute-per-run values and a unique `github_run_id` label on
+  every sample. This broke `rate()` (one sample per series), broke
+  `increase(...[30d])` in the `:monthly` / `:per_run` recording rules
+  (returning 0 for every run — verified 10/10 over 30d pre-fix), and
+  grew series cardinality unbounded. Phase-55 emits
+  `gen_ai_client_token_usage_{bucket,sum,count}` as a **Histogram**
+  with OTel-mandated token-count boundaries, and drops `github_run_id`
+  from both token and duration metrics. Per-run drill-down is deferred
+  to phase-44's VictoriaLogs event fan-out.
+  - `scripts/ingest-gemini-telemetry.py build_samples()` — emits
+    histogram observations (one per api_response event × token_type)
+    instead of per-run absolute-total counter samples. Docstring
+    notes delta temporality explicitly.
+  - `k8s/platform/observability/templates/gen-ai-pricing-rules.yaml`
+    — `:monthly` aggregates with `sum_over_time(_sum[30d])` (see
+    first bullet for temporality rationale); `:per_run` retired (no
+    successor in this phase); `:age_days` retired (never produced a
+    sample, same-group cross-rule dependency bug).
+  - `k8s/platform/observability/templates/gen-ai-alert-rules.yaml` —
+    `GeminiPricingTableStale` now computes age inline
+    (`(time() - gen_ai_pricing_table_as_of_timestamp) / 86400`)
+    instead of consuming the retired `:age_days` recording rule.
+  - `k8s/platform/observability/files/gemini-review-spend.json` —
+    panel 2 (Tokens) uses `sum_over_time(_sum[$__rate_interval])`;
+    panel 3 (Latency p50/p95) uses
+    `histogram_quantile(sum by(le)(sum_over_time(_bucket[...])))`;
+    panel 4 (Cost per review) stays as USD, one dot per run with
+    `min: 0 / max: 1.00` and yellow/red thresholds at $0.25/$0.50;
+    panel 5 inlines the pricing-table age expression. Template
+    variables switch from `label_values(..._total, ...)` to
+    `label_values(..._sum, ...)`.
+- **Review workflow ceilings aligned** (phase-55). In
+  `.github/workflows/gemini-review.yml`: `timeout_minutes: 4 → 8`
+  (covers observed 6min P95 wallclock with ~2min headroom);
+  `maxSessionTurns: 75` kept (observed max 69 turns over 30d, ~6
+  turns of headroom). Pairing rationale: at observed ~5s/turn, 75
+  turns × 5s = 375s, under the new 480s timeout. Accepts Gemini's
+  PR #402 🟡 inline suggestion.
+
 ### Added
 
 - **Artifact-based ingest of Gemini review telemetry to VictoriaMetrics**
