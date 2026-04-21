@@ -891,6 +891,123 @@
         },
         "overrides": []
       }
+    },
+    {
+      "id": 24,
+      "type": "row",
+      "title": "Hygiene (phase-3)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 66
+      },
+      "collapsed": false
+    },
+    {
+      "id": 25,
+      "type": "stat",
+      "title": "Orphaned position $ (all books)",
+      "description": "paper-trading-realism phase-3: sum of paper_orphaned_position_usd across every (book, symbol). Non-zero = a book holds inventory the strategy will never close; operator must reconcile manually. Green = healthy, red = intervention required.",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 67
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(paper_orphaned_position_usd{book_id=~\"$book_id\"})",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.01 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 26,
+      "type": "table",
+      "title": "Orphaned positions by (book, symbol)",
+      "description": "paper-trading-realism phase-3: one row per (book, symbol) where the strategy no longer trades the symbol but the position map still holds inventory. MarkValue = qty * current_mid from the adapter's cached quote. Empty table = healthy.",
+      "gridPos": {
+        "h": 7,
+        "w": 16,
+        "x": 8,
+        "y": 67
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "paper_orphaned_position_usd{book_id=~\"$book_id\"}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "container": true,
+              "endpoint": true,
+              "instance": true,
+              "job": true,
+              "namespace": true,
+              "pod": true,
+              "prometheus": true,
+              "service": true
+            },
+            "renameByName": {
+              "Value": "MarkValue (USD)"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "MarkValue (USD)" },
+            "properties": [
+              { "id": "unit", "value": "currencyUSD" },
+              { "id": "custom.align", "value": "right" }
+            ]
+          }
+        ]
+      }
     }
   ]
 }
