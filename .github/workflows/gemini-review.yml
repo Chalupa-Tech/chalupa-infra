@@ -242,6 +242,18 @@ jobs:
       # so 75 has ~6 turns of headroom. Pairs with timeout_minutes=8:
       # at observed ~5s/turn, 75 turns × 5s = 375s, under the 480s
       # timeout. Raise both together if the ceiling starts biting.
+      #
+      # includeTools retains `pull_request_read` — phase-56 initially
+      # pruned it (the prompt's additional_context already pre-injects
+      # the diff, so in theory the tool is redundant), but the
+      # .github/commands/gemini-review.toml prompt EXPLICITLY directs
+      # Gemini to call `pull_request_read.{get,get_files,get_diff}`.
+      # With the tool removed Gemini fell back to `gh pr view`
+      # (fails — no auth in its shell) and `cat $GITHUB_EVENT_PATH`
+      # (hangs 5min on empty-var expansion) — reviewable PRs timed
+      # out. The prune + prompt update is tracked as phase-56c; Tier 1
+      # cost win in this phase comes from the filter_review gate
+      # (~30% fewer review runs) which is independent.
       settings_json: |-
         {
           "model": {

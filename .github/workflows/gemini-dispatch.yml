@@ -156,10 +156,135 @@ jobs:
             --body "${MESSAGE}" \
             --repo "${REPOSITORY}"
 
-  review:
+  # Phase-56 cost gate: for auto-triggered PR reviews (opened /
+  # synchronize), skip the review if the PR is trivial (docs/lock-file
+  # only, draft, sub-20-line) or opted out via the `skip-review`
+  # label. Comment-invoked reviews (`@gemini-cli /review`) bypass
+  # this job entirely — the operator's explicit request wins.
+  #
+  # Expected to eliminate ~30% of review runs based on review-cost
+  # brief estimates (workstreams/ai-reviews/briefs/review-cost-strategy.md
+  # in chalupa-brain). Pairs with the `pull_request_read` removal
+  # in gemini-review.yml to cut both run volume and per-run tokens.
+  filter_review:
     needs: 'dispatch'
     if: |-
-      ${{ needs.dispatch.outputs.command == 'review' }}
+      ${{ needs.dispatch.outputs.command == 'review' && github.event_name == 'pull_request' }}
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 2
+    permissions:
+      contents: 'read'
+      pull-requests: 'read'
+    outputs:
+      should_run: '${{ steps.decide.outputs.should_run }}'
+      skip_reason: '${{ steps.decide.outputs.skip_reason }}'
+    steps:
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8' # ratchet:actions/checkout@v6
+
+      - name: 'Detect reviewable files'
+        id: 'paths'
+        # predicate-quantifier: every is required for negation
+        # semantics. With the default 'some', a file matches if ANY
+        # pattern matches — so `**` alone is enough to match
+        # everything, and the `!...` exclusions are no-ops. With
+        # 'every', a file must match ALL patterns: `**` AND each
+        # negation (i.e., NOT in any exempt subtree) → filter output
+        # is true iff at least one changed file is outside every
+        # exempt glob.
+        uses: 'dorny/paths-filter@v3'
+        with:
+          predicate-quantifier: 'every'
+          filters: |-
+            reviewable:
+              - '**'
+              - '!CHANGELOG.md'
+              - '!**/CHANGELOG.md'
+              - '!**/*.lock'
+              - '!**/Chart.lock'
+              - '!**/package-lock.json'
+              - '!docs/**'
+              - '!**/*.generated.go'
+              - '!**/zz_generated_*.go'
+              - '!.gitignore'
+              - '!**/.gitignore'
+
+      - name: 'Decide should_run'
+        id: 'decide'
+        env:
+          PR_DRAFT: '${{ github.event.pull_request.draft }}'
+          PR_ADDITIONS: '${{ github.event.pull_request.additions }}'
+          PR_DELETIONS: '${{ github.event.pull_request.deletions }}'
+          PR_LABELS: '${{ toJSON(github.event.pull_request.labels.*.name) }}'
+          HAS_REVIEWABLE: '${{ steps.paths.outputs.reviewable }}'
+        run: |-
+          set -euo pipefail
+          has_label() { jq -e --arg n "$1" 'any(.[]; . == $n)' <<<"$PR_LABELS" >/dev/null; }
+
+          decide() {
+            local reason="$1"
+            printf 'should_run=false\n' >> "$GITHUB_OUTPUT"
+            printf 'skip_reason=%s\n' "$reason" >> "$GITHUB_OUTPUT"
+            printf '::notice::Skipping Gemini review: %s\n' "$reason"
+            exit 0
+          }
+
+          # skip-review wins over everything, including force-review.
+          if has_label 'skip-review'; then
+            decide 'skip-review label'
+          fi
+
+          # force-review bypasses draft/size/path gates (but not skip-review).
+          if has_label 'force-review'; then
+            printf 'should_run=true\n' >> "$GITHUB_OUTPUT"
+            printf '::notice::Gemini review forced by force-review label\n'
+            exit 0
+          fi
+
+          if [ "$PR_DRAFT" = 'true' ]; then
+            decide 'draft PR (add force-review label to override)'
+          fi
+
+          # Path filter before size so a large docs-only PR reports
+          # the path reason, not a misleading size reason. A small
+          # docs-only PR could hit either gate — order makes the
+          # messaging consistent.
+          if [ "$HAS_REVIEWABLE" != 'true' ]; then
+            decide 'no reviewable files changed (only docs/CHANGELOG/lock/generated)'
+          fi
+
+          ADDITIONS="${PR_ADDITIONS:-0}"
+          DELETIONS="${PR_DELETIONS:-0}"
+          SIZE=$(( ADDITIONS + DELETIONS ))
+          if [ "$SIZE" -lt 20 ]; then
+            decide "small PR ($SIZE lines; add force-review label to override)"
+          fi
+
+          printf 'should_run=true\n' >> "$GITHUB_OUTPUT"
+          printf '::notice::Gemini review gated through: %d lines, reviewable files present\n' "$SIZE"
+
+  review:
+    needs:
+      - 'dispatch'
+      - 'filter_review'
+    # Run if:
+    #   - dispatch routed to 'review' AND
+    #   - either the trigger is NOT a pull_request event (i.e., a
+    #     comment-invoked `@gemini-cli /review` — operator explicit
+    #     request bypasses filter_review, which is skipped for such
+    #     events), OR
+    #   - the filter_review job decided should_run=true.
+    # !cancelled() lets this job run even though filter_review is
+    # skipped on non-PR events (default GHA behavior would propagate
+    # the skip here).
+    if: |-
+      !cancelled()
+      && needs.dispatch.result == 'success'
+      && needs.dispatch.outputs.command == 'review'
+      && (
+        github.event_name != 'pull_request'
+        || needs.filter_review.outputs.should_run == 'true'
+      )
     uses: './.github/workflows/gemini-review.yml'
     permissions:
       contents: 'read'
