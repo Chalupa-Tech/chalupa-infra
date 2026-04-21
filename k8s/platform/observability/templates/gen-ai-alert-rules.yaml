@@ -3,7 +3,7 @@
 #
 # Depends on recording rules in gen-ai-pricing-rules.yaml:
 #   - gen_ai_review_cost_usd:monthly
-#   - gen_ai_pricing_table_age_days
+#   - gen_ai_pricing_table_as_of_timestamp (age computed inline below)
 #
 # Severity routing: uses the cluster's existing Discord receivers
 # (discord-info / discord-warning / discord-critical) — see
@@ -61,7 +61,7 @@ spec:
       interval: 1h
       rules:
         - alert: GeminiPricingTableStale
-          expr: gen_ai_pricing_table_age_days > 180
+          expr: (time() - gen_ai_pricing_table_as_of_timestamp) / 86400 > 180
           for: 6h
           labels:
             severity: warning

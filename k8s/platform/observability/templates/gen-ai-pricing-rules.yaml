@@ -1,10 +1,15 @@
 ---
 # Recording rules for Gemini (and future Claude / Codex) review spend.
 #
-# Input metric: gen_ai_client_token_usage_total{gen_ai_system, gen_ai_request_model,
-#   gen_ai_token_type, github_repository, …} — emitted by Grafana Alloy
-#   sidecar in .github/workflows/gemini-review.yml, via OTLP from
-#   Gemini CLI's native OTel instrumentation (phase-39c).
+# Input metric (phase-55 reshape): gen_ai_client_token_usage (Histogram)
+#   with _sum / _count / _bucket series, labels gen_ai_system,
+#   gen_ai_request_model, gen_ai_token_type, github_repository,
+#   gen_ai_operation_name. NOT keyed by github_run_id (unbounded
+#   cardinality anti-pattern; per-run drill-down deferred to phase-44
+#   VictoriaLogs event records).
+#
+# Emitted by scripts/ingest-gemini-telemetry.py post-review, parsed from
+# .gemini/telemetry.log; OTel SemConv GenAI compliant histogram shape.
 #
 # Pricing source of truth: chalupa-brain/docs/gen-ai-pricing-table.yaml.
 # Rates encoded below as `vector()` expressions — keep in sync with the
@@ -120,10 +125,10 @@ spec:
     # Keep this timestamp in sync with `as_of:` in
     # chalupa-brain/docs/gen-ai-pricing-table.yaml. 2026-04-19T00:00Z UTC = 1776556800.
     #
-    # 5m interval (not 1h) so `gen_ai_pricing_table_age_days` stays
-    # within Prometheus' 5-min staleness window between evaluations —
-    # otherwise the Grafana "Pricing table age" stat panel reads
-    # no-data for ~55 minutes out of every hour.
+    # Phase-55: the derived `gen_ai_pricing_table_age_days` recording
+    # rule was retired — same-group cross-rule dependency never
+    # produced a sample. Panel 5 now inlines
+    # `(time() - gen_ai_pricing_table_as_of_timestamp) / 86400`.
     - name: gen-ai-pricing-staleness
       interval: 5m
       rules:
@@ -132,11 +137,16 @@ spec:
           labels:
             schema_version: v1
 
-        - record: gen_ai_pricing_table_age_days
-          expr: (time() - gen_ai_pricing_table_as_of_timestamp) / 86400
-
     # ── Cost aggregation ─────────────────────────────────────────────
-    # Cost = tokens-in-window * rate-per-1M / 1M
+    # Cost = rate-of-tokens * price-per-token over window
+    #
+    # Phase-55 reshape: `_sum` is the accumulated-tokens counter
+    # component of the histogram; `rate(...[30d])` gives tokens/sec over
+    # the window; multiplying by window seconds yields total tokens;
+    # dividing by 1M and multiplying by USD/Mtoken gives USD.
+    #
+    # Simpler equivalent via `increase()`: total-tokens-in-window.
+    # Using `increase()` keeps PromQL idiomatic.
     #
     # 30d rolling window matches the dashboard's default range. For the
     # alert thresholds ($16/$20/$50 soft/soft/hard) in
@@ -144,6 +154,9 @@ spec:
     #
     # Labels preserved on output: gen_ai_system, gen_ai_request_model,
     # github_repository. Token-type label is summed out.
+    #
+    # `:per_run` retired in phase-55. Per-run cost distribution lives on
+    # VictoriaLogs event records in phase-44's log fan-out.
     - name: gen-ai-cost
       interval: 5m
       rules:
@@ -151,20 +164,7 @@ spec:
           expr: |-
             sum by (gen_ai_system, gen_ai_request_model, github_repository) (
               (
-                increase(gen_ai_client_token_usage_total[30d]) / 1e6
-              )
-              * on(gen_ai_system, gen_ai_request_model, gen_ai_token_type) group_left
-              gen_ai_pricing_usd_per_mtoken
-            )
-
-        # Per-review cost for the "cost per review (p50/p95)" panel.
-        # Uses the run_id resource attr to group tokens emitted within
-        # one CI job — each run is one Gemini review.
-        - record: gen_ai_review_cost_usd:per_run
-          expr: |-
-            sum by (gen_ai_system, gen_ai_request_model, github_repository, github_run_id) (
-              (
-                increase(gen_ai_client_token_usage_total[1h]) / 1e6
+                increase(gen_ai_client_token_usage_sum[30d]) / 1e6
               )
               * on(gen_ai_system, gen_ai_request_model, gen_ai_token_type) group_left
               gen_ai_pricing_usd_per_mtoken

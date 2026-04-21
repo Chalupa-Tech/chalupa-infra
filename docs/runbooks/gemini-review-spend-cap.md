@@ -25,9 +25,11 @@ the cluster's alertmanager receivers.
      directly.
    - Elevated baseline — model may have changed (check
      `vars.GEMINI_MODEL`) or routine PR volume has grown.
-3. Check `gen_ai_pricing_table_age_days` — if stale (>180d), the
-   cost may be understated *and* drifted; refresh the pricing table
-   before acting on the fire.
+3. Check pricing-table age: panel 5 on the Gemini Review Spend
+   dashboard, or PromQL
+   `(time() - gen_ai_pricing_table_as_of_timestamp) / 86400`. If
+   stale (>180d), the cost may be understated *and* drifted —
+   refresh the pricing table before acting on the fire.
 
 ## `GeminiSpendHardCap` — halt procedure
 

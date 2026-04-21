@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Gen-AI metrics reshape to OTel SemConv Histogram** (phase-55).
+  Pre-phase-55 emitted `gen_ai_client_token_usage_total` as a counter
+  with absolute-per-run values and a unique `github_run_id` label on
+  every sample. This broke `rate()` (one sample per series), broke
+  `increase(...[30d])` in the `:monthly` / `:per_run` recording rules
+  (returning 0 for every run — verified 10/10 over 30d pre-fix), and
+  grew series cardinality unbounded. Phase-55 emits
+  `gen_ai_client_token_usage_{bucket,sum,count}` as a **Histogram**
+  with OTel-mandated token-count boundaries, and drops `github_run_id`
+  from both token and duration metrics. Per-run drill-down is deferred
+  to phase-44's VictoriaLogs event fan-out.
+  - `scripts/ingest-gemini-telemetry.py build_samples()` — emits
+    histogram observations (one per api_response event × token_type)
+    instead of per-run absolute-total counter samples.
+  - `k8s/platform/observability/templates/gen-ai-pricing-rules.yaml`
+    — `:monthly` switches to `increase(gen_ai_client_token_usage_sum
+    [30d])`; `:per_run` retired (no successor in this phase).
+  - `k8s/platform/observability/templates/gen-ai-alert-rules.yaml` —
+    `GeminiPricingTableStale` now computes age inline
+    (`(time() - gen_ai_pricing_table_as_of_timestamp) / 86400`)
+    instead of consuming the retired `:age_days` recording rule.
+  - `k8s/platform/observability/files/gemini-review-spend.json` —
+    panels 2 + 3 restore `rate()` / `histogram_quantile(rate(...))`
+    (accepts Gemini's PR #402 🟠 inline suggestions). Panel 4 pivots
+    from "Cost per review (USD)" to "Tokens per API call (p50/p95)"
+    with explicit `min: 0` — per-run cost distribution returns once
+    phase-44 VLogs events land. Panel 5 inlines the pricing-table age
+    expression. Template variables switch from `label_values(...
+    _total, ...)` to `label_values(..._sum, ...)`.
+- **Review workflow ceilings aligned** (phase-55). In
+  `.github/workflows/gemini-review.yml`: `timeout_minutes: 4 → 8`
+  (covers observed 6min P95 wallclock with ~2min headroom);
+  `maxSessionTurns: 75` kept (observed max 69 turns over 30d, ~6
+  turns of headroom). Pairing rationale: at observed ~5s/turn, 75
+  turns × 5s = 375s, under the new 480s timeout. Accepts Gemini's
+  PR #402 🟡 inline suggestion.
+
 ### Added
 
 - **Artifact-based ingest of Gemini review telemetry to VictoriaMetrics**
