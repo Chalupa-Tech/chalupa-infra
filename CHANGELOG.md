@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **paper-trading dashboard truth-up — paper-trading-realism
+  phase-1.** Paired with `go-schwab-accounts-and-trading` v0.5.0
+  (adds `book_id` label to every per-book `paper_*` Prom metric).
+  `go-paper-trader` chart bumped to 0.3.4 + appVersion 0.5.0 +
+  image tag v0.5.0. Dashboard edits in `k8s/apps/schwab/go-paper-
+  trader/files/paper-trading.json`:
+  - Panel 4 (`Current equity`) and panel 5 (`Open positions`)
+    renamed to `by book`, re-scoped to
+    `paper_equity_usd{book_id=~"$book_id"}` and
+    `paper_open_positions{book_id=~"$book_id"}` with
+    `legendFormat: "{{book_id}}"`. Both pods previously aggregated
+    silently — the stat disagreed with the per-book SQL panels.
+  - Panel 8 (`Live positions`) SQL gains `AND quantity != 0` so
+    closed positions no longer linger in the table.
+  - Panel 15 (`By-strategy notional`) SQL gains
+    `AND book_id IN ($book_id)` so the `$book_id` dropdown
+    actually scopes the bar chart.
+  - `$book_id` template variable query constrained to the last
+    7 days (`WHERE time > NOW() - INTERVAL '7 days'`) so orphan
+    `book_id`s from long-retired deployments stop appearing in
+    the dropdown.
+
 - **Gemini review cost gates — phase-56 Tier 1** (new `filter_review`
   job in `gemini-dispatch.yml`). Auto-triggered PR reviews
   (`opened` / `synchronize`) now skip when the PR is draft, under
