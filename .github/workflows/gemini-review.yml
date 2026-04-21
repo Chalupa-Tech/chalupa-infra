@@ -130,10 +130,7 @@ jobs:
           echo "available=true" >> "$GITHUB_OUTPUT"
 
       # Pre-inject the PR diff so the review model has read context
-      # up front. github-mcp-server can't substitute for this on our
-      # setup: installation tokens 403 on /user (see
-      # github/github-mcp-server#1610), so pull_request_read fails
-      # regardless. Even with MCP working, pre-inject avoids 10–20
+      # up front. Even with MCP working, pre-inject avoids 10–20
       # tool-call round-trips (each re-ships the full system prompt)
       # at the cost of ~0.2 tokens per diff line. Net-positive up to
       # the 50k-line cap; beyond that the diff dominates context and
@@ -251,6 +248,10 @@ jobs:
                 "run",
                 "-i",
                 "--rm",
+                "--dns",
+                "8.8.8.8",
+                "--dns",
+                "1.1.1.1",
                 "-e",
                 "GITHUB_PERSONAL_ACCESS_TOKEN",
                 "ghcr.io/github/github-mcp-server:v0.27.0"
