@@ -38,22 +38,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to phase-44's VictoriaLogs event fan-out.
   - `scripts/ingest-gemini-telemetry.py build_samples()` — emits
     histogram observations (one per api_response event × token_type)
-    instead of per-run absolute-total counter samples.
+    instead of per-run absolute-total counter samples. Docstring
+    notes delta temporality explicitly.
   - `k8s/platform/observability/templates/gen-ai-pricing-rules.yaml`
-    — `:monthly` switches to `increase(gen_ai_client_token_usage_sum
-    [30d])`; `:per_run` retired (no successor in this phase).
+    — `:monthly` aggregates with `sum_over_time(_sum[30d])` (see
+    first bullet for temporality rationale); `:per_run` retired (no
+    successor in this phase); `:age_days` retired (never produced a
+    sample, same-group cross-rule dependency bug).
   - `k8s/platform/observability/templates/gen-ai-alert-rules.yaml` —
     `GeminiPricingTableStale` now computes age inline
     (`(time() - gen_ai_pricing_table_as_of_timestamp) / 86400`)
     instead of consuming the retired `:age_days` recording rule.
   - `k8s/platform/observability/files/gemini-review-spend.json` —
-    panels 2 + 3 restore `rate()` / `histogram_quantile(rate(...))`
-    (accepts Gemini's PR #402 🟠 inline suggestions). Panel 4 pivots
-    from "Cost per review (USD)" to "Tokens per API call (p50/p95)"
-    with explicit `min: 0` — per-run cost distribution returns once
-    phase-44 VLogs events land. Panel 5 inlines the pricing-table age
-    expression. Template variables switch from `label_values(...
-    _total, ...)` to `label_values(..._sum, ...)`.
+    panel 2 (Tokens) uses `sum_over_time(_sum[$__rate_interval])`;
+    panel 3 (Latency p50/p95) uses
+    `histogram_quantile(sum by(le)(sum_over_time(_bucket[...])))`;
+    panel 4 (Cost per review) stays as USD, one dot per run with
+    `min: 0 / max: 1.00` and yellow/red thresholds at $0.25/$0.50;
+    panel 5 inlines the pricing-table age expression. Template
+    variables switch from `label_values(..._total, ...)` to
+    `label_values(..._sum, ...)`.
 - **Review workflow ceilings aligned** (phase-55). In
   `.github/workflows/gemini-review.yml`: `timeout_minutes: 4 → 8`
   (covers observed 6min P95 wallclock with ~2min headroom);
