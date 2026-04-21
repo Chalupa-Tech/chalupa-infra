@@ -243,14 +243,17 @@ jobs:
       # at observed ~5s/turn, 75 turns × 5s = 375s, under the 480s
       # timeout. Raise both together if the ceiling starts biting.
       #
-      # mcpServers.github.includeTools intentionally omits
-      # `pull_request_read` (phase-56). The diff + PR metadata are
-      # pre-injected via compose_context above; phase-55 telemetry
-      # showed Gemini calling pull_request_read twice per review
-      # despite that, costing ~28K redundant fresh-input tokens
-      # (~$0.006/review at $0.30/M). Re-add only if pre-inject
-      # starts failing for enough PRs that Gemini needs a fallback
-      # fetch path — in that case, prefer fixing pre-inject first.
+      # includeTools retains `pull_request_read` — phase-56 initially
+      # pruned it (the prompt's additional_context already pre-injects
+      # the diff, so in theory the tool is redundant), but the
+      # .github/commands/gemini-review.toml prompt EXPLICITLY directs
+      # Gemini to call `pull_request_read.{get,get_files,get_diff}`.
+      # With the tool removed Gemini fell back to `gh pr view`
+      # (fails — no auth in its shell) and `cat $GITHUB_EVENT_PATH`
+      # (hangs 5min on empty-var expansion) — reviewable PRs timed
+      # out. The prune + prompt update is tracked as phase-56c; Tier 1
+      # cost win in this phase comes from the filter_review gate
+      # (~30% fewer review runs) which is independent.
       settings_json: |-
         {
           "model": {
@@ -278,6 +281,7 @@ jobs:
               ],
               "includeTools": [
                 "add_comment_to_pending_review",
+                "pull_request_read",
                 "pull_request_review_write"
               ],
               "env": {
