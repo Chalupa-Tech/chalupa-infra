@@ -2,7 +2,7 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-paper-trader
-  tag: "v0.5.0"
+  tag: "v0.6.0"
   pullPolicy: IfNotPresent
 
 nats:
@@ -70,6 +70,11 @@ paperTrader:
       quantity: 1
       alternatorCadence: 30s
       startingCash: 10000
+      # paper-trading-realism phase-2: reject orders outside 09:30-16:00 ET
+      # M-F (ex US holidays). Was unbounded pre-phase-2 — the 30s cadence
+      # fired 384 fills in the 2026-04-20 post-close window, differentially
+      # biasing the 30s-vs-60s comparison against its 60s sibling.
+      session: regular
       symbols:
         - AMD
         - AMZN
@@ -100,6 +105,9 @@ paperTrader:
       quantity: 1
       alternatorCadence: 60s
       startingCash: 10000
+      # Same rationale as ddowell-alt-30s; both books must be gated
+      # identically for the cadence comparison to be apples-to-apples.
+      session: regular
       symbols:
         - AMD
         - AMZN
