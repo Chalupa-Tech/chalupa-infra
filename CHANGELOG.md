@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Gemini review cost gates — phase-56 Tier 1** (new `filter_review`
+  job in `gemini-dispatch.yml` + `mcpServers.github.includeTools`
+  pruning in `gemini-review.yml`). Auto-triggered PR reviews
+  (`opened` / `synchronize`) now skip when the PR is draft, under
+  20 lines, or touches only exempt paths (CHANGELOG, docs, lock
+  files, generated code). New `skip-review` and `force-review`
+  labels let operators override; `@gemini-cli /review` comments
+  bypass all gates. `pull_request_read` removed from the GitHub
+  MCP server allowlist — the PR diff is pre-injected, and phase-55
+  telemetry showed Gemini re-fetching it twice per review for ~28K
+  redundant fresh-input tokens (~$0.006 wasted/review). Combined
+  with the volume gate, projected monthly spend drops from ~$35 to
+  ~$20. Labels and gate behavior documented in new `CONTRIBUTING.md`.
 - **Gen-AI metrics use delta temporality — queries switch from
   `rate()` to `sum_over_time()`** (phase-55, Gemini PR #403 review
   catch). The stateless GitHub Actions ingester emits per-run

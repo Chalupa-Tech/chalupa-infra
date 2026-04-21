@@ -242,6 +242,15 @@ jobs:
       # so 75 has ~6 turns of headroom. Pairs with timeout_minutes=8:
       # at observed ~5s/turn, 75 turns × 5s = 375s, under the 480s
       # timeout. Raise both together if the ceiling starts biting.
+      #
+      # mcpServers.github.includeTools intentionally omits
+      # `pull_request_read` (phase-56). The diff + PR metadata are
+      # pre-injected via compose_context above; phase-55 telemetry
+      # showed Gemini calling pull_request_read twice per review
+      # despite that, costing ~28K redundant fresh-input tokens
+      # (~$0.006/review at $0.30/M). Re-add only if pre-inject
+      # starts failing for enough PRs that Gemini needs a fallback
+      # fetch path — in that case, prefer fixing pre-inject first.
       settings_json: |-
         {
           "model": {
@@ -269,7 +278,6 @@ jobs:
               ],
               "includeTools": [
                 "add_comment_to_pending_review",
-                "pull_request_read",
                 "pull_request_review_write"
               ],
               "env": {
