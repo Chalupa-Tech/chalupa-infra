@@ -764,6 +764,133 @@
         },
         "overrides": []
       }
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "Realism metrics (phase-2)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 57
+      },
+      "collapsed": false
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Market-closed rejects by book (rate/5m)",
+      "description": "paper-trading-realism phase-2: orders refused by the session gate (config books[].session). Non-zero off-hours is desired steady state for session=regular; non-zero during market hours = holiday calendar stale or clock wrong.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 58
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(paper_market_closed_rejects_total{book_id=~\"$book_id\"}[5m])",
+          "legendFormat": "{{book_id}} / {{strategy}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 22,
+      "type": "heatmap",
+      "title": "Fill spread distribution (bps) — all symbols",
+      "description": "paper-trading-realism phase-2: observed (ask-bid)/mid in bps at fill time. Heatmap Y-axis is bucket upper bound, value = rate(_bucket[5m]). Wide distribution = material mid-fill bias; phase-4 replaces mid±5bps with ask-on-BUY / bid-on-SELL.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 58
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (le) (rate(paper_fill_spread_bps_bucket{book_id=~\"$book_id\",symbol=~\"$symbol\"}[5m]))",
+          "legendFormat": "{{le}}",
+          "format": "heatmap"
+        }
+      ],
+      "options": {
+        "yAxis": {
+          "unit": "short"
+        },
+        "calculate": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "scaleDistribution": {
+              "type": "log",
+              "log": 10
+            }
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Fill spread P50 / P95 / P99 by book (bps, 15m)",
+      "description": "paper-trading-realism phase-2: per-book spread quantiles. P50 <10bps on liquid names is expected; P95 spikes indicate thin-name or off-hours exposure that phase-4's ask/bid fill model will make material.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 58
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum by (le, book_id) (rate(paper_fill_spread_bps_bucket{book_id=~\"$book_id\"}[15m])))",
+          "legendFormat": "P50 {{book_id}}"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le, book_id) (rate(paper_fill_spread_bps_bucket{book_id=~\"$book_id\"}[15m])))",
+          "legendFormat": "P95 {{book_id}}"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le, book_id) (rate(paper_fill_spread_bps_bucket{book_id=~\"$book_id\"}[15m])))",
+          "legendFormat": "P99 {{book_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
     }
   ]
 }

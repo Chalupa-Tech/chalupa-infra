@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **paper-trading market-hours gate + spread histogram —
+  paper-trading-realism phase-2.** Paired with
+  `go-schwab-accounts-and-trading` v0.6.0 (adds configurable session
+  window + `paper_market_closed_rejects_total` +
+  `paper_fill_spread_bps` histogram). `go-paper-trader` chart
+  bumped to 0.3.5 + appVersion 0.6.0 + image tag v0.6.0. Values
+  changes: every book in `paperTrader.books[]` gains
+  `session: regular` (09:30-16:00 ET M-F ex US holidays). Rationale:
+  in the 17.5h post-close window on 2026-04-20 the 30s-cadence
+  alternator fired 384 off-hours fills, biasing the 30s-vs-60s
+  cadence comparison against its 60s sibling.
+  - ConfigMap template (`templates/configmap.yaml`) renders
+    `session: "<value>"` when set; omits the line otherwise
+    (binary falls back to `regular` inside `sim.ParseSession`).
+  - Dashboard adds a new "Realism metrics (phase-2)" row with
+    three panels in `files/paper-trading.json`:
+    - Panel 21 — `rate(paper_market_closed_rejects_total[5m])` by
+      book/strategy; non-zero during market hours flags a stale
+      holiday calendar or a clock-skew pod.
+    - Panel 22 — heatmap of `paper_fill_spread_bps_bucket` rate
+      across all symbols, log Y-axis for resolution at both tight
+      (1bps) and wide (1000bps) ends.
+    - Panel 23 — P50/P95/P99 by book from the same histogram over
+      a 15m window; drives phase-4's mid-vs-ask/bid fill-model
+      decision.
+
 - **paper-trading dashboard truth-up — paper-trading-realism
   phase-1.** Paired with `go-schwab-accounts-and-trading` v0.5.0
   (adds `book_id` label to every per-book `paper_*` Prom metric).

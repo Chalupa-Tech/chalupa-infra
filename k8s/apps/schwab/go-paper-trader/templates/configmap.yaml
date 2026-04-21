@@ -30,6 +30,9 @@ data:
         smaSlow: {{ .smaSlow | quote }}
 {{- end }}
         startingCash: {{ .startingCash }}
+{{- if .session }}
+        session: {{ .session | quote }}
+{{- end }}
         symbols:
 {{- range .symbols }}
           - {{ . | quote }}
