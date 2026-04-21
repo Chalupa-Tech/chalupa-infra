@@ -951,7 +951,7 @@
       "id": 26,
       "type": "table",
       "title": "Orphaned positions by (book, symbol)",
-      "description": "paper-trading-realism phase-3: one row per (book, symbol) where the strategy no longer trades the symbol but the position map still holds inventory. MarkValue = qty * current_mid from the adapter's cached quote. Empty table = healthy.",
+      "description": "paper-trading-realism phase-3: one row per (book, symbol) where the strategy no longer trades the symbol but the position map still holds inventory. MarkValue = qty × current_mid from the adapter's cached quote. Empty table = healthy.",
       "gridPos": {
         "h": 7,
         "w": 16,
