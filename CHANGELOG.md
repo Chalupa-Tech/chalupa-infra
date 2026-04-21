@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Gen-AI metrics use delta temporality — queries switch from
+  `rate()` to `sum_over_time()`** (phase-55, Gemini PR #403 review
+  catch). The stateless GitHub Actions ingester emits per-run
+  totals, not cumulative counters. `rate()`/`increase()` interpret
+  each smaller sample as a counter reset and undercount by ~50%.
+  Dashboard and recording rules now use `sum_over_time()` for
+  window-aggregate math, and per-run cost uses the raw sample
+  (one dot per review).
+- **Cost-per-review panel restored with delta-temp math + $1 cap**
+  (phase-55). Replaced the intermediate "Tokens per API call" pivot
+  with a bounded per-run cost scatter: `min: 0`, `max: 1.00`,
+  thresholds `$0.25` (yellow) / `$0.50` (red). Worst-case pricing
+  (`gemini-2.5-pro-long` on a pathological review) tops out
+  ~$3.50; any single review at $0.50 is already "investigate."
+  Pre-fix the panel auto-scaled to $100 — two orders of magnitude
+  past reality.
 - **Gen-AI metrics reshape to OTel SemConv Histogram** (phase-55).
   Pre-phase-55 emitted `gen_ai_client_token_usage_total` as a counter
   with absolute-per-run values and a unique `github_run_id` label on

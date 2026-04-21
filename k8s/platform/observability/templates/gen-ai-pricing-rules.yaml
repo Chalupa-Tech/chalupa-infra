@@ -138,25 +138,32 @@ spec:
             schema_version: v1
 
     # ── Cost aggregation ─────────────────────────────────────────────
-    # Cost = rate-of-tokens * price-per-token over window
+    # Cost = total-tokens-in-window * price-per-token
     #
-    # Phase-55 reshape: `_sum` is the accumulated-tokens counter
-    # component of the histogram; `rate(...[30d])` gives tokens/sec over
-    # the window; multiplying by window seconds yields total tokens;
-    # dividing by 1M and multiplying by USD/Mtoken gives USD.
+    # Phase-55 reshape: emission is OTel-Histogram-shaped but with
+    # DELTA temporality — the ingest script is stateless (each
+    # GitHub Actions run exits, so there's no process to accumulate
+    # a cumulative counter). Each `_sum` sample carries that run's
+    # total tokens, not a running total across runs.
     #
-    # Simpler equivalent via `increase()`: total-tokens-in-window.
-    # Using `increase()` keeps PromQL idiomatic.
+    # This means `rate()` / `increase()` are WRONG for aggregation:
+    # they assume cumulative counters and interpret each new smaller
+    # sample as a counter reset, undercounting by ~50% on typical
+    # review distributions (validated via Gemini PR #403 review).
     #
-    # 30d rolling window matches the dashboard's default range. For the
-    # alert thresholds ($16/$20/$50 soft/soft/hard) in
+    # Correct aggregator: `sum_over_time(_sum[window])` = sum of per-
+    # run totals in the window = total tokens in the window. That's
+    # what we multiply by pricing to get window-cost.
+    #
+    # 30d rolling window matches the dashboard's default range. For
+    # the alert thresholds ($16/$20/$50 soft/soft/hard) in
     # gen-ai-alert-rules.yaml, the same metric is consumed.
     #
     # Labels preserved on output: gen_ai_system, gen_ai_request_model,
     # github_repository. Token-type label is summed out.
     #
-    # `:per_run` retired in phase-55. Per-run cost distribution lives on
-    # VictoriaLogs event records in phase-44's log fan-out.
+    # `:per_run` retired in phase-55. Per-run cost distribution lives
+    # on VictoriaLogs event records in phase-44's log fan-out.
     - name: gen-ai-cost
       interval: 5m
       rules:
@@ -164,7 +171,7 @@ spec:
           expr: |-
             sum by (gen_ai_system, gen_ai_request_model, github_repository) (
               (
-                increase(gen_ai_client_token_usage_sum[30d]) / 1e6
+                sum_over_time(gen_ai_client_token_usage_sum[30d]) / 1e6
               )
               * on(gen_ai_system, gen_ai_request_model, gen_ai_token_type) group_left
               gen_ai_pricing_usd_per_mtoken

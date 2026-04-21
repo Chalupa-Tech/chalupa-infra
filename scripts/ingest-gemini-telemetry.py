@@ -31,6 +31,15 @@ steers per-request identifiers to spans/events rather than metric
 attributes. Per-run drill-down will land via VictoriaLogs event records
 in phase-44's log fan-out.
 
+TEMPORALITY NOTE: emission is DELTA, not cumulative. The GitHub Actions
+runner is ephemeral — each `ingest-gemini-telemetry.py` invocation posts
+that run's totals as a fresh sample, with no across-run accumulation.
+Dashboard queries MUST use `sum_over_time()` / `count_over_time()` /
+`quantile_over_time()` / `histogram_quantile(sum by(le) (sum_over_time
+(bucket[range])))`, NOT `rate()` / `increase()` — `rate()` assumes
+cumulative counters and interprets each smaller sample as a counter
+reset, undercounting by ~50% on typical review distributions.
+
 Environment:
 - VM_WRITE_URL        Default https://vm-write.chalupatech.com/api/v1/write.
                       Trailing /api/v1/write is stripped and replaced
