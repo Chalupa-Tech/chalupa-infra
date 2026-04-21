@@ -184,12 +184,17 @@ jobs:
 
       - name: 'Detect reviewable files'
         id: 'paths'
-        # Using positive filter with `**` then negations: output is
-        # `true` iff at least one changed file is not in the exempt
-        # list. Match validate-infra.yml's pinning style for this
-        # action (repo-wide prior art).
+        # predicate-quantifier: every is required for negation
+        # semantics. With the default 'some', a file matches if ANY
+        # pattern matches — so `**` alone is enough to match
+        # everything, and the `!...` exclusions are no-ops. With
+        # 'every', a file must match ALL patterns: `**` AND each
+        # negation (i.e., NOT in any exempt subtree) → filter output
+        # is true iff at least one changed file is outside every
+        # exempt glob.
         uses: 'dorny/paths-filter@v3'
         with:
+          predicate-quantifier: 'every'
           filters: |-
             reviewable:
               - '**'
@@ -240,15 +245,19 @@ jobs:
             decide 'draft PR (add force-review label to override)'
           fi
 
+          # Path filter before size so a large docs-only PR reports
+          # the path reason, not a misleading size reason. A small
+          # docs-only PR could hit either gate — order makes the
+          # messaging consistent.
+          if [ "$HAS_REVIEWABLE" != 'true' ]; then
+            decide 'no reviewable files changed (only docs/CHANGELOG/lock/generated)'
+          fi
+
           ADDITIONS="${PR_ADDITIONS:-0}"
           DELETIONS="${PR_DELETIONS:-0}"
           SIZE=$(( ADDITIONS + DELETIONS ))
           if [ "$SIZE" -lt 20 ]; then
             decide "small PR ($SIZE lines; add force-review label to override)"
-          fi
-
-          if [ "$HAS_REVIEWABLE" != 'true' ]; then
-            decide 'no reviewable files changed (only docs/CHANGELOG/lock/generated)'
           fi
 
           printf 'should_run=true\n' >> "$GITHUB_OUTPUT"
