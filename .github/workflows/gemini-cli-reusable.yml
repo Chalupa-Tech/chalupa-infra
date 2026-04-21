@@ -57,6 +57,19 @@ on:
         type: boolean
         required: false
         default: true
+      mcp_preflight:
+        description: >-
+          When true, run a tiny docker container with the same
+          `--network host` config the MCP server uses, and curl
+          api.github.com with a short timeout. Fail fast if the
+          runner's docker egress is broken (Tailscale iptables
+          conflicts, MagicDNS regressions, etc.) so we don't burn
+          the full job timeout on MCP tool-call retries. Enable for
+          callers whose settings_json includes an MCP server
+          talking to api.github.com.
+        type: boolean
+        required: false
+        default: false
     secrets:
       TELEMETRY_TOKEN:
         description: 'BasicAuth password for vm-write / vlogs-write. Optional.'
@@ -155,6 +168,27 @@ jobs:
           # run-gemini-cli step. Safe even if the values contain '=' because
           # each line is emitted verbatim into $GITHUB_ENV.
           printf '%s\n' "$EXTRA_ENV" >> "$GITHUB_ENV"
+
+      # Fail fast if the runner's docker-to-internet path is broken
+      # (Tailscale iptables regressions, MagicDNS re-enabled, docker
+      # MASQUERADE rules clobbered, etc.) — otherwise a broken path
+      # burns the full timeout_minutes on MCP tool-call retries at
+      # 30s each. Uses the same `--network host` config MCP uses, so
+      # a pass here guarantees MCP can reach api.github.com too.
+      - name: 'Preflight: docker egress to api.github.com'
+        if: ${{ inputs.mcp_preflight }}
+        timeout-minutes: 1
+        shell: bash
+        run: |-
+          set -euo pipefail
+          if ! docker run --rm --network host \
+               curlimages/curl:8.10.1 \
+               -fsS --max-time 8 -o /dev/null \
+               https://api.github.com/zen; then
+            echo "::error::Preflight failed — docker containers on --network host cannot reach api.github.com within 8s. The MCP-based review would burn the full job timeout on tool-call retries. Common cause: Tailscale iptables conflicting with docker egress (see reference_gemini_review_mcp_wiring memory)."
+            exit 1
+          fi
+          echo "Preflight OK — docker egress to api.github.com healthy"
 
       - name: 'Resolve telemetry target'
         id: 'telemetry_target'

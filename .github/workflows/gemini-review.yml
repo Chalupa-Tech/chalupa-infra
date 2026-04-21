@@ -227,7 +227,12 @@ jobs:
       workflow_name: 'gemini-review'
       prompt: '/gemini-review'
       mint_token: true
-      timeout_minutes: 10
+      # 4 minutes is roomy for the happy path (industry median for
+      # working review bots is 2–3 min; our current best was 5m32s
+      # on the PAT-only fix). If we exceed 4 minutes something is
+      # wrong and we'd rather fail loud than burn more tokens.
+      timeout_minutes: 4
+      mcp_preflight: true
       additional_context: ${{ needs.compose_context.outputs.composed_context }}
       settings_json: |-
         {
