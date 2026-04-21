@@ -75,6 +75,16 @@ on:
         required: false
       GH_PAT:
         required: false
+      GEMINI_MCP_GITHUB_TOKEN:
+        description: >-
+          Classic or fine-grained PAT with `repo` scope (or
+          `pull-requests:read,write` + `contents:read` if fine-grained).
+          Required by github-mcp-server for the review workflow:
+          GitHub App installation tokens (`ghs_*`) fail 403 on `/user`,
+          which the MCP server calls during session init
+          (github/github-mcp-server#1610, #311). Optional — callers that
+          don't exercise the MCP server can leave unset.
+        required: false
     outputs:
       selected_labels:
         description: 'SELECTED_LABELS env captured by run-gemini-cli (used by gemini-triage).'
@@ -184,6 +194,13 @@ jobs:
         uses: 'google-github-actions/run-gemini-cli@v0' # ratchet:exclude
         env:
           GITHUB_TOKEN: '${{ inputs.mint_token && (steps.mint_identity_token.outputs.token || secrets.GITHUB_TOKEN || github.token) || '''' }}'
+          # Separate PAT for github-mcp-server — App installation tokens
+          # fail 403 on /user (github/github-mcp-server#1610). Consumed
+          # by the review workflow's settings_json via
+          # "${GEMINI_MCP_GITHUB_TOKEN}" interpolation. Other callers
+          # (invoke/triage) leave this unset; their MCP configs don't
+          # reference it.
+          GEMINI_MCP_GITHUB_TOKEN: '${{ secrets.GEMINI_MCP_GITHUB_TOKEN }}'
           REPOSITORY: '${{ github.repository }}'
           ISSUE_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
           ISSUE_TITLE: '${{ github.event.pull_request.title || github.event.issue.title }}'
