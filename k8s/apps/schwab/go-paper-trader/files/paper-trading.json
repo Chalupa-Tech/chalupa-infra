@@ -25,9 +25,9 @@
           "type": "grafana-postgresql-datasource",
           "uid": "timescaledb"
         },
-        "query": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills UNION SELECT book_id FROM paper_cash) sub ORDER BY book_id",
-        "rawSql": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills UNION SELECT book_id FROM paper_cash) sub ORDER BY book_id",
-        "definition": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills UNION SELECT book_id FROM paper_cash) sub ORDER BY book_id",
+        "query": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills WHERE time > NOW() - INTERVAL '7 days' UNION SELECT book_id FROM paper_cash WHERE time > NOW() - INTERVAL '7 days') sub ORDER BY book_id",
+        "rawSql": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills WHERE time > NOW() - INTERVAL '7 days' UNION SELECT book_id FROM paper_cash WHERE time > NOW() - INTERVAL '7 days') sub ORDER BY book_id",
+        "definition": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills WHERE time > NOW() - INTERVAL '7 days' UNION SELECT book_id FROM paper_cash WHERE time > NOW() - INTERVAL '7 days') sub ORDER BY book_id",
         "multi": true,
         "includeAll": true,
         "current": {},
@@ -147,7 +147,7 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Current equity (pod-wide)",
+      "title": "Current equity by book",
       "gridPos": {
         "h": 4,
         "w": 8,
@@ -161,7 +161,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "paper_equity_usd",
+          "expr": "paper_equity_usd{book_id=~\"$book_id\"}",
+          "legendFormat": "{{book_id}}",
           "instant": true
         }
       ],
@@ -186,13 +187,18 @@
       },
       "options": {
         "colorMode": "background",
-        "graphMode": "none"
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
       }
     },
     {
       "id": 5,
       "type": "stat",
-      "title": "Open positions (pod-wide)",
+      "title": "Open positions by book",
       "gridPos": {
         "h": 5,
         "w": 8,
@@ -206,19 +212,28 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "paper_open_positions",
+          "expr": "paper_open_positions{book_id=~\"$book_id\"}",
+          "legendFormat": "{{book_id}}",
           "instant": true
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short"
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
         },
         "overrides": []
       },
       "options": {
         "colorMode": "value",
-        "graphMode": "none"
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
       }
     },
     {
@@ -327,7 +342,7 @@
         {
           "refId": "A",
           "format": "table",
-          "rawSql": "SELECT DISTINCT ON (book_id, symbol) book_id, symbol, quantity, avg_price, mark_price, unrealized_pl FROM paper_positions WHERE symbol IN ($symbol) AND book_id IN ($book_id) ORDER BY book_id, symbol, time DESC"
+          "rawSql": "SELECT DISTINCT ON (book_id, symbol) book_id, symbol, quantity, avg_price, mark_price, unrealized_pl FROM paper_positions WHERE symbol IN ($symbol) AND book_id IN ($book_id) AND quantity != 0 ORDER BY book_id, symbol, time DESC"
         }
       ],
       "fieldConfig": {
@@ -591,7 +606,7 @@
         {
           "refId": "A",
           "format": "table",
-          "rawSql": "SELECT strategy, SUM(quantity * price) AS notional FROM paper_fills WHERE $__timeFilter(time) GROUP BY strategy ORDER BY notional DESC"
+          "rawSql": "SELECT strategy, SUM(quantity * price) AS notional FROM paper_fills WHERE $__timeFilter(time) AND book_id IN ($book_id) GROUP BY strategy ORDER BY notional DESC"
         }
       ],
       "fieldConfig": {
