@@ -85,6 +85,18 @@ runs:
       # the downstream "Launch Alloy" step will fail its curl to VM
       # and we'll record SIDECAR_STARTED=false + continue. Matches
       # phase-39c's continue-on-error on the inline Tailscale step.
+      #
+      # `--accept-dns=false` is load-bearing: without it, Tailscale's
+      # MagicDNS replaces /etc/resolv.conf on the runner, which docker
+      # containers (both bridge and host networks) inherit as their
+      # resolver. Public hosts (api.github.com, ghcr.io, etc.) then
+      # time out with "dial tcp: lookup X: i/o timeout" from inside
+      # docker containers — observed burning ~7.5min per gemini-review
+      # (15 failed MCP calls × 30s DNS timeout, phase-52). We don't
+      # NEED MagicDNS because every *.chalupatech.com host resolves
+      # publicly to the Tailnet IP 100.72.211.115 (see
+      # reference_chalupatech_tailscale_ingress memory) — we only need
+      # `--accept-routes` so the runner can reach that Tailnet IP.
       if: steps.prereq.outputs.proceed == 'true' && steps.ts-probe.outputs.up != 'true'
       continue-on-error: true
       uses: 'tailscale/github-action@v2' # ratchet:exclude
@@ -92,6 +104,7 @@ runs:
         oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
         oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
         tags: ${{ inputs.tailscale-tags }}
+        args: '--accept-dns=false'
 
     - name: 'Launch Alloy'
       id: 'launch'

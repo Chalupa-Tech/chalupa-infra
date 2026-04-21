@@ -37,6 +37,7 @@ jobs:
     timeout-minutes: 3
     permissions:
       contents: 'read'
+      pull-requests: 'read'
     outputs:
       composed_context: ${{ steps.compose.outputs.context }}
     steps:
@@ -128,12 +129,61 @@ jobs:
           rm -rf /tmp/brain
           echo "available=true" >> "$GITHUB_OUTPUT"
 
+      # Pre-inject the PR diff so the review model has read context
+      # up front. Even with MCP working, pre-inject avoids 10–20
+      # tool-call round-trips (each re-ships the full system prompt)
+      # at the cost of ~0.2 tokens per diff line. Net-positive up to
+      # the 50k-line cap; beyond that the diff dominates context and
+      # tool-based piecemeal reads are healthier.
+      - name: 'Fetch PR diff for pre-inject'
+        id: 'fetch_pr_diff'
+        env:
+          GH_TOKEN: '${{ secrets.GITHUB_TOKEN || github.token }}'
+          PR_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
+          REPO: '${{ github.repository }}'
+        run: |-
+          set -euo pipefail
+          OUT=/tmp/pr_diff.md
+          : > "$OUT"
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "No PR number — skipping diff pre-inject" >&2
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          RAW=/tmp/pr_raw.diff
+          if ! gh pr diff "$PR_NUMBER" --repo "$REPO" > "$RAW" 2>/tmp/pr_diff.err; then
+            echo "::warning::gh pr diff failed — skipping pre-inject:"
+            sed 's/^/  /' /tmp/pr_diff.err >&2 || true
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          LINES=$(wc -l <"$RAW")
+          echo "PR diff line count: $LINES" >&2
+          if [ "$LINES" -gt 50000 ]; then
+            echo "::warning::PR diff exceeds 50k lines ($LINES) — skipping pre-inject; review will fall back to MCP tool calls"
+            rm -f "$RAW"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo
+            echo "## PR Diff"
+            echo
+            echo '```diff'
+            cat "$RAW"
+            echo '```'
+          } > "$OUT"
+          rm -f "$RAW"
+          echo "Wrote PR diff ($LINES lines, $(wc -c <"$OUT") bytes) to $OUT" >&2
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
       - name: 'Compose additional context'
         id: 'compose'
         env:
           INBOUND_CONTEXT: '${{ inputs.additional_context }}'
           REPO_NAME: '${{ github.event.repository.name }}'
           WS_CONTEXT_AVAILABLE: '${{ steps.fetch_ws_context.outputs.available }}'
+          PR_DIFF_AVAILABLE: '${{ steps.fetch_pr_diff.outputs.available }}'
         run: |-
           set -euo pipefail
           ADDENDUM_FILE=".github/commands/addenda/${REPO_NAME}-review.md"
@@ -150,6 +200,11 @@ jobs:
               echo "## Per-PR Additional Context"
               echo
               printf -- '%s\n' "$INBOUND_CONTEXT"
+            fi
+            # PR diff last so the model reads it as the concrete artifact
+            # to review, after rubric + priorities are established.
+            if [ "${PR_DIFF_AVAILABLE:-false}" = "true" ] && [ -f /tmp/pr_diff.md ]; then
+              cat /tmp/pr_diff.md
             fi
           } > /tmp/composed_context.txt
           {
@@ -172,12 +227,17 @@ jobs:
       workflow_name: 'gemini-review'
       prompt: '/gemini-review'
       mint_token: true
-      timeout_minutes: 10
+      # 4 minutes is roomy for the happy path (industry median for
+      # working review bots is 2–3 min; our current best was 5m32s
+      # on the PAT-only fix). If we exceed 4 minutes something is
+      # wrong and we'd rather fail loud than burn more tokens.
+      timeout_minutes: 4
+      mcp_preflight: true
       additional_context: ${{ needs.compose_context.outputs.composed_context }}
       settings_json: |-
         {
           "model": {
-            "maxSessionTurns": 25
+            "maxSessionTurns": 75
           },
           "telemetry": {
             "enabled": true,
@@ -193,6 +253,8 @@ jobs:
                 "run",
                 "-i",
                 "--rm",
+                "--network",
+                "host",
                 "-e",
                 "GITHUB_PERSONAL_ACCESS_TOKEN",
                 "ghcr.io/github/github-mcp-server:v0.27.0"
@@ -203,7 +265,7 @@ jobs:
                 "pull_request_review_write"
               ],
               "env": {
-                "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+                "GITHUB_PERSONAL_ACCESS_TOKEN": "${GEMINI_MCP_GITHUB_TOKEN}"
               }
             }
           },

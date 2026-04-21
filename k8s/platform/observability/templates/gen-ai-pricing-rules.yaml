@@ -119,8 +119,13 @@ spec:
     # ── Pricing-table staleness ─────────────────────────────────────
     # Keep this timestamp in sync with `as_of:` in
     # chalupa-brain/docs/gen-ai-pricing-table.yaml. 2026-04-19T00:00Z UTC = 1776556800.
+    #
+    # 5m interval (not 1h) so `gen_ai_pricing_table_age_days` stays
+    # within Prometheus' 5-min staleness window between evaluations —
+    # otherwise the Grafana "Pricing table age" stat panel reads
+    # no-data for ~55 minutes out of every hour.
     - name: gen-ai-pricing-staleness
-      interval: 1h
+      interval: 5m
       rules:
         - record: gen_ai_pricing_table_as_of_timestamp
           expr: vector(1776556800)

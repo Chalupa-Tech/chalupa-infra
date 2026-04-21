@@ -184,8 +184,23 @@ def post_samples(lines: list[str], import_url: str, auth: tuple[str, str]) -> No
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            if resp.status >= 300:
-                raise RuntimeError(f"VM returned HTTP {resp.status}")
+            status = resp.status
+            final_url = resp.geturl()
+            body_head = (resp.read(200) or b"").decode("utf-8", errors="replace")
+            # Always log — urlopen silently follows redirects, so a 200
+            # on a DIFFERENT final URL means samples went into a void.
+            print(
+                f"  POST {import_url} -> HTTP {status} "
+                f"(final_url={final_url}, {len(body)} bytes sent)",
+                file=sys.stderr,
+            )
+            if body_head.strip():
+                print(
+                    f"  response body head: {body_head[:200]!r}",
+                    file=sys.stderr,
+                )
+            if status >= 300:
+                raise RuntimeError(f"VM returned HTTP {status}: {body_head[:200]}")
     except urllib.error.HTTPError as e:
         detail = (e.read() or b"").decode("utf-8", errors="replace")[:500]
         raise RuntimeError(f"VM returned HTTP {e.code}: {detail}") from None
