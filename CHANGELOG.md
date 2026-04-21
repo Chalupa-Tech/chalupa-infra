@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- (test entry for phase-56a mixed-PR validation; will be reverted)
 - **Gemini review cost gates — phase-56 Tier 1** (new `filter_review`
   job in `gemini-dispatch.yml`). Auto-triggered PR reviews
   (`opened` / `synchronize`) now skip when the PR is draft, under
