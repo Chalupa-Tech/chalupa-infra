@@ -922,7 +922,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(paper_orphaned_position_usd{book_id=~\"$book_id\"})",
+          "expr": "sum(paper_orphaned_position_usd{book_id=~\"$book_id\"}) or vector(0)",
           "instant": true
         }
       ],
