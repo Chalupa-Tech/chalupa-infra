@@ -129,6 +129,66 @@ jobs:
           rm -rf /tmp/brain
           echo "available=true" >> "$GITHUB_OUTPUT"
 
+      # Pre-inject PR title/body/author/state/base/head/labels/file-list
+      # so Gemini has the metadata it would otherwise fetch via
+      # `pull_request_read.{get, get_files}`. Phase-56c removed that
+      # tool from includeTools — without this enriched pre-inject,
+      # Gemini has no metadata source and routes to shell fallbacks
+      # (phase-56a regression). See
+      # docs/research/2026-04-22-pr-review-context-priming.md for the
+      # "pre-inject + no MCP tool" pattern rationale.
+      - name: 'Fetch PR metadata for pre-inject'
+        id: 'fetch_pr_metadata'
+        env:
+          GH_TOKEN: '${{ secrets.GITHUB_TOKEN || github.token }}'
+          PR_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
+          REPO: '${{ github.repository }}'
+        run: |-
+          set -euo pipefail
+          OUT=/tmp/pr_metadata.md
+          : > "$OUT"
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "No PR number — skipping metadata pre-inject" >&2
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          RAW=/tmp/pr_metadata.json
+          if ! gh pr view "$PR_NUMBER" --repo "$REPO" \
+              --json title,body,author,state,labels,baseRefName,headRefName,createdAt,files \
+              > "$RAW" 2>/tmp/pr_metadata.err; then
+            echo "::warning::gh pr view failed — skipping metadata pre-inject:"
+            sed 's/^/  /' /tmp/pr_metadata.err >&2 || true
+            rm -f "$RAW"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Truncate body to 10KB to bound worst-case PR description.
+          {
+            echo
+            echo "## PR Metadata"
+            echo
+            jq -r '
+              "- **Title:** " + (.title // "(none)"),
+              "- **Author:** " + (.author.login // "(unknown)"),
+              "- **State:** " + (.state // "(unknown)"),
+              "- **Base:** " + (.baseRefName // "(unknown)") + " → **Head:** " + (.headRefName // "(unknown)"),
+              "- **Labels:** " + (if (.labels | length) > 0 then (.labels | map(.name) | join(", ")) else "none" end),
+              "- **Created:** " + (.createdAt // "(unknown)")
+            ' "$RAW"
+            echo
+            echo "### Body"
+            echo
+            jq -r '.body // "(empty)"' "$RAW" | head -c 10240
+            echo
+            echo
+            echo "### Files changed"
+            echo
+            jq -r '.files // [] | .[] | "- `" + .path + "` (+" + (.additions | tostring) + "/-" + (.deletions | tostring) + ")"' "$RAW"
+          } > "$OUT"
+          rm -f "$RAW"
+          echo "Wrote PR metadata ($(wc -c <"$OUT") bytes) to $OUT" >&2
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
       # Pre-inject the PR diff so the review model has read context
       # up front. Even with MCP working, pre-inject avoids 10–20
       # tool-call round-trips (each re-ships the full system prompt)
@@ -183,6 +243,7 @@ jobs:
           INBOUND_CONTEXT: '${{ inputs.additional_context }}'
           REPO_NAME: '${{ github.event.repository.name }}'
           WS_CONTEXT_AVAILABLE: '${{ steps.fetch_ws_context.outputs.available }}'
+          PR_METADATA_AVAILABLE: '${{ steps.fetch_pr_metadata.outputs.available }}'
           PR_DIFF_AVAILABLE: '${{ steps.fetch_pr_diff.outputs.available }}'
         run: |-
           set -euo pipefail
@@ -201,8 +262,12 @@ jobs:
               echo
               printf -- '%s\n' "$INBOUND_CONTEXT"
             fi
-            # PR diff last so the model reads it as the concrete artifact
-            # to review, after rubric + priorities are established.
+            # PR metadata before diff so the model reads title/body/files
+            # to establish what the PR is about, then the diff as the
+            # concrete artifact to review.
+            if [ "${PR_METADATA_AVAILABLE:-false}" = "true" ] && [ -f /tmp/pr_metadata.md ]; then
+              cat /tmp/pr_metadata.md
+            fi
             if [ "${PR_DIFF_AVAILABLE:-false}" = "true" ] && [ -f /tmp/pr_diff.md ]; then
               cat /tmp/pr_diff.md
             fi
@@ -243,17 +308,16 @@ jobs:
       # at observed ~5s/turn, 75 turns × 5s = 375s, under the 480s
       # timeout. Raise both together if the ceiling starts biting.
       #
-      # includeTools retains `pull_request_read` — phase-56 initially
-      # pruned it (the prompt's additional_context already pre-injects
-      # the diff, so in theory the tool is redundant), but the
-      # .github/commands/gemini-review.toml prompt EXPLICITLY directs
-      # Gemini to call `pull_request_read.{get,get_files,get_diff}`.
-      # With the tool removed Gemini fell back to `gh pr view`
-      # (fails — no auth in its shell) and `cat $GITHUB_EVENT_PATH`
-      # (hangs 5min on empty-var expansion) — reviewable PRs timed
-      # out. The prune + prompt update is tracked as phase-56c; Tier 1
-      # cost win in this phase comes from the filter_review gate
-      # (~30% fewer review runs) which is independent.
+      # includeTools (phase-56c): `pull_request_read` is removed. The
+      # compose_context job pre-injects title/body/author/state/base/
+      # head/labels/files + full diff, and the .toml prompt directs
+      # Gemini to treat that block as authoritative. Phase-56a tried
+      # this removal with the prompt still pointing at the tool —
+      # Gemini flailed to shell fallbacks (gh pr view, curl api.github,
+      # cat $GITHUB_EVENT_PATH). Phase-56c ships the coordinated shape
+      # (enriched pre-inject + positive-framing prompt + tool removed).
+      # Rationale + citations: docs/research/2026-04-22-pr-review-
+      # context-priming.md (brain repo).
       settings_json: |-
         {
           "model": {
@@ -281,7 +345,6 @@ jobs:
               ],
               "includeTools": [
                 "add_comment_to_pending_review",
-                "pull_request_read",
                 "pull_request_review_write"
               ],
               "env": {

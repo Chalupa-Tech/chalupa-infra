@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (ai-reviews phase-56c)
+
+- **Gemini PR-review context priming: pre-inject + tool prune +
+  positive framing.** Eliminates the redundant
+  `mcp_github_pull_request_read` calls phase-55 telemetry flagged
+  (~28K input tokens/review at the 4× cached-rate multiplier,
+  ~$50/yr at current volume).
+  - `compose_context` job gains a new `Fetch PR metadata for
+    pre-inject` step that runs `gh pr view --json title,body,author,
+    state,labels,baseRefName,headRefName,createdAt,files` and formats
+    the result to `/tmp/pr_metadata.md` (body truncated at 10KB).
+    The compose step emits that block before the diff block so the
+    review model sees metadata → diff → rubric before reasoning.
+  - `.github/commands/gemini-review.toml` Input Data section rewrites
+    the three `pull_request_read.*` bullet points as "use the
+    Additional Context block for all PR data; it is complete and
+    canonical — do not attempt to re-fetch." Positive-framing
+    language per Google's Gemini 3 prompting guide (blanket negatives
+    are documented to drop or over-index).
+  - `includeTools` drops `pull_request_read`, keeping only
+    `add_comment_to_pending_review` and `pull_request_review_write`
+    (the posting surface).
+  - Rationale, citations, and supersede criteria:
+    `docs/research/2026-04-22-pr-review-context-priming.md` in
+    chalupa-brain. Phase-56a reverted the tool-prune-alone attempt
+    after shell-fallback flailing (`gh pr view`, `curl api.github.com`,
+    `cat $GITHUB_EVENT_PATH`); phase-56c coordinates the three changes
+    so the model has no informational reason to probe for PR data.
+
 ### Changed
 
 - **paper-trading market-hours gate + spread histogram —
