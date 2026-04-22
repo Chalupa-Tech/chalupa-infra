@@ -2,7 +2,7 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-paper-trader
-  tag: "v0.7.0"
+  tag: "v0.8.0"
   pullPolicy: IfNotPresent
 
 nats:
@@ -75,6 +75,14 @@ paperTrader:
       # fired 384 fills in the 2026-04-20 post-close window, differentially
       # biasing the 30s-vs-60s comparison against its 60s sibling.
       session: regular
+      # paper-trading-realism phase-4: ask-on-BUY / bid-on-SELL fill model
+      # with 100ms constant submit-to-fill latency. extraSlippageBps=0
+      # means the quoted spread IS the only slippage — no hidden cushion.
+      # The 30s book fills more often, so it is the more sensitive side
+      # of the 30s-vs-60s comparison to any model change here.
+      fillModel:
+        extraSlippageBps: 0
+        latencyMs: 100
       symbols:
         - AMD
         - AMZN
@@ -108,6 +116,11 @@ paperTrader:
       # Same rationale as ddowell-alt-30s; both books must be gated
       # identically for the cadence comparison to be apples-to-apples.
       session: regular
+      # Same fill model as ddowell-alt-30s — the whole point of the
+      # cadence comparison is that everything except cadence is equal.
+      fillModel:
+        extraSlippageBps: 0
+        latencyMs: 100
       symbols:
         - AMD
         - AMZN

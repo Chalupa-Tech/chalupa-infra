@@ -893,6 +893,96 @@
       }
     },
     {
+      "id": 27,
+      "type": "row",
+      "title": "Realism metrics (phase-4)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 66
+      },
+      "collapsed": false
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "Fill-price advantage lost (bps) — P50 / P95 by book (15m)",
+      "description": "paper-trading-realism phase-4: per-book quantiles of paper_mid_fill_bias_bps = signed (new ask/bid fill - old mid ± 5bps fill) / mid * 10_000. Positive = the phase-4 model costs the book MORE than the pre-phase-4 model would have (you now pay the real spread). Expected P50 ~= (spread_bps - 10)/2 per symbol: if P50 spread was 12bps, P50 bias should be ~1bps; if P50 spread was 5bps, P50 bias should be slightly negative (rare — phase-4 is cheaper than legacy only when half-spread < 5bps).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 67
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum by (le, book_id) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\"}[15m])))",
+          "legendFormat": "P50 {{book_id}}"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le, book_id) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\"}[15m])))",
+          "legendFormat": "P95 {{book_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 29,
+      "type": "heatmap",
+      "title": "Fill-price advantage lost (bps) — distribution all books",
+      "description": "paper-trading-realism phase-4: heatmap of paper_mid_fill_bias_bps across every (book, symbol). Y-axis is bucket upper bound in bps. Mass concentrated right of 0 = phase-4 routinely costs more than the pre-phase-4 proxy (expected on thin / off-hours names). Mass left of 0 = the old model was a tax, not a gift (rare). Empty panel = not enough fills to populate the histogram yet; check again after a full session.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 67
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (le) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\",symbol=~\"$symbol\"}[5m]))",
+          "legendFormat": "{{le}}",
+          "format": "heatmap"
+        }
+      ],
+      "options": {
+        "yAxis": {
+          "unit": "short"
+        },
+        "calculate": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "scaleDistribution": {
+              "type": "log",
+              "log": 10
+            }
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
       "id": 24,
       "type": "row",
       "title": "Hygiene (phase-3)",
@@ -900,7 +990,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 75
       },
       "collapsed": false
     },
@@ -913,7 +1003,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 67
+        "y": 76
       },
       "datasource": {
         "type": "prometheus",
@@ -956,7 +1046,7 @@
         "h": 7,
         "w": 16,
         "x": 8,
-        "y": 67
+        "y": 76
       },
       "datasource": {
         "type": "prometheus",

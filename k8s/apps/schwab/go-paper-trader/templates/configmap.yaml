@@ -33,6 +33,11 @@ data:
 {{- if .session }}
         session: {{ .session | quote }}
 {{- end }}
+{{- if .fillModel }}
+        fillModel:
+          extraSlippageBps: {{ default 0 .fillModel.extraSlippageBps }}
+          latencyMs: {{ default 0 .fillModel.latencyMs }}
+{{- end }}
         symbols:
 {{- range .symbols }}
           - {{ . | quote }}
