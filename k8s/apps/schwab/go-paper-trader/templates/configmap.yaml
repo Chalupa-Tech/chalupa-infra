@@ -38,6 +38,9 @@ data:
           extraSlippageBps: {{ default 0 .fillModel.extraSlippageBps }}
           latencyMs: {{ default 0 .fillModel.latencyMs }}
 {{- end }}
+{{- if hasKey . "maxDailyLossUSD" }}
+        maxDailyLossUSD: {{ .maxDailyLossUSD }}
+{{- end }}
         symbols:
 {{- range .symbols }}
           - {{ . | quote }}
