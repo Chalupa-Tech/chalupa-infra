@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-5)
+
+- **`ddowell-sma-5x20` paper book deployed — first non-alternator
+  strategy in production.** `go-paper-trader` chart bumped to
+  `0.3.8`; `values.yaml` `paperTrader.books` gains a third entry
+  using `pkg/strategy/sma` (already shipped + unit-tested in
+  paper-trading phase-3, never deployed). Long-only,
+  single-position-per-symbol, edge-triggered on sign change of
+  (fast - slow); 5m / 20m windows over the full 24-symbol
+  `ddowell-individual` catalog with `quantity: 1`, `startingCash:
+  10000`, `session: regular`, identical `fillModel` to the
+  alternator books (`extraSlippageBps: 0`, `latencyMs: 100`). Same
+  appVersion (`v0.8.0`) — pure config change; ConfigMap checksum
+  annotation drives the rollout. Makes the Grafana `$strategy`
+  dropdown show `alternator + sma` and unlocks cross-strategy
+  comparison on the shared panels. Symbol-coverage lint iterates
+  books generically; no workflow changes needed.
+
 ### Changed (ai-reviews phase-56c)
 
 - **Gemini PR-review context priming: pre-inject + tool prune +

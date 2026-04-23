@@ -146,6 +146,52 @@ paperTrader:
         - UPS
         - V
         - WING
+    # paper-trading-realism phase-5: SMA-crossover book — the first
+    # non-alternator strategy deployed. Gives the dashboard's
+    # $strategy dropdown a second value and makes cross-strategy
+    # comparisons meaningful on the same 24-symbol catalog.
+    #
+    # SMA implementation at pkg/strategy/sma/sma.go: long-only,
+    # single-position-per-symbol, edge-triggered on sign change of
+    # (fast - slow). 5m / 20m windows on 10s market-hours quote
+    # cadence = 30 samples fast, 120 samples slow — long enough to
+    # smooth noise, short enough that crossovers fire on intraday
+    # swings.
+    - bookID: ddowell-sma-5x20
+      strategy: sma
+      quantity: 1
+      smaFast: 5m
+      smaSlow: 20m
+      startingCash: 10000
+      session: regular
+      fillModel:
+        extraSlippageBps: 0
+        latencyMs: 100
+      symbols:
+        - AMD
+        - AMZN
+        - BNTX
+        - BRK.B
+        - DDOG
+        - GE
+        - GEHC
+        - GEV
+        - GMED
+        - GOOG
+        - GRMN
+        - GTBIF
+        - MDB
+        - NU
+        - NVDA
+        - PANW
+        - RNMBY
+        - TEVA
+        - TEX
+        - U
+        - UNH
+        - UPS
+        - V
+        - WING
 
 resources:
   requests:
