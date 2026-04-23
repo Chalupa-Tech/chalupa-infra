@@ -4,6 +4,29 @@ This repo is primarily Helm charts, ArgoCD ApplicationSets, Grafana
 dashboards, vm-k8s-stack config, and GitHub Actions workflows.
 Application Go code is rare here.
 
+## Diff-fetch guardrail (read before anything else)
+
+The `## PR Diff` block in the **Additional Context** above is the
+canonical source for this review. Read it there.
+
+If it is missing or empty and you must fetch the diff yourself, use:
+
+    gh pr diff ${PULL_REQUEST_NUMBER}
+
+**Never use `git diff HEAD origin/main`** — the argument order makes
+`git` show the PR's additions as `-` lines and deletions as `+` lines,
+which inverts every inline comment and the summary. If you must use
+`git diff`, write it as `git diff origin/main...HEAD` (three dots,
+origin/main first) so the direction matches the PR's actual
+additions. Regression of record: chalupa-infra PR #413, 2026-04-23 —
+an entire review described additions as reverts because the model
+anchored on `git diff HEAD origin/main` output.
+
+Every `+` line in a unified diff is an addition regardless of
+surrounding context; every `-` line is a deletion. The summary and
+inline comments must describe the PR as adding what `+` lines add
+and removing what `-` lines remove.
+
 ## Priorities for this repo
 
 When reviewing a chalupa-infra PR, focus on — in this order:
