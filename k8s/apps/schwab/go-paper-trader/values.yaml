@@ -2,7 +2,7 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-paper-trader
-  tag: "v0.8.0"
+  tag: "v0.9.0"
   pullPolicy: IfNotPresent
 
 nats:
@@ -65,6 +65,14 @@ paperTrader:
   # DEFAULT clause; the clause is then dropped so future INSERTs
   # must specify book_id explicitly).
   books:
+    # paper-trading-realism phase-6: per-book daily max-loss halt. When
+    # omitted, each book takes the binary-level default (500 USD, 5% of
+    # $10k starting cash). Set to 0 to disable the guard entirely —
+    # paper-trading is sandboxed so "no guard" is a reasonable operator
+    # choice for research runs; the default is belt-and-suspenders
+    # against runaway strategy bugs that would otherwise invalidate the
+    # day's research window. Override per-book with `maxDailyLossUSD:`
+    # below if the operator wants a tighter or looser ceiling.
     - bookID: ddowell-alt-30s
       strategy: alternator
       quantity: 1
