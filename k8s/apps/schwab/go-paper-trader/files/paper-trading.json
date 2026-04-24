@@ -87,7 +87,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "## \u26a0\ufe0f PAPER TRADING \u2014 SIMULATED DATA\nFills are simulated at mid-quote \u00b1 5bps slippage. Real-world fills will differ materially. **P&L on this dashboard is not real money.**"
+        "content": "## \u26a0\ufe0f PAPER TRADING \u2014 SIMULATED DATA\nFills are simulated: BUYs lift the ask, SELLs hit the bid, with an optional ExtraSlippageBps cushion (0 bps in production today) and a 100ms constant submit-to-fill latency. Real-world fills will differ materially \u2014 Schwab's actual fills depend on their routing, venue selection, and queue position. **P&L on this dashboard is not real money.**"
       },
       "fieldConfig": {
         "defaults": {},
@@ -97,7 +97,7 @@
     {
       "id": 30,
       "type": "row",
-      "title": "Risk (phase-6) \u2014 daily max-loss guard",
+      "title": "Risk",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -369,6 +369,7 @@
       "id": 4,
       "type": "stat",
       "title": "Current equity by book",
+      "description": "Latest paper_equity_usd per book (cash + sum(qty × mark_price)). Color scale matches the per-book risk window: ≥+5% (≥$10,500) green / ±5% gray neutral / −5% to −10% amber attention / <−10% (<$9,000) red — the daily max-loss guard floor sits at $500 (5% of starting cash), so coloring tracks risk, not every slippage-tax bleed.",
       "gridPos": {
         "h": 4,
         "w": 8,
@@ -398,8 +399,16 @@
                 "value": null
               },
               {
+                "color": "orange",
+                "value": 9000
+              },
+              {
+                "color": "transparent",
+                "value": 9500
+              },
+              {
                 "color": "green",
-                "value": 10000
+                "value": 10500
               }
             ]
           }
@@ -506,6 +515,7 @@
       "id": 6,
       "type": "timeseries",
       "title": "Drawdown % by book (peak-to-trough)",
+      "description": "Current drawdown from the running peak of paper_equity_usd within the visible time range. Computed in VictoriaMetrics (continuous scrape) rather than from paper_cash/paper_positions snapshots, which only emit on change and produced sparse data in the SQL version. Per series: 100 × (equity − running_max(equity)) / running_max(equity). 0% means at-or-above peak; negative values are the live drawdown.",
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -513,14 +523,14 @@
         "y": 31
       },
       "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "timescaledb"
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
       },
       "targets": [
         {
           "refId": "A",
-          "format": "time_series",
-          "rawSql": "SELECT t AS \"time\", book_id AS metric, 100.0 * (equity - MAX(equity) OVER (PARTITION BY book_id ORDER BY t ROWS UNBOUNDED PRECEDING)) / NULLIF(MAX(equity) OVER (PARTITION BY book_id ORDER BY t ROWS UNBOUNDED PRECEDING), 0) AS drawdown_pct FROM (SELECT pc.time AS t, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity FROM paper_cash pc LEFT JOIN (SELECT time, book_id, SUM(quantity * mark_price) AS equity FROM paper_positions GROUP BY time, book_id) pos ON pc.time = pos.time AND pc.book_id = pos.book_id WHERE $__timeFilter(pc.time) AND pc.book_id IN ($book_id)) sub ORDER BY t"
+          "expr": "100 * (paper_equity_usd{book_id=~\"$book_id\"} - running_max(paper_equity_usd{book_id=~\"$book_id\"})) / running_max(paper_equity_usd{book_id=~\"$book_id\"})",
+          "legendFormat": "{{book_id}}"
         }
       ],
       "fieldConfig": {
@@ -697,6 +707,7 @@
       "id": 11,
       "type": "stat",
       "title": "Total fills",
+      "description": "Count of paper_fills rows across all selected books / symbols / strategies in the current time range. A \"fill\" is one executed leg; a single OrderRequest produces one fill in v1 (market-only, single-leg). Retries dedup via ClientOrderID so a visible growth of this counter represents new work, not retried work.",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -725,6 +736,7 @@
       "id": 12,
       "type": "stat",
       "title": "Buys",
+      "description": "Subset of Total fills where side=BUY. Should roughly equal Sells over a mature trading session; a sustained Buys > Sells gap means strategies are accumulating inventory (expected for SMA during an uptrend, suspicious for alternator).",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -757,6 +769,7 @@
       "id": 13,
       "type": "stat",
       "title": "Sells",
+      "description": "Subset of Total fills where side=SELL. SELLs carry non-NULL realized_pl (unlike BUYs); the Cumulative realized P&L panel aggregates them.",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -789,6 +802,7 @@
       "id": 14,
       "type": "stat",
       "title": "Notional traded",
+      "description": "sum(quantity × price) across all fills in the time range. A rough measure of capital turnover — high notional on a low-cash book means the book is churning (buying + selling rapidly), which usually means slippage tax is the dominant P&L driver.",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -993,7 +1007,7 @@
     {
       "id": 20,
       "type": "row",
-      "title": "Realism metrics (phase-2)",
+      "title": "Execution quality",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1120,7 +1134,7 @@
     {
       "id": 27,
       "type": "row",
-      "title": "Realism metrics (phase-4)",
+      "title": "Fill realism",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1210,7 +1224,7 @@
     {
       "id": 24,
       "type": "row",
-      "title": "Hygiene (phase-3)",
+      "title": "Hygiene",
       "gridPos": {
         "h": 1,
         "w": 24,
