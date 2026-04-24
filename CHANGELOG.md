@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (ai-reviews phase-67)
+
+- **Gemini reviewer full-file context for small structured configs +
+  phase-66 TOML staging fix.** Addresses diff-hunk myopia: the
+  reviewer was flagging conventions as missing when they lived in
+  unchanged lines outside the `-U3` diff window. PR #417 tripped this
+  on `paper-trading.json` — `palette-classic` was present 10 lines
+  below the hunk, invisible to the reviewer.
+  - `compose_context` job gains a new `Fetch full-file content for
+    small changed files` step that iterates `gh pr diff --name-only`,
+    selects `.json`/`.yaml`/`.yml`/`.toml` files under 1500 lines,
+    and appends each with a `# FULL FILE (small, <N> lines): <path>`
+    marker terminated by `# END FULL FILE: <path>`. 150 KB aggregate
+    budget bounds Lost-in-the-Middle degradation. Per-file/per-skip
+    counts are logged for future threshold tuning.
+  - 1500-line threshold chosen to cover every current Grafana
+    dashboard (largest: `cluster-overview.json` at 1368 lines) plus
+    ~10% headroom.
+  - Allowlist scoped to structured configs — the format class where
+    no AST-aware widening helps (JSON/YAML have no enclosing
+    function). Go/Python/shell continue to rely on the diff hunks.
+  - `.github/commands/gemini-review.toml` Input Data section adds a
+    "Full File Content (small changed files)" item and a "Before
+    flagging a missing configuration, search the FULL FILE blocks"
+    instruction. Block is worded as authoritative for presence to
+    prevent the model over-weighting diff hunks.
+  - Bundled phase-66 fix: `.github/workflows/gemini-cli-reusable.yml`
+    gains a `Stage custom commands` step that copies
+    `.github/commands/*.toml` to `.gemini/commands/` before
+    `run-gemini-cli` (mirrors chalupa-brain's phase-56g staging).
+    Without this step the `run-gemini-cli` action's internal
+    `cp -r` only installs its own bundled commands, so repo-owned
+    prompt edits (including this phase's) never reach the model.
+  - Prior art / rationale in `deep-scribbling-dewdrop.md` research
+    pass: PR-Agent `extended_patch_num_lines` / Qodo Merge dynamic
+    context (fails on JSON — no enclosing block); CodeRabbit /
+    Greptile V3 agentic read_file (Gemini Code Assist does not
+    expose tool use to us — `additional_context` is the only
+    injection surface). Multi-pass self-verify (arXiv 2411.03079)
+    kept in reserve for phase-68 if the narrow fix fails.
+
 ### Changed (paper-trading-realism phase-7a)
 
 - **Paper Trading dashboard — audit remediation (truthful banner,

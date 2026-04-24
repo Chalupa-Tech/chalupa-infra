@@ -237,6 +237,88 @@ jobs:
           echo "Wrote PR diff ($LINES lines, $(wc -c <"$OUT") bytes) to $OUT" >&2
           echo "available=true" >> "$GITHUB_OUTPUT"
 
+      # Phase-67 fix for "diff-hunk myopia": the reviewer receives only
+      # -U3 diff hunks and can't see conventions that live in unchanged
+      # adjacent lines (PR #417's palette-classic false positive). Inject
+      # full-file content for small JSON/YAML/TOML files — the format
+      # class where no AST-aware widening helps (no enclosing function).
+      # 1500-line threshold covers all current Grafana dashboards (largest:
+      # 1368). 150KB aggregate budget bounds Lost-in-the-Middle degradation.
+      # See workstreams/ai-reviews/prompts/phase-67-*.md.
+      - name: 'Fetch full-file content for small changed files'
+        id: 'fetch_pr_full_files'
+        env:
+          GH_TOKEN: '${{ secrets.GITHUB_TOKEN || github.token }}'
+          PR_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
+          REPO: '${{ github.repository }}'
+        run: |-
+          set -euo pipefail
+          OUT=/tmp/pr_full_files.md
+          : > "$OUT"
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "No PR number — skipping full-file pre-inject" >&2
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          MAX_LINES=1500
+          BUDGET_BYTES=153600
+          USED_BYTES=0
+          INJECTED=0
+          SKIPPED_SIZE=0
+          SKIPPED_TYPE=0
+          SKIPPED_BUDGET=0
+          if ! gh pr diff "$PR_NUMBER" --repo "$REPO" --name-only \
+              > /tmp/changed_files.txt 2>/tmp/name_only.err; then
+            echo "::warning::gh pr diff --name-only failed — skipping full-file pre-inject:"
+            sed 's/^/  /' /tmp/name_only.err >&2 || true
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          BUFFER=/tmp/pr_full_files.buf
+          : > "$BUFFER"
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              *.json|*.yaml|*.yml|*.toml) ;;
+              *) SKIPPED_TYPE=$((SKIPPED_TYPE+1)); continue ;;
+            esac
+            if [ ! -f "$f" ]; then
+              continue
+            fi
+            lines=$(wc -l <"$f")
+            if [ "$lines" -ge "$MAX_LINES" ]; then
+              SKIPPED_SIZE=$((SKIPPED_SIZE+1))
+              continue
+            fi
+            bytes=$(wc -c <"$f")
+            if [ "$((USED_BYTES + bytes))" -gt "$BUDGET_BYTES" ]; then
+              SKIPPED_BUDGET=$((SKIPPED_BUDGET+1))
+              continue
+            fi
+            {
+              echo "# FULL FILE (small, ${lines} lines): ${f}"
+              cat "$f"
+              echo "# END FULL FILE: ${f}"
+              echo
+            } >> "$BUFFER"
+            USED_BYTES=$((USED_BYTES + bytes))
+            INJECTED=$((INJECTED+1))
+          done < /tmp/changed_files.txt
+          if [ "$INJECTED" -eq 0 ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo
+              echo "## Full File Content (small changed files)"
+              echo
+              echo "The following ${INJECTED} file(s) are under the 1500-line threshold for structured configs (.json/.yaml/.yml/.toml) and are injected in full. This block is authoritative — if a convention or required field is present in these files, do NOT flag it as missing based solely on the diff hunks."
+              echo
+              cat "$BUFFER"
+            } > "$OUT"
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Full-file injection: injected=${INJECTED} skipped_size=${SKIPPED_SIZE} skipped_type=${SKIPPED_TYPE} skipped_budget=${SKIPPED_BUDGET} bytes=${USED_BYTES}" >&2
+
       - name: 'Compose additional context'
         id: 'compose'
         env:
@@ -245,6 +327,7 @@ jobs:
           WS_CONTEXT_AVAILABLE: '${{ steps.fetch_ws_context.outputs.available }}'
           PR_METADATA_AVAILABLE: '${{ steps.fetch_pr_metadata.outputs.available }}'
           PR_DIFF_AVAILABLE: '${{ steps.fetch_pr_diff.outputs.available }}'
+          PR_FULL_FILES_AVAILABLE: '${{ steps.fetch_pr_full_files.outputs.available }}'
         run: |-
           set -euo pipefail
           ADDENDUM_FILE=".github/commands/addenda/${REPO_NAME}-review.md"
@@ -270,6 +353,12 @@ jobs:
             fi
             if [ "${PR_DIFF_AVAILABLE:-false}" = "true" ] && [ -f /tmp/pr_diff.md ]; then
               cat /tmp/pr_diff.md
+            fi
+            # Full-file block immediately follows the diff so the model
+            # reads it as "authoritative context for what you just saw
+            # the diff of" rather than as generic repo material.
+            if [ "${PR_FULL_FILES_AVAILABLE:-false}" = "true" ] && [ -f /tmp/pr_full_files.md ]; then
+              cat /tmp/pr_full_files.md
             fi
           } > /tmp/composed_context.txt
           {
