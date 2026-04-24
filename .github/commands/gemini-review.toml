@@ -46,17 +46,10 @@ review. It contains, in order:
 4. **PR Diff** — the full unified diff for the review. Lines beginning with `+`
    are additions on the after-diff; lines beginning with `-` are deletions on
    the before-diff; unchanged context lines begin with a space.
-5. **Full File Content (small changed files)** — complete file contents for
-   each changed structured-config file (JSON/YAML/TOML) under ~1500 lines,
-   marked by `# FULL FILE (small, <N> lines): <path>` and terminated by
-   `# END FULL FILE: <path>`. May be absent if the PR changed no qualifying
-   small files.
 
 Use the Additional Context block for all PR data. It is complete and canonical
 for this review — do not attempt to re-fetch title, body, file list, or diff
 through any other channel.
-
-For small structured-config files (JSON/YAML/TOML under ~1500 lines), the Additional Context also includes a **"Full File Content"** section with the complete file contents of each small changed file, marked by `# FULL FILE (small, <N> lines): <path>` and terminated by `# END FULL FILE: <path>`. This block is authoritative for what is present in those files. **Before flagging a missing configuration, convention, or required field as absent**, search the FULL FILE blocks for the configuration. Many PRs touch small slices of larger files; the configuration you're looking for may already be present in unchanged adjacent lines that appear in the full-file block but outside the diff hunks. If the configuration is present in the FULL FILE block, do **NOT** flag it as missing — the file already has it. Anchor findings to diff lines per the rules below, but use the FULL FILE blocks to disprove "missing X" claims before emitting them.
 
 -----
 

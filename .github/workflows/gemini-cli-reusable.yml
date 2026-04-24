@@ -223,23 +223,6 @@ jobs:
             echo 'SETTINGS_EOF'
           } >> "$GITHUB_OUTPUT"
 
-      # google-github-actions/run-gemini-cli@v0's internal 'Install
-      # Custom Commands' step populates .gemini/commands/ from the
-      # action's own bundle, not the workspace — so repo-owned slash
-      # commands (like phase-67's updated /gemini-review prompt) never
-      # reach the model without pre-staging the workspace TOMLs. Brain
-      # fixed this in phase-56g; infra is catching up in phase-67. See
-      # https://github.com/google-github-actions/run-gemini-cli/issues/399
-      # and https://github.com/google-github-actions/run-gemini-cli/pull/432
-      # (upstream fix in flight; this step becomes a no-op if it lands).
-      - name: 'Stage custom commands'
-        run: |-
-          set -euo pipefail
-          mkdir -p .gemini/commands
-          if compgen -G '.github/commands/*.toml' > /dev/null; then
-            cp .github/commands/*.toml .gemini/commands/
-          fi
-
       - name: 'Run Gemini CLI'
         id: 'run_gemini'
         uses: 'google-github-actions/run-gemini-cli@v0' # ratchet:exclude
