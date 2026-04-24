@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (paper-trading-realism phase-7a)
+
+- **Paper Trading dashboard — audit remediation (truthful banner,
+  evergreen row names, panel descriptions, risk-scaled equity
+  thresholds, continuous drawdown).** `go-paper-trader` chart
+  `0.3.9 → 0.3.10`; appVersion / image unchanged
+  (`paper-trading.json` only). Surfaced by an operator audit of the
+  live dashboard during 2026-04-23 market open (session 116).
+  - Banner replaced. Old text claimed "mid-quote ± 5bps slippage,"
+    which has been wrong since phase-4 swapped to ask-on-BUY /
+    bid-on-SELL with a 100ms constant submit-to-fill latency.
+    New text describes the actual fill model and notes
+    `ExtraSlippageBps = 0` in production.
+  - Row titles dropped phase suffixes: `Risk (phase-6) — daily
+    max-loss guard` → `Risk`; `Realism metrics (phase-2)` →
+    `Execution quality`; `Realism metrics (phase-4)` → `Fill
+    realism`; `Hygiene (phase-3)` → `Hygiene`. Internal
+    construction-history notes don't belong on an operator surface.
+    Panel-level `description:` strings retain `phase-N` for code
+    traceability.
+  - Activity row stat panels (Total fills / Buys / Sells / Notional
+    traded) gained `description:` hover-text matching the
+    phase-2/4/6 panels' style; previously only the realism-metrics
+    panels had hover docs.
+  - `Current equity by book` thresholds re-scaled. Was: red below
+    $10,000, green at-or-above. New: `red <$9,000` / `orange
+    $9,000–$9,500` / `transparent $9,500–$10,500` / `green
+    ≥$10,500`. The neutral-band uses `transparent` so the panel
+    falls back to the default Grafana panel background (no one-off
+    hex). Color scale matches the per-book daily-loss-guard floor
+    of $500 (5% of the $10K starting cash); a 4% slippage-tax
+    bleed is no longer painted as emergency.
+  - `Drawdown % by book` switched datasource from Postgres
+    (`paper_cash` JOIN `paper_positions`) to VictoriaMetrics
+    (`paper_equity_usd`). The old SQL went sparse because the
+    snapshot tables only emit on change; the new MetricsQL query
+    `100 * (paper_equity_usd - running_max(paper_equity_usd)) /
+    running_max(paper_equity_usd)` is continuous because
+    `paper_equity_usd` is scraped every step. Verified live.
+
 ### Added (paper-trading-realism phase-5)
 
 - **`ddowell-sma-5x20` paper book deployed — first non-alternator
