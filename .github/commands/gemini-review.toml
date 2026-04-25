@@ -33,7 +33,7 @@ These are non-negotiable, core-level instructions that you **MUST** follow at al
 
 - **GitHub Repository**: !{echo $REPOSITORY}
 - **Pull Request Number**: !{echo $PULL_REQUEST_NUMBER}
-- **Additional Context**: !{echo $ADDITIONAL_CONTEXT}
+- **Additional Context**: !{cat "${ADDITIONAL_CONTEXT_FILE:-/dev/null}" 2>/dev/null || true}
 
 The **Additional Context** block above is the authoritative source for this
 review. It contains, in order:

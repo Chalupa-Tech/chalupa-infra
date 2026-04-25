@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-7b)
+
+- **Paper Trading dashboard — research-grade upgrade for
+  promotion-decision support.** `go-paper-trader` chart bump to
+  `0.3.11`; `paper-trading.json` only (no app/image change). The
+  dashboard now opens with a four-panel KPI strip (`Equity vs
+  starting cash`, `Today P&L per book`, `Max drawdown (session)`,
+  `Win rate per book`) before the existing Risk row, so an operator
+  can answer `is this strategy ready to promote from sandbox to
+  live?` without scrolling. Two new rows below Risk —
+  `Strategy quality` (Sharpe / Sortino 30d-rolling annualized,
+  Profit factor, Avg win / Avg loss) and `Strategy comparison`
+  (Equity by strategy, Fills/hr by strategy, Slippage tax by
+  strategy, Realized-P&L distribution heatmap by strategy) — surface
+  every metric the sandbox-live-separation brief commits to as a
+  promotion gate. A new `Rolling return %` panel at the bottom of
+  the Account row chains 7d / 30d returns geometrically against the
+  daily-returns SQL CTE shared with Sharpe/Sortino. The Fill realism
+  row gains a fourth panel: heatmap of `paper_slippage_vs_decision_bps`
+  (new metric in `go-schwab-accounts-and-trading`), measuring total
+  cost of trading from signal-time including latency drift —
+  distinct from the existing `Fill-price advantage lost` heatmap
+  which compares pricing models. KPI stat tiles use per-tile
+  thresholds (pass/fail semantics); multi-book timeseries panels use
+  `palette-classic` per the multi-series coloring rule. Daily-returns
+  uses query-time SQL against `paper_cash` + `paper_positions` rather
+  than a Timescale continuous aggregate (paper_fills is intentionally
+  NOT a hypertable; see go-schwab-accounts-and-trading CLAUDE.md
+  §Safety-7). The transformation is checked in as
+  `scripts/phase-7b-dashboard-upgrade.py` for traceability — the
+  y-reflow logic is the kind of thing future phases would otherwise
+  re-derive painfully.
+
 ### Changed (paper-trading-realism phase-7a)
 
 - **Paper Trading dashboard — audit remediation (truthful banner,
