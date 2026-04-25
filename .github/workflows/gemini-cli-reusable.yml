@@ -223,6 +223,31 @@ jobs:
             echo 'SETTINGS_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      # Phase-7b: stage additional_context to file BEFORE the Run
+      # Gemini CLI step rather than passing it as an env var. Linux
+      # MAX_ARG_STRLEN (128KB per single env var on x86_64) made the
+      # env-var path break under the combined size of
+      # workstream_context + PR metadata + PR diff + addendum on
+      # large PRs (phase-7b dashboard upgrade was 2277-line diff →
+      # ~150KB composed context → bash refused to start the next
+      # step with `Argument list too long` even though total ARG_MAX
+      # was nowhere near). Inlining the value into a heredoc inside
+      # this step's script BODY embeds the bytes in the on-disk
+      # script file (no per-string env limit applies); the
+      # subsequent step references the file via a small env var.
+      # The terminator string is intentionally long + random-ish so
+      # it cannot collide with anything a real PR diff would
+      # contain.
+      - name: 'Stage additional_context to file (avoid MAX_ARG_STRLEN)'
+        if: ${{ inputs.additional_context != '' }}
+        shell: bash
+        run: |-
+          set -euo pipefail
+          cat <<'__GEMINI_ADDITIONAL_CONTEXT_TERMINATOR_5f3a8c9b__' > /tmp/additional_context.txt
+          ${{ inputs.additional_context }}
+          __GEMINI_ADDITIONAL_CONTEXT_TERMINATOR_5f3a8c9b__
+          echo "Staged additional_context: $(wc -c </tmp/additional_context.txt) bytes" >&2
+
       - name: 'Run Gemini CLI'
         id: 'run_gemini'
         uses: 'google-github-actions/run-gemini-cli@v0' # ratchet:exclude
@@ -244,7 +269,19 @@ jobs:
           DESCRIPTION: '${{ github.event.pull_request.body || github.event.issue.body }}'
           EVENT_NAME: '${{ github.event_name }}'
           IS_PULL_REQUEST: '${{ !!github.event.pull_request }}'
-          ADDITIONAL_CONTEXT: '${{ inputs.additional_context }}'
+          # Phase-7b: ADDITIONAL_CONTEXT_FILE points at the on-disk
+          # staged file (small env var, file content unbounded). The
+          # TOML commands read content via
+          # `!{cat ${ADDITIONAL_CONTEXT_FILE:-/dev/null} 2>/dev/null}`.
+          # We deliberately do NOT set ADDITIONAL_CONTEXT as env
+          # here — that's exactly what blew past Linux
+          # MAX_ARG_STRLEN (128KB per single env var on x86_64) and
+          # killed the step's bash exec. Callers that want their
+          # additional_context surfaced in the prompt MUST consume
+          # the file path. Empty when no additional_context was
+          # supplied so TOML expressions degrade to empty string
+          # gracefully (`cat /dev/null`).
+          ADDITIONAL_CONTEXT_FILE: '${{ inputs.additional_context != '''' && ''/tmp/additional_context.txt'' || ''/dev/null'' }}'
         with:
           gcp_location: '${{ vars.GOOGLE_CLOUD_LOCATION }}'
           gcp_project_id: '${{ vars.GOOGLE_CLOUD_PROJECT }}'
