@@ -72,6 +72,7 @@ bash scripts/deploy-core-apps.sh
 - **Linting**: yamllint, ansible-lint (production profile), shellcheck. CI runs on all PRs.
 - **Secrets**: Vault variables prefixed with `vault_`, mapped to plaintext names in `vars.yml`.
 - **Resource limits**: Raspberry Pi nodes have 8GB RAM. All deployments must specify resource requests/limits.
+- **Dashboards as code**: Grafana dashboards under `k8s/apps/schwab/go-paper-trader/files/` are generated artifacts produced from `scripts/dashboards/` (Go, grafana-foundation-sdk). Do not hand-edit the JSON. See `docs/dashboards-as-code.md` for the workflow, CI gate contract, version-pin runbook, and migration plan for the other custom dashboards.
 
 ## Networking
 

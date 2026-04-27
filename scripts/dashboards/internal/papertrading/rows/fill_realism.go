@@ -1,0 +1,8 @@
+// fill_realism.go — mid-fill bias, ask/bid trip distance, slippage P50.
+// Phase-7b panel ids: row 27, panels 28-29, 140.
+// Phase-7e slice: row stub. Panels ship in 7e2.
+package rows
+
+import "github.com/grafana/grafana-foundation-sdk/go/dashboard"
+
+func FillRealism(_ *dashboard.DashboardBuilder, _ int) int { return 0 }
