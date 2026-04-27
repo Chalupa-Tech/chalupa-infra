@@ -1,0 +1,55 @@
+# Phase 7e safety: scripts/dashboards/ is the source of truth for the
+# paper-trading dashboard. Production JSON at
+# k8s/apps/schwab/go-paper-trader/files/paper-trading.json is a
+# generated artifact. This workflow:
+#   1. Compiles the Go module.
+#   2. Builds twice and verifies byte-identical output (determinism).
+#   3. (7e2) Re-runs build.sh and asserts no drift against the
+#      committed JSON.
+#
+# 7e1 ships only the determinism check; the drift check lights up in
+# 7e2 once the full 52-panel port lands and we regenerate the
+# committed JSON.
+name: Validate Dashboards
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/dashboards/**'
+      - 'k8s/apps/schwab/go-paper-trader/files/paper-trading.json'
+      - '.github/workflows/validate-dashboards.yml'
+
+concurrency:
+  group: validate-dashboards-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-verify:
+    name: Build + determinism check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: scripts/dashboards/go.mod
+          cache-dependency-path: scripts/dashboards/go.sum
+
+      - name: Compile
+        working-directory: scripts/dashboards
+        run: |
+          go vet ./...
+          go build ./...
+
+      - name: Render twice and assert byte-identical output
+        working-directory: scripts/dashboards
+        run: |
+          set -euo pipefail
+          go run ./cmd/paper-trader > /tmp/render1.json
+          go run ./cmd/paper-trader > /tmp/render2.json
+          if ! diff -q /tmp/render1.json /tmp/render2.json; then
+            echo "::error::Two consecutive renders produced different JSON. The build is non-deterministic."
+            diff -u /tmp/render1.json /tmp/render2.json | head -40
+            exit 1
+          fi
+          echo "Renders are byte-identical ($(wc -l < /tmp/render1.json) lines)."
