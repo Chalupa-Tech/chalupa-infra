@@ -105,6 +105,24 @@ User applications are defined in `k8s/apps/user-apps-appset.yaml`. Service group
 bash scripts/deploy-user-apps.sh
 ```
 
+## Documentation
+
+In-tree references:
+
+- `docs/dashboards-as-code.md` — Grafana dashboards-as-code workflow.
+  The paper-trading dashboard is built from
+  `scripts/dashboards/` (grafana-foundation-sdk Go), and CI gates
+  source-vs-rendered drift. Migration plan for the other custom
+  dashboards is at the end.
+- `docs/service-account-framework.md` — mint-and-capture pattern for
+  platform service accounts (OpenBao roles + Kubernetes auth).
+- `docs/schwab-tenant-onboarding.md` — onboarding a new Schwab tenant
+  (per-user namespace, OpenBao role, ExternalSecret wiring).
+- `docs/tailscale-vault-setup.md` — Tailscale + OpenBao initial setup
+  notes carried from the bootstrap.
+- `docs/runbooks/` — operational runbooks.
+- `docs/adr/` — architecture decision records.
+
 ## Troubleshooting
 
 ### Prometheus Operator CRDs

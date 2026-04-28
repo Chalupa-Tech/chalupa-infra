@@ -23,8 +23,8 @@ type Step struct {
 // p is a small helper for building step-value pointers inline.
 func p(v float64) *float64 { return &v }
 
-// EquityReturn — "equity vs starting cash" KPI tile (id=101 in
-// phase-7b). Green ≥ +1%, neutral ±1%, amber −1% to −5%, red < −5%.
+// EquityReturn — Summary tile id=201 ("Equity vs starting cash").
+// Green ≥ +1%, neutral ±1%, amber −1% to −5%, red < −5%.
 var EquityReturn = []Step{
 	{Color: "red", Value: nil},
 	{Color: "orange", Value: p(-0.05)},
@@ -32,37 +32,60 @@ var EquityReturn = []Step{
 	{Color: "green", Value: p(0.01)},
 }
 
-// WinRate — promotion threshold ≥ 0.55 per sandbox-live-separation brief.
+// TodayPnL — Summary tile id=202 ("Today P&L per book").
+// Red < $0, neutral $0–$0.01, green ≥ $0.01 (just-positive splits day).
+var TodayPnL = []Step{
+	{Color: "red", Value: nil},
+	{Color: "transparent", Value: p(0)},
+	{Color: "green", Value: p(0.01)},
+}
+
+// MaxDrawdown — Summary tile id=203 ("Max drawdown (session)").
+// Red < −3%, amber −1% to −3%, neutral −0.1% to −1%, green ≥ −0.1%.
+var MaxDrawdown = []Step{
+	{Color: "red", Value: nil},
+	{Color: "orange", Value: p(-0.03)},
+	{Color: "transparent", Value: p(-0.01)},
+	{Color: "green", Value: p(-0.001)},
+}
+
+// WinRate — Summary tile id=204 ("Win rate per book").
+// Red < 45%, amber 45–50%, neutral 50–55%, green ≥ 55%.
 var WinRate = []Step{
 	{Color: "red", Value: nil},
-	{Color: "orange", Value: p(0.40)},
+	{Color: "orange", Value: p(0.45)},
 	{Color: "transparent", Value: p(0.50)},
 	{Color: "green", Value: p(0.55)},
 }
 
-// ProfitFactor — ≥ 1.5 = healthy.
+// ProfitFactor — Strategy-quality tile id=403 ("Profit factor").
+// Red < 1.0, amber 1.0–1.2, neutral 1.2–2.0, green ≥ 2.0.
 var ProfitFactor = []Step{
 	{Color: "red", Value: nil},
 	{Color: "orange", Value: p(1.0)},
 	{Color: "transparent", Value: p(1.2)},
-	{Color: "green", Value: p(1.5)},
+	{Color: "green", Value: p(2.0)},
 }
 
-// SharpeSortino — ≥ 1.0 = promotion candidate per the
-// sandbox-live-separation brief.
-var SharpeSortino = []Step{
+// EquityByBook — Account tile id=602 ("Current equity by book").
+// Red < $9000, amber $9000–$9500, neutral $9500–$10500, green ≥ $10500.
+var EquityByBook = []Step{
 	{Color: "red", Value: nil},
-	{Color: "orange", Value: p(0.0)},
-	{Color: "transparent", Value: p(0.5)},
-	{Color: "green", Value: p(1.0)},
+	{Color: "orange", Value: p(9000)},
+	{Color: "transparent", Value: p(9500)},
+	{Color: "green", Value: p(10500)},
 }
 
-// DailyMaxLoss — −2% = soft warn, −5% = hard stop per phase-6 risk module.
-var DailyMaxLoss = []Step{
-	{Color: "red", Value: nil},
-	{Color: "orange", Value: p(-0.05)},
-	{Color: "transparent", Value: p(-0.02)},
-	{Color: "green", Value: p(0.0)},
+// OrphanedPosition — Hygiene tile id=1201. Green when zero, red when any.
+var OrphanedPosition = []Step{
+	{Color: "green", Value: nil},
+	{Color: "red", Value: p(0.01)},
+}
+
+// BooksHalted — Risk tile id=302. Green when zero, red when any halt.
+var BooksHalted = []Step{
+	{Color: "green", Value: nil},
+	{Color: "red", Value: p(1)},
 }
 
 // Build returns an SDK ThresholdsConfigBuilder in absolute mode for
