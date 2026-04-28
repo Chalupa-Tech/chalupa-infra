@@ -154,6 +154,27 @@ kubectl -n observability port-forward svc/observability-grafana 3000:80
 # overwritten.
 ```
 
+## Rendering panels (Image Renderer)
+
+Programmatic PNG export of any panel uses the Image Renderer side-pod
+installed in phase-1 (`grafana.imageRenderer.enabled` in
+`k8s/platform/observability/values.yaml`). Audit workflows should reach
+for this before falling back to a port-forward browser session.
+
+- **Entry point (Claude Code MCP):**
+  `mcp__grafana__get_panel_image dashboardUid=<uid> panel_id=<n>`
+  returns `image/png` bytes. `scale=2` produces hi-DPI output suitable
+  for PR descriptions.
+- **Health check:**
+  `kubectl -n observability get pod -l app.kubernetes.io/name=grafana-image-renderer`
+  should show one Ready replica. The Grafana pod's
+  `GF_RENDERING_SERVER_URL` env var (auto-wired by the chart) points at
+  `http://observability-grafana-image-renderer.observability:8081/render`.
+- **Resource sizing.** Sized for occasional single-user snapshots
+  (128Mi req / 512Mi limit), not the production-scale rendering load
+  the upstream docs target. If a dense dashboard OOMs, raise the
+  per-renderer limit or skip that panel rather than over-provisioning.
+
 ## Migration plan for the other custom dashboards
 
 | Dashboard | File | Lines | Status |
@@ -313,7 +334,7 @@ not currently exploiting, plus what's blocked behind a version bump.
 
 | Feature | Reachable today | Blocked on | Priority | Notes |
 | --- | --- | --- | --- | --- |
-| **Image Renderer** (programmatic PNG export of panels/dashboards) | No | Plugin install (~50 MB pod, separate Deployment) | **High** for audit workflows; medium for ops | Unblocks `mcp__grafana__get_panel_image` for future audit phases — replaces port-forward browser flow. Default-off in `kube-prometheus-stack`; Helm values bump under `grafana.imageRenderer.enabled`. Single ArgoCD sync. |
+| **Image Renderer** (programmatic PNG export of panels/dashboards) | Yes (phase-1) | — | Shipped | Unblocks `mcp__grafana__get_panel_image` for future audit phases — replaces port-forward browser flow. Default-off in `kube-prometheus-stack`; Helm values bump under `grafana.imageRenderer.enabled`. Single ArgoCD sync. |
 | **Boom Table** (table cells with embedded sparklines + cell expressions) | No | Plugin install | Low — defer until a clear use case (e.g., per-symbol mini-spark on the watchlist table) | Third-party (yesoreyeram); review supply-chain story. |
 | **Polystat** (multi-cell health overview tile) | No | Plugin install | Low — gauge panels + repeating cover most of the same ground | Third-party (grafana). |
 | **Status History v2 / Business Charts** (Sankey, gauge groups) | No | Plugin install | Low — no current need | Third-party (volkovlabs); business-charts has a paid tier. |
