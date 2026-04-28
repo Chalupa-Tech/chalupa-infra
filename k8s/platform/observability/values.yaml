@@ -130,6 +130,22 @@ victoria-metrics-k8s-stack:
         memory: 256Mi
       limits:
         memory: 1Gi
+    # Side-pod that renders panels/dashboards to PNG. Wires the Grafana
+    # pod's GF_RENDERING_SERVER_URL automatically. Sized for occasional
+    # single-user snapshots (mcp__grafana__get_panel_image), not
+    # production rendering — Grafana docs recommend 16 GiB / 4 cores
+    # for that workload, well above what a Pi5 can give. If dense
+    # dashboards OOM, raise the limit or skip those panels rather than
+    # over-provisioning across the cluster.
+    imageRenderer:
+      enabled: true
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
 
   ## ── K8s internal scrapes ──────────────────────────────────────────
   ## Toggle: set enabled: false to disable any scrape entirely.
