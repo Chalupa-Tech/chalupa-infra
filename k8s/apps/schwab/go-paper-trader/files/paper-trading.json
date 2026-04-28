@@ -1811,7 +1811,7 @@
       "repeatDirection": "h",
       "targets": [
         {
-          "expr": "rate(paper_nats_dropped_messages_total[5m])",
+          "expr": "rate(paper_nats_dropped_messages_total[5m]) or vector(0)",
           "legendFormat": "drops/s",
           "refId": "A"
         }

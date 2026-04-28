@@ -489,6 +489,9 @@
           "unit": "s",
           "custom": {
             "fillOpacity": 10
+          },
+          "color": {
+            "mode": "palette-classic"
           }
         }
       },
@@ -765,6 +768,9 @@
           "unit": "s",
           "custom": {
             "fillOpacity": 10
+          },
+          "color": {
+            "mode": "palette-classic"
           }
         }
       },
@@ -807,6 +813,9 @@
           "unit": "ops",
           "custom": {
             "fillOpacity": 10
+          },
+          "color": {
+            "mode": "palette-classic"
           }
         }
       },
@@ -860,6 +869,9 @@
           "unit": "s",
           "custom": {
             "fillOpacity": 10
+          },
+          "color": {
+            "mode": "palette-classic"
           }
         }
       },

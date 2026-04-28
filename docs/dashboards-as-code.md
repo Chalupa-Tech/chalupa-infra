@@ -257,3 +257,141 @@ Old → new mapping (for anyone holding URL bookmarks):
   the SDK panel via an escape-hatch helper (not yet added —
   introduce when needed, document each call site, remove when SDK
   catches up).
+
+## Audit findings (7e3)
+
+Phase-7e3 audit covered the paper-trading port (post-7e2) plus the five
+hand-written sibling dashboards.
+The audit was programmatic — JSON structure, color modes, override
+correctness, gridPos overlap detection, live-PromQL existence checks via
+the Grafana MCP — because the cluster's Grafana lacks the Image Renderer
+plugin (see Capability roadmap below). Pixel-level visual rendering is
+deferred to the operator's local port-forward browser session.
+
+| Dashboard | Panels | Issues found | Fix shape | Disposition |
+| --- | ---: | --- | --- | --- |
+| paper-trading (SDK, 7e2 baseline) | 52 | Panel 902 NATS-drops timeseries had no `or vector(0)` for steady-state empty rendering (ambiguous "panel broken" vs "no drops") | Inline (Go source) | **shipped this PR** |
+| schwab-trading | 24 | None — every multi-series timeseries already uses palette-classic, 18 panel overrides honored, gridPos clean. Largest sibling (1360 lines). | None | **queue for SDK port** (`phase-7e<n>-port-schwab-trading`) |
+| schwab-feed | 14 | 2 multi-series timeseries missing palette-classic (Poll Duration, NATS Publish Rate) — without it, all `by (type)` series rendered the same color | Inline JSON `+3 lines × 2` | **shipped this PR** |
+| schwab-rollouts | 6 | 4 multi-series panels missing palette-classic; `$namespace` is a `constant` variable (not user-pickable — intentional? unclear) | Trivial in source, but JSON uses compact-style nested objects → round-trip patch produces +237 lines of formatting churn for 4 substantive lines. Skip inline. | **queue for SDK port** (palette-classic + namespace var ride along) |
+| schwab-auth-lifecycle | 11 | (a) 4 multi-series panels missing palette-classic. (b) **3 referenced metrics absent from registry**: `schwab_auth_refresh_total`, `schwab_auth_refresh_duration_seconds_bucket`, `schwab_auth_last_successful_refresh_timestamp_seconds`. `go-schwab-auth` v0.6.0 (phase-9) instrumented these on the *scheduler* refresh path; the in-cluster pod is emitting only `schwab_auth_token_expiry_timestamp_seconds`. Possible causes: (i) callback-path refresh updates vault but not metrics (this is exactly **alert-triage phase-15**'s scope, already queued); (ii) scheduler hasn't actually attempted a refresh since the last pod restart (the access-token expiry shows 2.6d in the past — gauge is stale, suggesting no scheduler-path success). | (a) Same compact-JSON churn problem; defer. (b) **Service-side fix tracked under alert-triage phase-15** — already queued (`phase-15-auth-callback-metric-emission.md`). 7e3 audit confirms the gap still exists in production today; phase-15 may need to widen scope to also fix the scheduler-path staleness. Not a dashboard fix; reference only. | (a) **queue for SDK port** (palette-classic rides along). (b) **already covered** by alert-triage phase-15; flag the scheduler-staleness sub-finding in that phase's prompt. |
+| telemetry-mesh | 24 | 4 multi-series panels missing palette-classic; 1 templated datasource variable (`DS_VM` type=datasource) is a legacy pattern that should pin to `VictoriaMetrics` constant on port | Inline JSON `+3 lines × 4` | **shipped this PR** (palette only); DS_VM cleanup rides along with SDK port |
+
+**Live-data sample.**
+All paper-trading metrics observed emitting (3 books active). Notable
+expected-empty metrics whose corresponding panels render correctly:
+`paper_orphaned_position_usd` (panel 1201 uses `or vector(0)`),
+`paper_slippage_vs_decision_bps_*` (heatmap 1103 — metric ships in the
+next paper-trader image roll), `paper_daily_loss_halt_total` (panels
+302/303 — counter only appears post-first-halt; 302 is `or vector(0)`-guarded).
+All `schwab_feed_*`, `schwab_position_*`, `schwab_account_*`,
+`telemetry_mesh_*`, `rollout_phase`, `analysis_run_phase` metrics are
+emitting and series counts match expected cardinality.
+
+**Out-of-scope finding (2026-04-28): Datasource UID by name.**
+Every dashboard references the VictoriaMetrics datasource as
+`{"type": "prometheus", "uid": "VictoriaMetrics"}` — but the actual
+datasource UID is auto-generated (`P4169E866C3094E38`); the literal string
+`"VictoriaMetrics"` is the *name*, not the UID. Today this resolves via
+Grafana's name-fallback, but it's brittle to datasource rename or
+addition of a second `prometheus`-type datasource named `VictoriaMetrics
+(DS)` (which already exists, UID `PA144FC3F5C193807`). A canonical fix
+would either (a) pin the datasource UID via Helm provisioning, or
+(b) store the UID in `internal/common/datasources` and update all
+dashboards on every cluster rebuild. Queue as
+`phase-7e<n>-datasource-uid-canonicalization` *or* fold into the
+SDK-port phases — the SDK ports already centralize the datasource ref
+in `internal/common/datasources`, so a one-line constant change there
+fixes every ported dashboard simultaneously.
+
+## Capability roadmap (7e3)
+
+What the Grafana stack and the foundation SDK can express that we are
+not currently exploiting, plus what's blocked behind a version bump.
+
+### Plugins (cluster Grafana 12.4)
+
+| Feature | Reachable today | Blocked on | Priority | Notes |
+| --- | --- | --- | --- | --- |
+| **Image Renderer** (programmatic PNG export of panels/dashboards) | No | Plugin install (~50 MB pod, separate Deployment) | **High** for audit workflows; medium for ops | Unblocks `mcp__grafana__get_panel_image` for future audit phases — replaces port-forward browser flow. Default-off in `kube-prometheus-stack`; Helm values bump under `grafana.imageRenderer.enabled`. Single ArgoCD sync. |
+| **Boom Table** (table cells with embedded sparklines + cell expressions) | No | Plugin install | Low — defer until a clear use case (e.g., per-symbol mini-spark on the watchlist table) | Third-party (yesoreyeram); review supply-chain story. |
+| **Polystat** (multi-cell health overview tile) | No | Plugin install | Low — gauge panels + repeating cover most of the same ground | Third-party (grafana). |
+| **Status History v2 / Business Charts** (Sankey, gauge groups) | No | Plugin install | Low — no current need | Third-party (volkovlabs); business-charts has a paid tier. |
+
+### SDK builders we are not yet using
+
+| Feature | Reachable today (SDK v0.0.12) | Notes |
+| --- | --- | --- |
+| Panel transformations beyond `organize` | Yes — `filterByName`, `calculateField`, `groupBy`, `seriesToColumns`, `joinByField` are all in the SDK's `common/DataTransformerConfig`. The 7e2 port wired only `organize`; the others remain unused. | Highest-yield first hit: `filterByName` to replace the per-book regex-filter PromQL on panels 605/606 (cleaner than fighting `book_id=~"$book_id"`). |
+| Heatmap calculation modes (`heatmap_calc.HeatmapCalculationOptions`) | Yes | The 7e2 heatmaps (504, 1002, 1102, 1103) all use `bucket-bound from query`; SDK supports `from-data` modes. Not blocking — current modes work. |
+| Threshold step icons (custom step-glyph rendering) | Yes — SDK has `thresholds.step.icon` | Useful for stat-panel readability ("✓ healthy" vs "✗ halted"). Stylistic; defer. |
+| Library panels (panel-as-import) | Partial — SDK has no first-class library-panel API; you can emit `libraryPanel` JSON via the escape hatch | Defer until we have a concrete reuse target (banner is the obvious candidate). |
+| Repeating panels / rows over a variable | Yes — `repeat`, `repeatDirection`, `repeatRowId` on PanelBuilder | We don't use this anywhere yet. Useful for per-book side-by-side comparison. |
+| Annotations (cluster-wide event lines) | Yes — `dashboard.AnnotationContainerBuilder` | Wire for ArgoCD sync events, paper halts, OAuth refreshes. Requires cluster-side annotation source (Prometheus alert events, or a dedicated PostgreSQL table). |
+| Drilldowns (data link templates) | Yes — `dashboard.DataLink` on panel options | Cleanest enabler for cross-dashboard navigation (see `briefs/dashboard-navigation-plan.md`). |
+| Time-range presets (custom `time_options`) | Yes — `dashboard.DashboardBuilder.TimeOptions(...)` | Add "this trading day", "since last halt", "last NYSE session" once we have a holiday calendar source. |
+
+### Blocked on SDK bump (Grafana 12.x features)
+
+| Feature | Blocked on | Notes |
+| --- | --- | --- |
+| Gauge band coloring (12.x panel feature) | SDK v12 schema (no public release as of 2026-04) | Workaround: escape-hatch dict overlay (not yet implemented). Cost of overlay is per-call — defer until the second feature wants it. |
+| Scenes panels | SDK v12 | Scenes is the Grafana-12 panel framework; SDK has no builder yet. |
+| `business-charts` plugin types (Sankey etc.) | Plugin install + SDK v12 panel registration | Compound block; revisit when both unblock. |
+
+### Decision: Image Renderer
+
+**Recommendation:** install Image Renderer plugin in the cluster Grafana
+to unblock `mcp__grafana__get_panel_image` for future audit phases. Cost
+is one ArgoCD sync (`grafana.imageRenderer.enabled: true` in the
+kube-prometheus-stack values), one extra Deployment with ~50 MB image,
+and the network round-trip per panel render. Benefit is programmatic
+visual audit replaces operator-driven port-forward, and unblocks a
+future "dashboard screenshot in PR description" workflow. Queue as
+`phase-7e<n>-grafana-image-renderer-install`.
+
+## Usability inventory (7e3)
+
+Each candidate is rated `value × effort` to prioritize follow-on phases.
+Phase queueing recommendation in the last column.
+
+| Feature | What it does | Value | Effort | Recommendation |
+| --- | --- | --- | --- | --- |
+| **Annotations: ArgoCD sync events** | Vertical line on every timeseries when an Application resyncs (paper-trader image rolls, dashboard CM updates, OAuth credential rotation). | High — most "what changed at 14:32?" questions resolve immediately. | Medium — needs an ArgoCD-events → Prometheus / annotation source. ArgoCD has a `notifications-controller` that can post to a webhook; pair with a small ingester. Or: use Grafana's built-in Prom annotations against `ALERTS{}` events. | **Queue** as `phase-<n>-argocd-annotation-source` once at least one SDK port has shipped (the SDK builder is `dashboard.AnnotationContainerBuilder`; annotations are dashboard-level, not panel-level). Highest-yield single board addition. |
+| **Annotations: Paper halts** | Vertical line when `paper_daily_loss_halt_total` increments. | High — debug context for halt-related drawdowns. | Low — Prometheus annotation query: `changes(paper_daily_loss_halt_total[$__interval]) > 0`. | **Queue** with the ArgoCD-events phase; same builder, same dashboard. |
+| **Time-range presets** | Custom timepicker entries: "this trading day", "since last halt", "last NYSE session". | Medium — operator currently uses `now-6h` and adjusts manually. | Low for static presets ("trading day" = 9:30 ET to 16:00 ET via offset math); medium for "last halt" (needs timestamp lookup). | **Defer** — `now-6h` works; reconsider after promotion-windows decide what "trading day" means. |
+| **Repeating panels over `book_id`** | Replaces the per-book multi-series chart with N copies of a panel, one per book — side-by-side comparison. | Medium-high — easier per-book correlation than legend-color matching, especially when a book misbehaves and operator needs to focus. | Low — SDK supports `Repeat("book_id")`. | **Queue** as `phase-<n>-paper-trading-book-repeat-rows` after navigation impl lands. Best-fit panels: 605 (drawdown), 606 (rolling return), 1101 (slippage). |
+| **Repeating rows over `strategy`** | Whole row repeats per strategy — "alternator-30s row" + "sma-5x20 row" stacked. | Low-medium — strategy comparison row (panels 501-504) already does this in summary form. Repeat would let operator drill into one strategy's full health. | Low — SDK row builder has `Repeat`. | **Defer** — single strategy-row already covers 80% of what repeats would expose. |
+| **Library panels (banner)** | Hoist the PAPER TRADING banner to a Grafana library panel; siblings can `import` it. | Low — only paper-trading currently has a banner; the SDK port already deduplicates the banner via `internal/common/banner/banner.go`. Library panels would help if a sibling needs the same banner *before* its SDK port. | Medium — library panels are a Grafana-side construct (CM-provisioned), not first-class in the SDK. | **Defer** — revisit if/when a hand-written sibling needs the banner before its port. |
+| **Drilldowns (panel data links)** | Click a heatmap cell or table row to jump to a filtered dashboard. | High — ties directly into the navigation plan brief; this is *the* enabler. | Low per-link (SDK `dashboard.PanelBuilder.Links([...])`); high cumulative if we wire all 10 flows. | **Queue** as `phase-<n>-paper-trading-drilldowns` (for the 5 paper-trading-rooted flows from the navigation brief). Cross-dashboard drilldowns ride along with each sibling's SDK port. |
+| **Refresh interval policy** | Per-board refresh: `5s` for halt-watch, `30s` for daytime ops, `5m` for portfolio rolling-30d. | Low — the cluster Grafana defaults work; operators rarely care about second-level latency on slow-moving panels. | Low — single field on `DashboardBuilder`. | **Defer** — bundle with each sibling SDK port (decide refresh rate at port-time). |
+| **`schwab_auth_refresh_*` metrics emission** | Three metrics referenced by schwab-auth-lifecycle but currently empty in production despite shipping in `go-schwab-auth` v0.6.0 (phase-9). | High — 4 of 8 functional panels on auth-lifecycle render empty until refresh events emit. | Already addressed by **alert-triage phase-15** (callback-path emission). 7e3 audit confirms the gap and surfaces a possible scheduler-staleness sub-finding to widen phase-15's scope. | **Reference** alert-triage phase-15; do not create a duplicate phase here. |
+
+### Highest-yield phase ordering
+
+If the operator commits to platform-dashboards as a workstream, the
+sequence the audit suggests:
+
+1. **platform-dashboards** `phase-1-grafana-image-renderer-install` —
+   unblocks future audits.
+2. **alert-triage** `phase-15-auth-callback-metric-emission`
+   (already queued) — fixes 4 empty panels on auth-lifecycle without
+   any dashboard touch.
+3. **platform-dashboards** `phase-2-port-schwab-feed` — smallest
+   sibling (695 lines), proves the migration playbook beyond
+   paper-trading.
+4. **platform-dashboards** `phase-3-paper-trading-drilldowns` — wires
+   the 5 paper-trading-rooted navigation flows from the brief.
+5. **platform-dashboards** `phase-4-port-schwab-rollouts` —
+   second-smallest (290 lines).
+6. **platform-dashboards** `phase-5-port-schwab-auth-lifecycle` — drops
+   palette-classic fix in.
+7. **platform-dashboards** `phase-6-port-telemetry-mesh` — drops
+   `DS_VM` legacy var, retires the variable.
+8. **platform-dashboards** `phase-7-port-schwab-trading` — largest
+   (1360 lines), last.
+9. **platform-dashboards** `phase-8-argocd-annotation-source` — adds
+   annotations once the ports are stable.
+10. **platform-dashboards** `phase-N-datasource-uid-canonicalization` —
+    fold into the SDK port series as the datasources package is
+    touched in each.
