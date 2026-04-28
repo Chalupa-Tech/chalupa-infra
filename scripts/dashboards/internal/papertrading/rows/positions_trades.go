@@ -1,7 +1,6 @@
 // positions_trades.go — open positions table, recent fills table.
-// Phase-7b panel ids: row 7, panels 8-9.
-// Phase-7e slice: ports id=8 ("Live positions") — the table-panel
-// canary, exercising byName overrides for unit + threshold + cell color.
+// Renumbered: row 700, panels 701-702.
+// (Phase-7b ids: row 7, panels 8-9.)
 package rows
 
 import (
@@ -15,7 +14,7 @@ import (
 )
 
 const (
-	positionsRowID    = 7
+	positionsRowID    = 700
 	positionsRowTitle = "Positions & trades"
 	positionsHeight   = 8 // 1 (row header) + 7 (table h)
 )
@@ -23,6 +22,7 @@ const (
 func PositionsTrades(db *dashboard.DashboardBuilder, yBase int) int {
 	db.WithRow(layout.Row(positionsRowID, yBase, positionsRowTitle))
 	db.WithPanel(livePositions(yBase + 1))
+	db.WithPanel(tradeLog(yBase + 1))
 	return positionsHeight
 }
 
@@ -34,7 +34,7 @@ func livePositions(y int) *table.PanelBuilder {
 		"ORDER BY book_id, symbol, time DESC"
 	usd := []dashboard.DynamicConfigValue{{Id: "unit", Value: "currencyUSD"}}
 	return table.NewPanelBuilder().
-		Id(8).
+		Id(701).
 		Title("Live positions").
 		GridPos(layout.Pos(0, y, 12, 7)).
 		Datasource(datasources.Timescale()).
@@ -53,4 +53,21 @@ func livePositions(y int) *table.PanelBuilder {
 		}).
 		OverrideByName("avg_price", usd).
 		OverrideByName("mark_price", usd)
+}
+
+func tradeLog(y int) *table.PanelBuilder {
+	rawSQL := "SELECT time, book_id, symbol, side, quantity, price, strategy" +
+		" FROM paper_fills" +
+		" WHERE symbol IN ($symbol) AND strategy IN ($strategy) AND book_id IN ($book_id)" +
+		" ORDER BY time DESC LIMIT 50"
+	return table.NewPanelBuilder().
+		Id(702).
+		Title("Trade log (last 50 fills)").
+		GridPos(layout.Pos(12, y, 12, 7)).
+		Datasource(datasources.Timescale()).
+		WithTarget(sql.Table("A", rawSQL)).
+		Align(common.FieldTextAlignmentRight).
+		OverrideByName("price", []dashboard.DynamicConfigValue{
+			{Id: "unit", Value: "currencyUSD"},
+		})
 }

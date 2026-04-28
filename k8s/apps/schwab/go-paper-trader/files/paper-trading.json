@@ -1,137 +1,47 @@
 {
-  "annotations": {
-    "list": []
-  },
+  "annotations": {},
   "editable": true,
-  "graphTooltip": 1,
-  "title": "Paper Trading",
-  "uid": "paper-trading",
-  "tags": [
-    "paper",
-    "simulated",
-    "trading"
-  ],
-  "time": {
-    "from": "now-6h",
-    "to": "now"
-  },
-  "refresh": "30s",
-  "templating": {
-    "list": [
-      {
-        "name": "book_id",
-        "type": "query",
-        "datasource": {
-          "type": "grafana-postgresql-datasource",
-          "uid": "timescaledb"
-        },
-        "query": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills WHERE time > NOW() - INTERVAL '7 days' UNION SELECT book_id FROM paper_cash WHERE time > NOW() - INTERVAL '7 days') sub ORDER BY book_id",
-        "rawSql": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills WHERE time > NOW() - INTERVAL '7 days' UNION SELECT book_id FROM paper_cash WHERE time > NOW() - INTERVAL '7 days') sub ORDER BY book_id",
-        "definition": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills WHERE time > NOW() - INTERVAL '7 days' UNION SELECT book_id FROM paper_cash WHERE time > NOW() - INTERVAL '7 days') sub ORDER BY book_id",
-        "multi": true,
-        "includeAll": true,
-        "current": {},
-        "refresh": 1
-      },
-      {
-        "name": "symbol",
-        "type": "query",
-        "datasource": {
-          "type": "grafana-postgresql-datasource",
-          "uid": "timescaledb"
-        },
-        "query": "SELECT DISTINCT symbol FROM paper_positions ORDER BY symbol",
-        "rawSql": "SELECT DISTINCT symbol FROM paper_positions ORDER BY symbol",
-        "definition": "SELECT DISTINCT symbol FROM paper_positions ORDER BY symbol",
-        "multi": true,
-        "includeAll": true,
-        "current": {},
-        "refresh": 1
-      },
-      {
-        "name": "strategy",
-        "type": "query",
-        "datasource": {
-          "type": "grafana-postgresql-datasource",
-          "uid": "timescaledb"
-        },
-        "query": "SELECT DISTINCT strategy FROM paper_fills ORDER BY strategy",
-        "rawSql": "SELECT DISTINCT strategy FROM paper_fills ORDER BY strategy",
-        "definition": "SELECT DISTINCT strategy FROM paper_fills ORDER BY strategy",
-        "multi": true,
-        "includeAll": true,
-        "current": {},
-        "refresh": 1
-      }
-    ]
-  },
-  "links": [
-    {
-      "title": "Schwab Trading Dashboard (LIVE \u2014 separate)",
-      "url": "/d/schwab-trading",
-      "type": "link",
-      "icon": "external link",
-      "targetBlank": false
-    }
-  ],
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
   "panels": [
     {
-      "id": 1,
-      "type": "text",
-      "title": "",
       "gridPos": {
         "h": 3,
         "w": 24,
         "x": 0,
         "y": 0
       },
+      "id": 1,
       "options": {
-        "mode": "markdown",
-        "content": "## \u26a0\ufe0f PAPER TRADING \u2014 SIMULATED DATA\nFills are simulated: BUYs lift the ask, SELLs hit the bid, with an optional ExtraSlippageBps cushion (0 bps in production today) and a 100ms constant submit-to-fill latency. Real-world fills will differ materially \u2014 Schwab's actual fills depend on their routing, venue selection, and queue position. **P&L on this dashboard is not real money.**"
+        "content": "## ⚠️ PAPER TRADING — SIMULATED DATA\nFills are simulated: BUYs lift the ask, SELLs hit the bid, with an optional ExtraSlippageBps cushion (0 bps in production today) and a 100ms constant submit-to-fill latency. Real-world fills will differ materially — Schwab's actual fills depend on their routing, venue selection, and queue position. **P\u0026L on this dashboard is not real money.**",
+        "mode": "markdown"
       },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
+      "repeatDirection": "h",
+      "title": "",
+      "transparent": false,
+      "type": "text"
     },
     {
-      "id": 100,
-      "type": "row",
-      "title": "Summary (at-a-glance)",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 3
       },
-      "collapsed": false
+      "id": 200,
+      "panels": [],
+      "title": "Summary (at-a-glance)",
+      "type": "row"
     },
     {
-      "id": 101,
-      "type": "stat",
-      "title": "Equity vs starting cash",
-      "description": "paper-trading-realism phase-7b: (paper_equity_usd / 10000) \u2212 1. Hardcodes $10k starting cash, which matches the per-book values.yaml today; if startingCash ever varies per book this becomes wrong silently and we'll need a paper_starting_cash_usd metric. Green \u2265 +1% (book is compounding); neutral \u00b11% (noise floor); amber \u22121% to \u22125%; red < \u22125%.",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 4
-      },
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "paper_equity_usd{book_id=~\"$book_id\"} / 10000 - 1",
-          "legendFormat": "{{book_id}}",
-          "instant": true
-        }
-      ],
+      "description": "paper-trading-realism phase-7b: (paper_equity_usd / 10000) − 1. Hardcodes $10k starting cash, which matches the per-book values.yaml today; if startingCash ever varies per book this becomes wrong silently and we'll need a paper_starting_cash_usd metric. Green ≥ +1% (book is compounding); neutral ±1% (noise floor); amber −1% to −5%; red \u003c −5%.",
       "fieldConfig": {
         "defaults": {
-          "unit": "percentunit",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -152,48 +62,57 @@
                 "value": 0.01
               }
             ]
-          }
+          },
+          "unit": "percentunit"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 4
+      },
+      "id": 201,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
           "fields": "",
           "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "paper_equity_usd{book_id=~\"$book_id\"} / 10000 - 1",
+          "instant": true,
+          "legendFormat": "{{book_id}}",
+          "range": false,
+          "refId": "A"
         }
-      }
+      ],
+      "title": "Equity vs starting cash",
+      "transparent": false,
+      "type": "stat"
     },
     {
-      "id": 102,
-      "type": "stat",
-      "title": "Today P&L per book",
-      "description": "paper-trading-realism phase-7b: paper_daily_pnl_usd (UTC day, realized + unrealized). Same series as the Risk row's timeseries, surfaced here for at-a-glance health. Resets at UTC midnight.",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 4
-      },
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "paper_daily_pnl_usd{book_id=~\"$book_id\"}",
-          "legendFormat": "{{book_id}}",
-          "instant": true
-        }
-      ],
+      "description": "paper-trading-realism phase-7b: paper_daily_pnl_usd (UTC day, realized + unrealized). Same series as the Risk row's timeseries, surfaced here for at-a-glance health. Resets at UTC midnight.",
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -210,47 +129,57 @@
                 "value": 0.01
               }
             ]
-          }
+          },
+          "unit": "currencyUSD"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 4
+      },
+      "id": 202,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
           "fields": "",
           "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "paper_daily_pnl_usd{book_id=~\"$book_id\"}",
+          "instant": true,
+          "legendFormat": "{{book_id}}",
+          "range": false,
+          "refId": "A"
         }
-      }
+      ],
+      "title": "Today P\u0026L per book",
+      "transparent": false,
+      "type": "stat"
     },
     {
-      "id": 103,
-      "type": "stat",
-      "title": "Max drawdown (session)",
-      "description": "paper-trading-realism phase-7b: maximum peak-to-trough drawdown observed for each book since first cash snapshot (whole session, not just visible range). Computed in TimescaleDB so the value survives Prom retention; matches the promotion-threshold convention (\u2264 3%) from sandbox-live-separation brief \u2014 amber at \u22121% (worth watching), red at \u22123% (gates promotion).",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 4
-      },
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "table",
-          "rawSql": "WITH equity_ts AS (  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity  FROM paper_cash pc  LEFT JOIN (    SELECT time, book_id, SUM(quantity * mark_price) AS equity    FROM paper_positions GROUP BY time, book_id  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id  WHERE pc.book_id IN ($book_id)), with_peak AS (  SELECT book_id, time, equity,         MAX(equity) OVER (PARTITION BY book_id ORDER BY time                           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS peak  FROM equity_ts) SELECT book_id, MIN((equity - peak) / NULLIF(peak, 0)) AS max_dd FROM with_peak GROUP BY book_id"
-        }
-      ],
+      "description": "paper-trading-realism phase-7b: maximum peak-to-trough drawdown observed for each book since first cash snapshot (whole session, not just visible range). Computed in TimescaleDB so the value survives Prom retention; matches the promotion-threshold convention (≤ 3%) from sandbox-live-separation brief — amber at −1% (worth watching), red at −3% (gates promotion).",
       "fieldConfig": {
         "defaults": {
-          "unit": "percentunit",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -271,47 +200,55 @@
                 "value": -0.001
               }
             ]
-          }
+          },
+          "unit": "percentunit"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 4
+      },
+      "id": 203,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
           "fields": "",
           "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "WITH equity_ts AS (  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity  FROM paper_cash pc  LEFT JOIN (    SELECT time, book_id, SUM(quantity * mark_price) AS equity    FROM paper_positions GROUP BY time, book_id  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id  WHERE pc.book_id IN ($book_id)), with_peak AS (  SELECT book_id, time, equity,         MAX(equity) OVER (PARTITION BY book_id ORDER BY time                           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS peak  FROM equity_ts) SELECT book_id, MIN((equity - peak) / NULLIF(peak, 0)) AS max_dd FROM with_peak GROUP BY book_id",
+          "refId": "A"
         }
-      }
+      ],
+      "title": "Max drawdown (session)",
+      "transparent": false,
+      "type": "stat"
     },
     {
-      "id": 104,
-      "type": "stat",
-      "title": "Win rate per book",
-      "description": "paper-trading-realism phase-7b: COUNT(SELL fills with realized_pl > 0) / COUNT(SELL fills) \u2014 fraction of trades that closed at a profit, scoped to selected books. Promotion-relevant (the brief's positive-return-days rule implies a comparable win/lose cadence). Green \u2265 55%; amber 45\u201355%; red < 45%.",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 4
-      },
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "table",
-          "rawSql": "SELECT book_id,   COUNT(*) FILTER (WHERE realized_pl > 0)::float / NULLIF(COUNT(*), 0) AS win_rate FROM paper_fills WHERE side = 'SELL' AND realized_pl IS NOT NULL   AND book_id IN ($book_id) AND $__timeFilter(time) GROUP BY book_id"
-        }
-      ],
+      "description": "paper-trading-realism phase-7b: COUNT(SELL fills with realized_pl \u003e 0) / COUNT(SELL fills) — fraction of trades that closed at a profit, scoped to selected books. Promotion-relevant (the brief's positive-return-days rule implies a comparable win/lose cadence). Green ≥ 55%; amber 45–55%; red \u003c 45%.",
       "fieldConfig": {
         "defaults": {
-          "unit": "percentunit",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -332,72 +269,77 @@
                 "value": 0.55
               }
             ]
-          }
+          },
+          "unit": "percentunit"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 4
+      },
+      "id": 204,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
           "fields": "",
           "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT book_id,   COUNT(*) FILTER (WHERE realized_pl \u003e 0)::float / NULLIF(COUNT(*), 0) AS win_rate FROM paper_fills WHERE side = 'SELL' AND realized_pl IS NOT NULL   AND book_id IN ($book_id) AND $__timeFilter(time) GROUP BY book_id",
+          "refId": "A"
         }
-      }
+      ],
+      "title": "Win rate per book",
+      "transparent": false,
+      "type": "stat"
     },
     {
-      "id": 30,
-      "type": "row",
-      "title": "Risk",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 8
       },
-      "collapsed": false
+      "id": 300,
+      "panels": [],
+      "title": "Risk",
+      "type": "row"
     },
     {
-      "id": 31,
-      "type": "timeseries",
-      "title": "Daily P&L per book (USD, UTC day)",
-      "description": "paper-trading-realism phase-6: paper_daily_pnl_usd resets at UTC midnight. Red threshold line is -paper_daily_loss_limit_usd \u2014 the point at which PlaceOrder refuses new orders until the next UTC day. Useful as a pre-halt early warning when a book approaches its floor.",
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 9
-      },
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "paper_daily_pnl_usd{book_id=~\"$book_id\"}",
-          "legendFormat": "{{book_id}}"
-        },
-        {
-          "refId": "B",
-          "expr": "-paper_daily_loss_limit_usd{book_id=~\"$book_id\"}",
-          "legendFormat": "limit {{book_id}}"
-        }
-      ],
+      "description": "paper-trading-realism phase-6: paper_daily_pnl_usd resets at UTC midnight. Red threshold line is -paper_daily_loss_limit_usd — the point at which PlaceOrder refuses new orders until the next UTC day. Useful as a pre-halt early warning when a book approaches its floor.",
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD",
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
-            "lineWidth": 2,
+            "drawStyle": "line",
             "fillOpacity": 10,
-            "drawStyle": "line"
-          }
+            "lineWidth": 2
+          },
+          "unit": "currencyUSD"
         },
         "overrides": [
           {
@@ -409,11 +351,11 @@
               {
                 "id": "custom.lineStyle",
                 "value": {
-                  "fill": "dash",
                   "dash": [
                     8,
                     4
-                  ]
+                  ],
+                  "fill": "dash"
                 }
               },
               {
@@ -423,52 +365,56 @@
               {
                 "id": "color",
                 "value": {
-                  "mode": "fixed",
-                  "fixedColor": "red"
+                  "fixedColor": "red",
+                  "mode": "fixed"
                 }
               }
             ]
           }
         ]
       },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        }
-      }
-    },
-    {
-      "id": 32,
-      "type": "stat",
-      "title": "Books halted (today)",
-      "description": "paper-trading-realism phase-6: number of books that have hit the daily max-loss guard at least once in the current 24h window. Red when any book is halted; green otherwise. A halted book recovers at UTC midnight without intervention.",
       "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
+        "h": 9,
+        "w": 12,
+        "x": 0,
         "y": 9
       },
+      "id": 301,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "paper_daily_pnl_usd{book_id=~\"$book_id\"}",
+          "legendFormat": "{{book_id}}",
+          "refId": "A"
+        },
+        {
+          "expr": "-paper_daily_loss_limit_usd{book_id=~\"$book_id\"}",
+          "legendFormat": "limit {{book_id}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Daily P\u0026L per book (USD, UTC day)",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "count(increase(paper_daily_loss_halt_total{book_id=~\"$book_id\"}[24h]) > 0) or vector(0)",
-          "instant": true
-        }
-      ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "colorMode": "background",
-        "graphMode": "none"
-      },
+      "description": "paper-trading-realism phase-6: number of books that have hit the daily max-loss guard at least once in the current 24h window. Red when any book is halted; green otherwise. A halted book recovers at UTC midnight without intervention.",
       "fieldConfig": {
         "defaults": {
           "thresholds": {
@@ -486,210 +432,261 @@
           }
         },
         "overrides": []
-      }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 9
+      },
+      "id": 302,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "count(increase(paper_daily_loss_halt_total{book_id=~\"$book_id\"}[24h]) \u003e 0) or vector(0)",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Books halted (today)",
+      "transparent": false,
+      "type": "stat"
     },
     {
-      "id": 33,
-      "type": "timeseries",
-      "title": "Halt reject rate per book (5m)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
       "description": "paper-trading-realism phase-6: rate(paper_daily_loss_halt_total[5m]) per book. Non-zero = the strategy is still calling PlaceOrder against a halted book. Expected briefly on first halt (strategy catches up), sustained high rate means the strategy is hot-looping without a back-off.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 18,
         "y": 9
       },
+      "id": 303,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "rate(paper_daily_loss_halt_total{book_id=~\"$book_id\"}[5m])",
+          "legendFormat": "{{book_id}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Halt reject rate per book (5m)",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "rate(paper_daily_loss_halt_total{book_id=~\"$book_id\"}[5m])",
-          "legendFormat": "{{book_id}}"
-        }
-      ],
+      "description": "paper-trading-realism phase-6: paper_daily_loss_limit_usd — configured per-book floor (halting threshold is -limit). Zero means the guard is disabled for that book.",
       "fieldConfig": {
         "defaults": {
-          "unit": "ops",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10
-          }
+          "unit": "currencyUSD"
         },
         "overrides": []
       },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        }
-      }
-    },
-    {
-      "id": 34,
-      "type": "stat",
-      "title": "Daily loss limit per book",
-      "description": "paper-trading-realism phase-6: paper_daily_loss_limit_usd \u2014 configured per-book floor (halting threshold is -limit). Zero means the guard is disabled for that book.",
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 12,
         "y": 13
       },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "paper_daily_loss_limit_usd{book_id=~\"$book_id\"}",
-          "legendFormat": "{{book_id}}",
-          "instant": true
-        }
-      ],
+      "id": 304,
       "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ]
         },
-        "colorMode": "value",
-        "graphMode": "none"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      }
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "paper_daily_loss_limit_usd{book_id=~\"$book_id\"}",
+          "instant": true,
+          "legendFormat": "{{book_id}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Daily loss limit per book",
+      "transparent": false,
+      "type": "stat"
     },
     {
-      "id": 110,
-      "type": "row",
-      "title": "Strategy quality",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 18
       },
-      "collapsed": false
+      "id": 400,
+      "panels": [],
+      "title": "Strategy quality",
+      "type": "row"
     },
     {
-      "id": 111,
-      "type": "timeseries",
-      "title": "Sharpe ratio (30d rolling, annualized, rf=0)",
-      "description": "paper-trading-realism phase-7b: 30-day rolling Sharpe = mean(daily_return) / stddev(daily_return) \u00d7 \u221a252. Risk-free rate hardcoded to 0 (matches phase-6 UTC daily-P&L convention; revisit when a strategy is a real promotion candidate). Promotion threshold \u2265 1.0 per sandbox-live-separation brief. Renders NULL for books with < 30 days of returns.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
+      "description": "paper-trading-realism phase-7b: 30-day rolling Sharpe = mean(daily_return) / stddev(daily_return) × √252. Risk-free rate hardcoded to 0 (matches phase-6 UTC daily-P\u0026L convention; revisit when a strategy is a real promotion candidate). Promotion threshold ≥ 1.0 per sandbox-live-separation brief. Renders NULL for books with \u003c 30 days of returns.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
         "y": 19
       },
+      "id": 401,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "WITH equity_ts AS (  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity  FROM paper_cash pc  LEFT JOIN (    SELECT time, book_id, SUM(quantity * mark_price) AS equity    FROM paper_positions GROUP BY time, book_id  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id  WHERE pc.book_id IN ($book_id)), daily AS (  SELECT    book_id,    time_bucket('1 day', time) AS trade_date,    FIRST(equity, time) AS sod,    LAST(equity, time)  AS eod  FROM equity_ts  GROUP BY book_id, trade_date), returns AS (  SELECT book_id, trade_date, (eod - sod) / NULLIF(sod, 0) AS ret  FROM daily) SELECT trade_date AS time, book_id AS metric,   AVG(ret) OVER w / NULLIF(STDDEV_SAMP(ret) OVER w, 0) * SQRT(252) AS sharpe FROM returns WINDOW w AS (PARTITION BY book_id ORDER BY trade_date              ROWS BETWEEN 29 PRECEDING AND CURRENT ROW) ORDER BY trade_date",
+          "refId": "A"
+        }
+      ],
+      "title": "Sharpe ratio (30d rolling, annualized, rf=0)",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "time_series",
-          "rawSql": "WITH equity_ts AS (  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity  FROM paper_cash pc  LEFT JOIN (    SELECT time, book_id, SUM(quantity * mark_price) AS equity    FROM paper_positions GROUP BY time, book_id  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id  WHERE pc.book_id IN ($book_id)), daily AS (  SELECT    book_id,    time_bucket('1 day', time) AS trade_date,    FIRST(equity, time) AS sod,    LAST(equity, time)  AS eod  FROM equity_ts  GROUP BY book_id, trade_date), returns AS (  SELECT book_id, trade_date, (eod - sod) / NULLIF(sod, 0) AS ret  FROM daily) SELECT trade_date AS time, book_id AS metric,   AVG(ret) OVER w / NULLIF(STDDEV_SAMP(ret) OVER w, 0) * SQRT(252) AS sharpe FROM returns WINDOW w AS (PARTITION BY book_id ORDER BY trade_date              ROWS BETWEEN 29 PRECEDING AND CURRENT ROW) ORDER BY trade_date"
-        }
-      ],
+      "description": "paper-trading-realism phase-7b: 30-day rolling Sortino = mean(daily_return) / stddev(daily_return WHERE ret\u003c0) × √252. Same numerator as Sharpe; denominator only counts losing days, so Sortino \u003e Sharpe means losses are concentrated (good). Renders NULL for books with no losing days in the window or \u003c 30 days of returns.",
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10
-          },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "short"
         },
         "overrides": []
       },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        }
-      }
-    },
-    {
-      "id": 112,
-      "type": "timeseries",
-      "title": "Sortino ratio (30d rolling, annualized, rf=0)",
-      "description": "paper-trading-realism phase-7b: 30-day rolling Sortino = mean(daily_return) / stddev(daily_return WHERE ret<0) \u00d7 \u221a252. Same numerator as Sharpe; denominator only counts losing days, so Sortino > Sharpe means losses are concentrated (good). Renders NULL for books with no losing days in the window or < 30 days of returns.",
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
         "y": 19
       },
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "timescaledb"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "time_series",
-          "rawSql": "WITH equity_ts AS (  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity  FROM paper_cash pc  LEFT JOIN (    SELECT time, book_id, SUM(quantity * mark_price) AS equity    FROM paper_positions GROUP BY time, book_id  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id  WHERE pc.book_id IN ($book_id)), daily AS (  SELECT    book_id,    time_bucket('1 day', time) AS trade_date,    FIRST(equity, time) AS sod,    LAST(equity, time)  AS eod  FROM equity_ts  GROUP BY book_id, trade_date), returns AS (  SELECT book_id, trade_date, (eod - sod) / NULLIF(sod, 0) AS ret  FROM daily) SELECT trade_date AS time, book_id AS metric,   AVG(ret) OVER w / NULLIF(STDDEV_SAMP(ret) FILTER (WHERE ret < 0) OVER w, 0) * SQRT(252) AS sortino FROM returns WINDOW w AS (PARTITION BY book_id ORDER BY trade_date              ROWS BETWEEN 29 PRECEDING AND CURRENT ROW) ORDER BY trade_date"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10
-          },
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
+      "id": 402,
       "options": {
         "legend": {
+          "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
         }
-      }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "WITH equity_ts AS (  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity  FROM paper_cash pc  LEFT JOIN (    SELECT time, book_id, SUM(quantity * mark_price) AS equity    FROM paper_positions GROUP BY time, book_id  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id  WHERE pc.book_id IN ($book_id)), daily AS (  SELECT    book_id,    time_bucket('1 day', time) AS trade_date,    FIRST(equity, time) AS sod,    LAST(equity, time)  AS eod  FROM equity_ts  GROUP BY book_id, trade_date), returns AS (  SELECT book_id, trade_date, (eod - sod) / NULLIF(sod, 0) AS ret  FROM daily) SELECT trade_date AS time, book_id AS metric,   AVG(ret) OVER w / NULLIF(STDDEV_SAMP(ret) FILTER (WHERE ret \u003c 0) OVER w, 0) * SQRT(252) AS sortino FROM returns WINDOW w AS (PARTITION BY book_id ORDER BY trade_date              ROWS BETWEEN 29 PRECEDING AND CURRENT ROW) ORDER BY trade_date",
+          "refId": "A"
+        }
+      ],
+      "title": "Sortino ratio (30d rolling, annualized, rf=0)",
+      "transparent": false,
+      "type": "timeseries"
     },
     {
-      "id": 113,
-      "type": "stat",
-      "title": "Profit factor",
-      "description": "paper-trading-realism phase-7b: SUM(winning realized_pl) / |SUM(losing realized_pl)|, per book, over the visible time range. > 1.2 decent; > 2.0 strong (per sandbox-live-separation brief \u2014 promotion threshold is 1.2). Renders NULL for books with no losing trades in the window.",
-      "gridPos": {
-        "h": 4,
-        "w": 12,
-        "x": 0,
-        "y": 27
-      },
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "table",
-          "rawSql": "SELECT book_id,   SUM(realized_pl) FILTER (WHERE realized_pl > 0) /   NULLIF(ABS(SUM(realized_pl) FILTER (WHERE realized_pl < 0)), 0) AS profit_factor FROM paper_fills WHERE realized_pl IS NOT NULL AND book_id IN ($book_id) AND $__timeFilter(time) GROUP BY book_id"
-        }
-      ],
+      "description": "paper-trading-realism phase-7b: SUM(winning realized_pl) / |SUM(losing realized_pl)|, per book, over the visible time range. \u003e 1.2 decent; \u003e 2.0 strong (per sandbox-live-separation brief — promotion threshold is 1.2). Renders NULL for books with no losing trades in the window.",
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -699,7 +696,7 @@
               },
               {
                 "color": "orange",
-                "value": 1.0
+                "value": 1
               },
               {
                 "color": "transparent",
@@ -707,184 +704,227 @@
               },
               {
                 "color": "green",
-                "value": 2.0
+                "value": 2
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 27
+      },
+      "id": 403,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
           "fields": "",
           "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT book_id,   SUM(realized_pl) FILTER (WHERE realized_pl \u003e 0) /   NULLIF(ABS(SUM(realized_pl) FILTER (WHERE realized_pl \u003c 0)), 0) AS profit_factor FROM paper_fills WHERE realized_pl IS NOT NULL AND book_id IN ($book_id) AND $__timeFilter(time) GROUP BY book_id",
+          "refId": "A"
         }
-      }
+      ],
+      "title": "Profit factor",
+      "transparent": false,
+      "type": "stat"
     },
     {
-      "id": 114,
-      "type": "timeseries",
-      "title": "Avg win / Avg loss (per day)",
-      "description": "paper-trading-realism phase-7b: per-book daily mean realized_pl on winning trades (positive series) vs losing trades (negative series). Captures fat-tail shape \u2014 even a 55%-win-rate strategy bleeds if avg loss > avg win in absolute terms. Series suffix `-win` / `-loss` so multi-book comparisons stay unambiguous.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
+      "description": "paper-trading-realism phase-7b: per-book daily mean realized_pl on winning trades (positive series) vs losing trades (negative series). Captures fat-tail shape — even a 55%-win-rate strategy bleeds if avg loss \u003e avg win in absolute terms. Series suffix `-win` / `-loss` so multi-book comparisons stay unambiguous.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 4,
         "w": 12,
         "x": 12,
         "y": 27
       },
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "timescaledb"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "time_series",
-          "rawSql": "SELECT   time_bucket('1 day', time) AS time,   book_id || '-win'  AS metric,   AVG(realized_pl) FILTER (WHERE realized_pl > 0) AS v FROM paper_fills WHERE realized_pl IS NOT NULL AND book_id IN ($book_id) AND $__timeFilter(time) GROUP BY 1, book_id UNION ALL SELECT   time_bucket('1 day', time) AS time,   book_id || '-loss' AS metric,   AVG(realized_pl) FILTER (WHERE realized_pl < 0) AS v FROM paper_fills WHERE realized_pl IS NOT NULL AND book_id IN ($book_id) AND $__timeFilter(time) GROUP BY 1, book_id ORDER BY time"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyUSD",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10
-          },
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
+      "id": 404,
       "options": {
         "legend": {
+          "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
         }
-      }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "SELECT   time_bucket('1 day', time) AS time,   book_id || '-win'  AS metric,   AVG(realized_pl) FILTER (WHERE realized_pl \u003e 0) AS v FROM paper_fills WHERE realized_pl IS NOT NULL AND book_id IN ($book_id) AND $__timeFilter(time) GROUP BY 1, book_id UNION ALL SELECT   time_bucket('1 day', time) AS time,   book_id || '-loss' AS metric,   AVG(realized_pl) FILTER (WHERE realized_pl \u003c 0) AS v FROM paper_fills WHERE realized_pl IS NOT NULL AND book_id IN ($book_id) AND $__timeFilter(time) GROUP BY 1, book_id ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg win / Avg loss (per day)",
+      "transparent": false,
+      "type": "timeseries"
     },
     {
-      "id": 120,
-      "type": "row",
-      "title": "Strategy comparison",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 31
       },
-      "collapsed": false
+      "id": 500,
+      "panels": [],
+      "title": "Strategy comparison",
+      "type": "row"
     },
     {
-      "id": 121,
-      "type": "timeseries",
-      "title": "Equity by strategy",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
       "description": "paper-trading-realism phase-7b: SUM(equity) of every book running each strategy, summed across books of the same strategy. Answers `which strategy has the books up?`. Strategy mapping uses each book's most-recent paper_fills.strategy (books don't re-strategy in v1).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
         "y": 32
       },
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "timescaledb"
+      "id": 501,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
       },
+      "repeatDirection": "h",
       "targets": [
         {
-          "refId": "A",
           "format": "time_series",
-          "rawSql": "WITH equity_ts AS (  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity  FROM paper_cash pc  LEFT JOIN (    SELECT time, book_id, SUM(quantity * mark_price) AS equity    FROM paper_positions GROUP BY time, book_id  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id  WHERE $__timeFilter(pc.time)), book_strategy AS (  SELECT DISTINCT ON (book_id) book_id, strategy  FROM paper_fills ORDER BY book_id, time DESC) SELECT eq.time AS time, bs.strategy AS metric, SUM(eq.equity) AS equity FROM equity_ts eq JOIN book_strategy bs ON eq.book_id = bs.book_id WHERE bs.strategy IN ($strategy) GROUP BY eq.time, bs.strategy ORDER BY eq.time"
+          "rawSql": "WITH equity_ts AS (  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity  FROM paper_cash pc  LEFT JOIN (    SELECT time, book_id, SUM(quantity * mark_price) AS equity    FROM paper_positions GROUP BY time, book_id  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id  WHERE $__timeFilter(pc.time)), book_strategy AS (  SELECT DISTINCT ON (book_id) book_id, strategy  FROM paper_fills ORDER BY book_id, time DESC) SELECT eq.time AS time, bs.strategy AS metric, SUM(eq.equity) AS equity FROM equity_ts eq JOIN book_strategy bs ON eq.book_id = bs.book_id WHERE bs.strategy IN ($strategy) GROUP BY eq.time, bs.strategy ORDER BY eq.time",
+          "refId": "A"
         }
       ],
+      "title": "Equity by strategy",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-7b: rate(paper_fills_total[1h]) × 3600 summed by strategy. Reveals cadence differences between strategies — alternator-30s should be ~120/hr per book, sma 1m crossover should be much sparser.",
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10
-          },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        }
-      }
-    },
-    {
-      "id": 122,
-      "type": "barchart",
-      "title": "Fills per hour by strategy",
-      "description": "paper-trading-realism phase-7b: rate(paper_fills_total[1h]) \u00d7 3600 summed by strategy. Reveals cadence differences between strategies \u2014 alternator-30s should be ~120/hr per book, sma 1m crossover should be much sparser.",
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
         "y": 32
       },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
+      "id": 502,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        },
+        "xTickLabelMaxLength": 0,
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
+      "repeatDirection": "h",
       "targets": [
         {
-          "refId": "A",
           "expr": "sum by (strategy) (rate(paper_fills_total{strategy=~\"$strategy\"}[1h])) * 3600",
-          "legendFormat": "{{strategy}}"
+          "legendFormat": "{{strategy}}",
+          "refId": "A"
         }
       ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        }
-      }
+      "title": "Fills per hour by strategy",
+      "transparent": false,
+      "type": "barchart"
     },
     {
-      "id": 123,
-      "type": "stat",
-      "title": "Slippage tax by strategy (USD)",
-      "description": "paper-trading-realism phase-7b: |fill_price \u2212 daily_VWAP_for_book_symbol| \u00d7 quantity, summed per strategy. Approximates execution cost (no mark-at-fill column on paper_fills today; the daily-VWAP proxy is biased toward zero for symbols with few fills/day, so treat absolute values comparatively, not as ground truth). Expect alternator-30s to dominate cumulative tax purely on volume.",
-      "gridPos": {
-        "h": 4,
-        "w": 12,
-        "x": 0,
-        "y": 40
-      },
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "table",
-          "rawSql": "WITH vwap AS (  SELECT book_id, symbol,     time_bucket('1 day', time) AS trade_date,     SUM(price * quantity) / NULLIF(SUM(quantity), 0) AS vwap_px   FROM paper_fills   WHERE $__timeFilter(time) AND book_id IN ($book_id)   GROUP BY book_id, symbol, trade_date) SELECT bs.strategy AS metric,   SUM(ABS(pf.price - v.vwap_px) * pf.quantity) AS slippage_usd FROM paper_fills pf JOIN vwap v ON pf.book_id = v.book_id AND pf.symbol = v.symbol   AND time_bucket('1 day', pf.time) = v.trade_date JOIN (  SELECT DISTINCT ON (book_id) book_id, strategy  FROM paper_fills ORDER BY book_id, time DESC) bs ON pf.book_id = bs.book_id WHERE $__timeFilter(pf.time) AND pf.book_id IN ($book_id) GROUP BY bs.strategy"
-        }
-      ],
+      "description": "paper-trading-realism phase-7b: |fill_price − daily_VWAP_for_book_symbol| × quantity, summed per strategy. Approximates execution cost (no mark-at-fill column on paper_fills today; the daily-VWAP proxy is biased toward zero for symbols with few fills/day, so treat absolute values comparatively, not as ground truth). Expect alternator-30s to dominate cumulative tax purely on volume.",
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -893,50 +933,66 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "currencyUSD"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "id": 503,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
           "fields": "",
           "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "WITH vwap AS (  SELECT book_id, symbol,    time_bucket('1 day', time) AS trade_date,    SUM(price * quantity) / NULLIF(SUM(quantity), 0) AS vwap_px  FROM paper_fills  WHERE $__timeFilter(time) AND book_id IN ($book_id)  GROUP BY book_id, symbol, trade_date) SELECT bs.strategy AS metric,   SUM(ABS(pf.price - v.vwap_px) * pf.quantity) AS slippage_usd FROM paper_fills pf JOIN vwap v ON pf.book_id = v.book_id AND pf.symbol = v.symbol   AND time_bucket('1 day', pf.time) = v.trade_date JOIN (  SELECT DISTINCT ON (book_id) book_id, strategy  FROM paper_fills ORDER BY book_id, time DESC) bs ON pf.book_id = bs.book_id WHERE $__timeFilter(pf.time) AND pf.book_id IN ($book_id) GROUP BY bs.strategy",
+          "refId": "A"
         }
-      }
+      ],
+      "title": "Slippage tax by strategy (USD)",
+      "transparent": false,
+      "type": "stat"
     },
     {
-      "id": 124,
-      "type": "heatmap",
-      "title": "Realized P&L distribution by strategy",
-      "description": "paper-trading-realism phase-7b: realized_pl bucketed per strategy. Fat right tail = healthy (a few big wins carry the curve); fat left tail = concerning. Compare alternator vs sma shape, not absolute counts.",
-      "gridPos": {
-        "h": 4,
-        "w": 12,
-        "x": 12,
-        "y": 40
-      },
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "time_series",
-          "rawSql": "SELECT pf.time AS time, bs.strategy AS metric, pf.realized_pl AS value FROM paper_fills pf JOIN (  SELECT DISTINCT ON (book_id) book_id, strategy  FROM paper_fills ORDER BY book_id, time DESC) bs ON pf.book_id = bs.book_id WHERE pf.realized_pl IS NOT NULL AND $__timeFilter(pf.time)   AND pf.book_id IN ($book_id) AND bs.strategy IN ($strategy) ORDER BY pf.time"
-        }
-      ],
+      "description": "paper-trading-realism phase-7b: realized_pl bucketed per strategy. Fat right tail = healthy (a few big wins carry the curve); fat left tail = concerning. Compare alternator vs sma shape, not absolute counts.",
       "fieldConfig": {
         "defaults": {
           "unit": "short"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "id": 504,
       "options": {
         "calculate": true,
         "calculation": {
@@ -945,91 +1001,115 @@
             "value": "20"
           }
         },
+        "cellGap": 1,
+        "color": {
+          "exponent": 0,
+          "fill": "",
+          "mode": "scheme",
+          "reverse": false,
+          "scheme": "Spectral",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "selectionMode": "x",
+        "showValue": "auto",
+        "tooltip": {
+          "mode": ""
+        },
         "yAxis": {
           "unit": "currencyUSD"
-        },
-        "color": {
-          "scheme": "Spectral",
-          "mode": "scheme"
         }
-      }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "SELECT pf.time AS time, bs.strategy AS metric, pf.realized_pl AS value FROM paper_fills pf JOIN (  SELECT DISTINCT ON (book_id) book_id, strategy   FROM paper_fills ORDER BY book_id, time DESC) bs ON pf.book_id = bs.book_id WHERE pf.realized_pl IS NOT NULL AND $__timeFilter(pf.time)   AND pf.book_id IN ($book_id) AND bs.strategy IN ($strategy) ORDER BY pf.time",
+          "refId": "A"
+        }
+      ],
+      "title": "Realized P\u0026L distribution by strategy",
+      "transparent": false,
+      "type": "heatmap"
     },
     {
-      "id": 2,
-      "type": "row",
-      "title": "Account",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 44
       },
-      "collapsed": false
+      "id": 600,
+      "panels": [],
+      "title": "Account",
+      "type": "row"
     },
     {
-      "id": 3,
-      "type": "timeseries",
-      "title": "Equity curve (cash + mark) by book",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 9,
         "w": 16,
         "x": 0,
         "y": 45
       },
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "timescaledb"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "time_series",
-          "rawSql": "SELECT pc.time AS \"time\", pc.book_id AS metric, pc.cash + COALESCE(pos.equity, 0) AS equity FROM paper_cash pc LEFT JOIN (SELECT time, book_id, SUM(quantity * mark_price) AS equity FROM paper_positions GROUP BY time, book_id) pos ON pc.time = pos.time AND pc.book_id = pos.book_id WHERE $__timeFilter(pc.time) AND pc.book_id IN ($book_id) ORDER BY pc.time"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyUSD",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10
-          }
-        },
-        "overrides": []
-      },
+      "id": 601,
       "options": {
         "legend": {
+          "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
         }
-      }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "SELECT pc.time AS \"time\", pc.book_id AS metric, pc.cash + COALESCE(pos.equity, 0) AS equity FROM paper_cash pc LEFT JOIN (SELECT time, book_id, SUM(quantity * mark_price) AS equity FROM paper_positions GROUP BY time, book_id) pos ON pc.time = pos.time AND pc.book_id = pos.book_id WHERE $__timeFilter(pc.time) AND pc.book_id IN ($book_id) ORDER BY pc.time",
+          "refId": "A"
+        }
+      ],
+      "title": "Equity curve (cash + mark) by book",
+      "transparent": false,
+      "type": "timeseries"
     },
     {
-      "id": 4,
-      "type": "stat",
-      "title": "Current equity by book",
-      "description": "Latest paper_equity_usd per book (cash + sum(qty \u00d7 mark_price)). Color scale matches the per-book risk window: \u2265+5% (\u2265$10,500) green / \u00b15% gray neutral / \u22125% to \u221210% amber attention / <\u221210% (<$9,000) red \u2014 the daily max-loss guard floor sits at $500 (5% of starting cash), so coloring tracks risk, not every slippage-tax bleed.",
-      "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 16,
-        "y": 45
-      },
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "paper_equity_usd{book_id=~\"$book_id\"}",
-          "legendFormat": "{{book_id}}",
-          "instant": true
-        }
-      ],
+      "description": "Latest paper_equity_usd per book (cash + sum(qty × mark_price)). Color scale matches the per-book risk window: ≥+5% (≥$10,500) green / ±5% gray neutral / −5% to −10% amber attention / \u003c−10% (\u003c$9,000) red — the daily max-loss guard floor sits at $500 (5% of starting cash), so coloring tracks risk, not every slippage-tax bleed.",
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1050,221 +1130,261 @@
                 "value": 10500
               }
             ]
-          }
+          },
+          "unit": "currencyUSD"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 45
+      },
+      "id": 602,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
           "fields": "",
           "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "paper_equity_usd{book_id=~\"$book_id\"}",
+          "instant": true,
+          "legendFormat": "{{book_id}}",
+          "range": false,
+          "refId": "A"
         }
-      }
+      ],
+      "title": "Current equity by book",
+      "transparent": false,
+      "type": "stat"
     },
     {
-      "id": 5,
-      "type": "stat",
-      "title": "Open positions by book",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 5,
         "w": 8,
         "x": 16,
         "y": 49
       },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "paper_open_positions{book_id=~\"$book_id\"}",
-          "legendFormat": "{{book_id}}",
-          "instant": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
+      "id": 603,
       "options": {
         "colorMode": "value",
         "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
           "fields": "",
           "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "paper_open_positions{book_id=~\"$book_id\"}",
+          "instant": true,
+          "legendFormat": "{{book_id}}",
+          "range": false,
+          "refId": "A"
         }
-      }
+      ],
+      "title": "Open positions by book",
+      "transparent": false,
+      "type": "stat"
     },
     {
-      "id": 20,
-      "type": "timeseries",
-      "title": "Cumulative realized P&L by book",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
         "y": 54
       },
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "timescaledb"
+      "id": 604,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
       },
+      "repeatDirection": "h",
       "targets": [
         {
-          "refId": "A",
           "format": "time_series",
-          "rawSql": "SELECT time, book_id AS metric, SUM(realized_pl) OVER (PARTITION BY book_id ORDER BY time) AS cumulative_realized_pl FROM paper_fills WHERE realized_pl IS NOT NULL AND $__timeFilter(time) AND book_id IN ($book_id) ORDER BY time"
+          "rawSql": "SELECT time, book_id AS metric, SUM(realized_pl) OVER (PARTITION BY book_id ORDER BY time) AS cumulative_realized_pl FROM paper_fills WHERE realized_pl IS NOT NULL AND $__timeFilter(time) AND book_id IN ($book_id) ORDER BY time",
+          "refId": "A"
         }
       ],
+      "title": "Cumulative realized P\u0026L by book",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "Current drawdown from the running peak of paper_equity_usd within the visible time range. Computed in VictoriaMetrics (continuous scrape) rather than from paper_cash/paper_positions snapshots, which only emit on change and produced sparse data in the SQL version. Per series: 100 × (equity − running_max(equity)) / running_max(equity). 0% means at-or-above peak; negative values are the live drawdown.",
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10
-          },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "percent"
         },
         "overrides": []
       },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        }
-      }
-    },
-    {
-      "id": 6,
-      "type": "timeseries",
-      "title": "Drawdown % by book (peak-to-trough)",
-      "description": "Current drawdown from the running peak of paper_equity_usd within the visible time range. Computed in VictoriaMetrics (continuous scrape) rather than from paper_cash/paper_positions snapshots, which only emit on change and produced sparse data in the SQL version. Per series: 100 \u00d7 (equity \u2212 running_max(equity)) / running_max(equity). 0% means at-or-above peak; negative values are the live drawdown.",
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
         "y": 62
       },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
-      },
+      "id": 605,
+      "repeatDirection": "h",
       "targets": [
         {
-          "refId": "A",
           "expr": "100 * (paper_equity_usd{book_id=~\"$book_id\"} - running_max(paper_equity_usd{book_id=~\"$book_id\"})) / running_max(paper_equity_usd{book_id=~\"$book_id\"})",
-          "legendFormat": "{{book_id}}"
+          "legendFormat": "{{book_id}}",
+          "refId": "A"
         }
       ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10
-          },
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      }
+      "title": "Drawdown % by book (peak-to-trough)",
+      "transparent": false,
+      "type": "timeseries"
     },
     {
-      "id": 130,
-      "type": "timeseries",
-      "title": "Rolling return % by book (7d / 30d)",
-      "description": "paper-trading-realism phase-7b: compounded return over rolling windows. Series suffix `-7d` / `-30d`. Computed via daily geometric chaining over the daily-returns CTE. QTD intentionally omitted from v1 \u2014 a clean QTD requires a session-aware date-trunc that is not yet load-bearing; pencil it in for phase-7c if/when promotion windows shorten.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
+      "description": "paper-trading-realism phase-7b: compounded return over rolling windows. Series suffix `-7d` / `-30d`. Computed via daily geometric chaining over the daily-returns CTE. QTD intentionally omitted from v1 — a clean QTD requires a session-aware date-trunc that is not yet load-bearing; pencil it in for phase-7c if/when promotion windows shorten.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
         "y": 70
       },
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "timescaledb"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "time_series",
-          "rawSql": "WITH equity_ts AS (  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity  FROM paper_cash pc  LEFT JOIN (    SELECT time, book_id, SUM(quantity * mark_price) AS equity    FROM paper_positions GROUP BY time, book_id  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id  WHERE pc.book_id IN ($book_id)), daily AS (  SELECT    book_id,    time_bucket('1 day', time) AS trade_date,    FIRST(equity, time) AS sod,    LAST(equity, time)  AS eod  FROM equity_ts  GROUP BY book_id, trade_date), returns AS (  SELECT book_id, trade_date, (eod - sod) / NULLIF(sod, 0) AS ret  FROM daily) SELECT trade_date AS time, book_id || '-7d'  AS metric,   EXP(SUM(LN(1 + COALESCE(ret, 0))) OVER w7)  - 1 AS r FROM returns WINDOW w7  AS (PARTITION BY book_id ORDER BY trade_date                ROWS BETWEEN 6  PRECEDING AND CURRENT ROW) UNION ALL WITH equity_ts AS (  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity  FROM paper_cash pc  LEFT JOIN (    SELECT time, book_id, SUM(quantity * mark_price) AS equity    FROM paper_positions GROUP BY time, book_id  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id  WHERE pc.book_id IN ($book_id)), daily AS (  SELECT    book_id,    time_bucket('1 day', time) AS trade_date,    FIRST(equity, time) AS sod,    LAST(equity, time)  AS eod  FROM equity_ts  GROUP BY book_id, trade_date), returns AS (  SELECT book_id, trade_date, (eod - sod) / NULLIF(sod, 0) AS ret  FROM daily) SELECT trade_date AS time, book_id || '-30d' AS metric,   EXP(SUM(LN(1 + COALESCE(ret, 0))) OVER w30) - 1 AS r FROM returns WINDOW w30 AS (PARTITION BY book_id ORDER BY trade_date                ROWS BETWEEN 29 PRECEDING AND CURRENT ROW) ORDER BY time"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10
-          },
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
+      "id": 606,
       "options": {
         "legend": {
+          "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
         }
-      }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "WITH equity_ts AS (  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity  FROM paper_cash pc  LEFT JOIN (    SELECT time, book_id, SUM(quantity * mark_price) AS equity    FROM paper_positions GROUP BY time, book_id  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id  WHERE pc.book_id IN ($book_id)), daily AS (  SELECT    book_id,    time_bucket('1 day', time) AS trade_date,    FIRST(equity, time) AS sod,    LAST(equity, time)  AS eod  FROM equity_ts  GROUP BY book_id, trade_date), returns AS (  SELECT book_id, trade_date, (eod - sod) / NULLIF(sod, 0) AS ret  FROM daily) SELECT trade_date AS time, book_id || '-7d'  AS metric,   EXP(SUM(LN(1 + COALESCE(ret, 0))) OVER w7)  - 1 AS r FROM returns WINDOW w7  AS (PARTITION BY book_id ORDER BY trade_date                ROWS BETWEEN 6  PRECEDING AND CURRENT ROW) UNION ALL WITH equity_ts AS (  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity  FROM paper_cash pc  LEFT JOIN (    SELECT time, book_id, SUM(quantity * mark_price) AS equity    FROM paper_positions GROUP BY time, book_id  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id  WHERE pc.book_id IN ($book_id)), daily AS (  SELECT    book_id,    time_bucket('1 day', time) AS trade_date,    FIRST(equity, time) AS sod,    LAST(equity, time)  AS eod  FROM equity_ts  GROUP BY book_id, trade_date), returns AS (  SELECT book_id, trade_date, (eod - sod) / NULLIF(sod, 0) AS ret  FROM daily) SELECT trade_date AS time, book_id || '-30d' AS metric,   EXP(SUM(LN(1 + COALESCE(ret, 0))) OVER w30) - 1 AS r FROM returns WINDOW w30 AS (PARTITION BY book_id ORDER BY trade_date                ROWS BETWEEN 29 PRECEDING AND CURRENT ROW) ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Rolling return % by book (7d / 30d)",
+      "transparent": false,
+      "type": "timeseries"
     },
     {
-      "id": 7,
-      "type": "row",
-      "title": "Positions & trades",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 78
       },
-      "collapsed": false
+      "id": 700,
+      "panels": [],
+      "title": "Positions \u0026 trades",
+      "type": "row"
     },
     {
-      "id": 8,
-      "type": "table",
-      "title": "Live positions",
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 79
-      },
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "table",
-          "rawSql": "SELECT DISTINCT ON (book_id, symbol) book_id, symbol, quantity, avg_price, mark_price, unrealized_pl FROM paper_positions WHERE symbol IN ($symbol) AND book_id IN ($book_id) AND quantity != 0 ORDER BY book_id, symbol, time DESC"
-        }
-      ],
       "fieldConfig": {
         "defaults": {
           "custom": {
-            "align": "right"
+            "align": "right",
+            "inspect": false
           }
         },
         "overrides": [
@@ -1327,33 +1447,36 @@
             ]
           }
         ]
-      }
-    },
-    {
-      "id": 9,
-      "type": "table",
-      "title": "Trade log (last 50 fills)",
+      },
       "gridPos": {
         "h": 7,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 79
       },
+      "id": 701,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT DISTINCT ON (book_id, symbol) book_id, symbol, quantity, avg_price, mark_price, unrealized_pl FROM paper_positions WHERE symbol IN ($symbol) AND book_id IN ($book_id) AND quantity != 0 ORDER BY book_id, symbol, time DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Live positions",
+      "transparent": false,
+      "type": "table"
+    },
+    {
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "table",
-          "rawSql": "SELECT time, book_id, symbol, side, quantity, price, strategy FROM paper_fills WHERE symbol IN ($symbol) AND strategy IN ($strategy) AND book_id IN ($book_id) ORDER BY time DESC LIMIT 50"
-        }
-      ],
       "fieldConfig": {
         "defaults": {
           "custom": {
-            "align": "right"
+            "align": "right",
+            "inspect": false
           }
         },
         "overrides": [
@@ -1370,211 +1493,247 @@
             ]
           }
         ]
-      }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 79
+      },
+      "id": 702,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT time, book_id, symbol, side, quantity, price, strategy FROM paper_fills WHERE symbol IN ($symbol) AND strategy IN ($strategy) AND book_id IN ($book_id) ORDER BY time DESC LIMIT 50",
+          "refId": "A"
+        }
+      ],
+      "title": "Trade log (last 50 fills)",
+      "transparent": false,
+      "type": "table"
     },
     {
-      "id": 10,
-      "type": "row",
-      "title": "Activity",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 86
       },
-      "collapsed": false
+      "id": 800,
+      "panels": [],
+      "title": "Activity",
+      "type": "row"
     },
     {
-      "id": 11,
-      "type": "stat",
-      "title": "Total fills",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
       "description": "Count of paper_fills rows across all selected books / symbols / strategies in the current time range. A \"fill\" is one executed leg; a single OrderRequest produces one fill in v1 (market-only, single-leg). Retries dedup via ClientOrderID so a visible growth of this counter represents new work, not retried work.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 0,
         "y": 87
       },
+      "id": 801,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS total FROM paper_fills WHERE $__timeFilter(time) AND strategy IN ($strategy) AND book_id IN ($book_id)",
+          "refId": "A"
+        }
+      ],
+      "title": "Total fills",
+      "transparent": false,
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "table",
-          "rawSql": "SELECT COUNT(*) AS total FROM paper_fills WHERE $__timeFilter(time) AND strategy IN ($strategy) AND book_id IN ($book_id)"
-        }
-      ],
+      "description": "Subset of Total fills where side=BUY. Should roughly equal Sells over a mature trading session; a sustained Buys \u003e Sells gap means strategies are accumulating inventory (expected for SMA during an uptrend, suspicious for alternator).",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "fixedColor": "green",
+            "mode": "fixed"
+          },
           "unit": "short"
         },
         "overrides": []
-      }
-    },
-    {
-      "id": 12,
-      "type": "stat",
-      "title": "Buys",
-      "description": "Subset of Total fills where side=BUY. Should roughly equal Sells over a mature trading session; a sustained Buys > Sells gap means strategies are accumulating inventory (expected for SMA during an uptrend, suspicious for alternator).",
+      },
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 6,
         "y": 87
       },
+      "id": 802,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS buys FROM paper_fills WHERE side = 'BUY' AND $__timeFilter(time) AND strategy IN ($strategy) AND book_id IN ($book_id)",
+          "refId": "A"
+        }
+      ],
+      "title": "Buys",
+      "transparent": false,
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "table",
-          "rawSql": "SELECT COUNT(*) AS buys FROM paper_fills WHERE side = 'BUY' AND $__timeFilter(time) AND strategy IN ($strategy) AND book_id IN ($book_id)"
-        }
-      ],
+      "description": "Subset of Total fills where side=SELL. SELLs carry non-NULL realized_pl (unlike BUYs); the Cumulative realized P\u0026L panel aggregates them.",
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
           "color": {
-            "mode": "fixed",
-            "fixedColor": "green"
-          }
+            "fixedColor": "orange",
+            "mode": "fixed"
+          },
+          "unit": "short"
         },
         "overrides": []
-      }
-    },
-    {
-      "id": 13,
-      "type": "stat",
-      "title": "Sells",
-      "description": "Subset of Total fills where side=SELL. SELLs carry non-NULL realized_pl (unlike BUYs); the Cumulative realized P&L panel aggregates them.",
+      },
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 12,
         "y": 87
       },
+      "id": 803,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS sells FROM paper_fills WHERE side = 'SELL' AND $__timeFilter(time) AND strategy IN ($strategy) AND book_id IN ($book_id)",
+          "refId": "A"
+        }
+      ],
+      "title": "Sells",
+      "transparent": false,
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "table",
-          "rawSql": "SELECT COUNT(*) AS sells FROM paper_fills WHERE side = 'SELL' AND $__timeFilter(time) AND strategy IN ($strategy) AND book_id IN ($book_id)"
-        }
-      ],
+      "description": "sum(quantity × price) across all fills in the time range. A rough measure of capital turnover — high notional on a low-cash book means the book is churning (buying + selling rapidly), which usually means slippage tax is the dominant P\u0026L driver.",
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "orange"
-          }
+          "unit": "currencyUSD"
         },
         "overrides": []
-      }
-    },
-    {
-      "id": 14,
-      "type": "stat",
-      "title": "Notional traded",
-      "description": "sum(quantity \u00d7 price) across all fills in the time range. A rough measure of capital turnover \u2014 high notional on a low-cash book means the book is churning (buying + selling rapidly), which usually means slippage tax is the dominant P&L driver.",
+      },
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 18,
         "y": 87
       },
+      "id": 804,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT SUM(quantity * price) AS notional FROM paper_fills WHERE $__timeFilter(time) AND strategy IN ($strategy) AND book_id IN ($book_id)",
+          "refId": "A"
+        }
+      ],
+      "title": "Notional traded",
+      "transparent": false,
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "format": "table",
-          "rawSql": "SELECT SUM(quantity * price) AS notional FROM paper_fills WHERE $__timeFilter(time) AND strategy IN ($strategy) AND book_id IN ($book_id)"
-        }
-      ],
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD"
         },
         "overrides": []
-      }
-    },
-    {
-      "id": 15,
-      "type": "barchart",
-      "title": "By-strategy notional",
+      },
       "gridPos": {
         "h": 6,
         "w": 24,
         "x": 0,
         "y": 91
       },
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "timescaledb"
+      "id": 805,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        },
+        "xField": "strategy",
+        "xTickLabelMaxLength": 0,
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
+      "repeatDirection": "h",
       "targets": [
         {
-          "refId": "A",
           "format": "table",
-          "rawSql": "SELECT strategy, SUM(quantity * price) AS notional FROM paper_fills WHERE $__timeFilter(time) AND book_id IN ($book_id) GROUP BY strategy ORDER BY notional DESC"
+          "rawSql": "SELECT strategy, SUM(quantity * price) AS notional FROM paper_fills WHERE $__timeFilter(time) AND book_id IN ($book_id) GROUP BY strategy ORDER BY notional DESC",
+          "refId": "A"
         }
       ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "options": {
-        "xField": "strategy"
-      }
+      "title": "By-strategy notional",
+      "transparent": false,
+      "type": "barchart"
     },
     {
-      "id": 16,
-      "type": "row",
-      "title": "Simulator health",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 97
       },
-      "collapsed": false
+      "id": 900,
+      "panels": [],
+      "title": "Simulator health",
+      "type": "row"
     },
     {
-      "id": 17,
-      "type": "timeseries",
-      "title": "Quote age per symbol",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 98
-      },
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "time() - paper_quote_last_update_timestamp_seconds",
-          "legendFormat": "{{symbol}}"
-        }
-      ],
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
             "lineWidth": 1
           },
@@ -1594,35 +1753,37 @@
                 "value": 30
               }
             ]
-          }
+          },
+          "unit": "s"
         },
         "overrides": []
-      }
-    },
-    {
-      "id": 18,
-      "type": "timeseries",
-      "title": "NATS dropped messages (rate/5m)",
+      },
       "gridPos": {
         "h": 8,
         "w": 8,
-        "x": 8,
+        "x": 0,
         "y": 98
       },
+      "id": 901,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "time() - paper_quote_last_update_timestamp_seconds",
+          "legendFormat": "{{symbol}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Quote age per symbol",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "rate(paper_nats_dropped_messages_total[5m])",
-          "legendFormat": "drops/s"
-        }
-      ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1635,35 +1796,37 @@
                 "value": 0.001
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
-      }
-    },
-    {
-      "id": 19,
-      "type": "timeseries",
-      "title": "Fill persist p99 latency",
+      },
       "gridPos": {
         "h": 8,
         "w": 8,
-        "x": 16,
+        "x": 8,
         "y": 98
       },
+      "id": 902,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "rate(paper_nats_dropped_messages_total[5m])",
+          "legendFormat": "drops/s",
+          "refId": "A"
+        }
+      ],
+      "title": "NATS dropped messages (rate/5m)",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "histogram_quantile(0.99, sum(rate(paper_fill_persist_duration_seconds_bucket[5m])) by (le))",
-          "legendFormat": "p99"
-        }
-      ],
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1680,319 +1843,390 @@
                 "value": 1
               }
             ]
-          }
+          },
+          "unit": "s"
         },
         "overrides": []
-      }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 98
+      },
+      "id": 903,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(paper_fill_persist_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99",
+          "refId": "A"
+        }
+      ],
+      "title": "Fill persist p99 latency",
+      "transparent": false,
+      "type": "timeseries"
     },
     {
-      "id": 20,
-      "type": "row",
-      "title": "Execution quality",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 106
       },
-      "collapsed": false
+      "id": 1000,
+      "panels": [],
+      "title": "Execution quality",
+      "type": "row"
     },
     {
-      "id": 21,
-      "type": "timeseries",
-      "title": "Market-closed rejects by book (rate/5m)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
       "description": "paper-trading-realism phase-2: orders refused by the session gate (config books[].session). Non-zero off-hours is desired steady state for session=regular; non-zero during market hours = holiday calendar stale or clock wrong.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 0,
         "y": 107
       },
+      "id": 1001,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "rate(paper_market_closed_rejects_total{book_id=~\"$book_id\"}[5m])",
+          "legendFormat": "{{book_id}} / {{strategy}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Market-closed rejects by book (rate/5m)",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "rate(paper_market_closed_rejects_total{book_id=~\"$book_id\"}[5m])",
-          "legendFormat": "{{book_id}} / {{strategy}}"
-        }
-      ],
+      "description": "paper-trading-realism phase-2: observed (ask-bid)/mid in bps at fill time. Heatmap Y-axis is bucket upper bound, value = rate(_bucket[5m]). Wide distribution = material mid-fill bias; phase-4 replaces mid±5bps with ask-on-BUY / bid-on-SELL.",
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "palette-classic"
+          "custom": {
+            "scaleDistribution": {
+              "log": 10,
+              "type": "log"
+            }
           }
         },
         "overrides": []
-      }
-    },
-    {
-      "id": 22,
-      "type": "heatmap",
-      "title": "Fill spread distribution (bps) \u2014 all symbols",
-      "description": "paper-trading-realism phase-2: observed (ask-bid)/mid in bps at fill time. Heatmap Y-axis is bucket upper bound, value = rate(_bucket[5m]). Wide distribution = material mid-fill bias; phase-4 replaces mid\u00b15bps with ask-on-BUY / bid-on-SELL.",
+      },
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 8,
         "y": 107
       },
+      "id": 1002,
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "reverse": false,
+          "scheme": "Oranges",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "selectionMode": "x",
+        "showValue": "auto",
+        "tooltip": {
+          "mode": ""
+        },
+        "yAxis": {
+          "unit": "short"
+        }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum by (le) (rate(paper_fill_spread_bps_bucket{book_id=~\"$book_id\",symbol=~\"$symbol\"}[5m]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fill spread distribution (bps) — all symbols",
+      "transparent": false,
+      "type": "heatmap"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (le) (rate(paper_fill_spread_bps_bucket{book_id=~\"$book_id\",symbol=~\"$symbol\"}[5m]))",
-          "legendFormat": "{{le}}",
-          "format": "heatmap"
-        }
-      ],
-      "options": {
-        "yAxis": {
-          "unit": "short"
-        },
-        "calculate": false
-      },
+      "description": "paper-trading-realism phase-2: per-book spread quantiles. P50 \u003c10bps on liquid names is expected; P95 spikes indicate thin-name or off-hours exposure that phase-4's ask/bid fill model will make material.",
       "fieldConfig": {
         "defaults": {
-          "custom": {
-            "scaleDistribution": {
-              "type": "log",
-              "log": 10
-            }
-          }
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
         },
         "overrides": []
-      }
-    },
-    {
-      "id": 23,
-      "type": "timeseries",
-      "title": "Fill spread P50 / P95 / P99 by book (bps, 15m)",
-      "description": "paper-trading-realism phase-2: per-book spread quantiles. P50 <10bps on liquid names is expected; P95 spikes indicate thin-name or off-hours exposure that phase-4's ask/bid fill model will make material.",
+      },
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 16,
         "y": 107
       },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
-      },
+      "id": 1003,
+      "repeatDirection": "h",
       "targets": [
         {
-          "refId": "A",
           "expr": "histogram_quantile(0.50, sum by (le, book_id) (rate(paper_fill_spread_bps_bucket{book_id=~\"$book_id\"}[15m])))",
-          "legendFormat": "P50 {{book_id}}"
+          "legendFormat": "P50 {{book_id}}",
+          "refId": "A"
         },
         {
-          "refId": "B",
           "expr": "histogram_quantile(0.95, sum by (le, book_id) (rate(paper_fill_spread_bps_bucket{book_id=~\"$book_id\"}[15m])))",
-          "legendFormat": "P95 {{book_id}}"
+          "legendFormat": "P95 {{book_id}}",
+          "refId": "B"
         },
         {
-          "refId": "C",
           "expr": "histogram_quantile(0.99, sum by (le, book_id) (rate(paper_fill_spread_bps_bucket{book_id=~\"$book_id\"}[15m])))",
-          "legendFormat": "P99 {{book_id}}"
+          "legendFormat": "P99 {{book_id}}",
+          "refId": "C"
         }
       ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      }
+      "title": "Fill spread P50 / P95 / P99 by book (bps, 15m)",
+      "transparent": false,
+      "type": "timeseries"
     },
     {
-      "id": 27,
-      "type": "row",
-      "title": "Fill realism",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 115
       },
-      "collapsed": false
+      "id": 1100,
+      "panels": [],
+      "title": "Fill realism",
+      "type": "row"
     },
     {
-      "id": 28,
-      "type": "timeseries",
-      "title": "Fill-price advantage lost (bps) \u2014 P50 / P95 by book (15m)",
-      "description": "paper-trading-realism phase-4: per-book quantiles of paper_mid_fill_bias_bps = signed (new ask/bid fill - old mid \u00b1 5bps fill) / mid * 10_000. Positive = the phase-4 model costs the book MORE than the pre-phase-4 model would have (you now pay the real spread). Expected P50 ~= (spread_bps - 10)/2 per symbol: if P50 spread was 12bps, P50 bias should be ~1bps; if P50 spread was 5bps, P50 bias should be slightly negative (rare \u2014 phase-4 is cheaper than legacy only when half-spread < 5bps).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-4: per-book quantiles of paper_mid_fill_bias_bps = signed (new ask/bid fill - old mid ± 5bps fill) / mid * 10_000. Positive = the phase-4 model costs the book MORE than the pre-phase-4 model would have (you now pay the real spread). Expected P50 ~= (spread_bps - 10)/2 per symbol: if P50 spread was 12bps, P50 bias should be ~1bps; if P50 spread was 5bps, P50 bias should be slightly negative (rare — phase-4 is cheaper than legacy only when half-spread \u003c 5bps).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
         "y": 116
       },
+      "id": 1101,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, book_id) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\"}[15m])))",
+          "legendFormat": "P50 {{book_id}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, book_id) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\"}[15m])))",
+          "legendFormat": "P95 {{book_id}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Fill-price advantage lost (bps) — P50 / P95 by book (15m)",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "histogram_quantile(0.50, sum by (le, book_id) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\"}[15m])))",
-          "legendFormat": "P50 {{book_id}}"
-        },
-        {
-          "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le, book_id) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\"}[15m])))",
-          "legendFormat": "P95 {{book_id}}"
-        }
-      ],
+      "description": "paper-trading-realism phase-4: heatmap of paper_mid_fill_bias_bps across every (book, symbol). Y-axis is bucket upper bound in bps. Mass concentrated right of 0 = phase-4 routinely costs more than the pre-phase-4 proxy (expected on thin / off-hours names). Mass left of 0 = the old model was a tax, not a gift (rare). Empty panel = not enough fills to populate the histogram yet; check again after a full session.",
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "palette-classic"
+          "custom": {
+            "scaleDistribution": {
+              "log": 10,
+              "type": "log"
+            }
           }
         },
         "overrides": []
-      }
-    },
-    {
-      "id": 29,
-      "type": "heatmap",
-      "title": "Fill-price advantage lost (bps) \u2014 distribution all books",
-      "description": "paper-trading-realism phase-4: heatmap of paper_mid_fill_bias_bps across every (book, symbol). Y-axis is bucket upper bound in bps. Mass concentrated right of 0 = phase-4 routinely costs more than the pre-phase-4 proxy (expected on thin / off-hours names). Mass left of 0 = the old model was a tax, not a gift (rare). Empty panel = not enough fills to populate the histogram yet; check again after a full session.",
+      },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
         "y": 116
       },
+      "id": 1102,
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "reverse": false,
+          "scheme": "Oranges",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "selectionMode": "x",
+        "showValue": "auto",
+        "tooltip": {
+          "mode": ""
+        },
+        "yAxis": {
+          "unit": "short"
+        }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum by (le) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\",symbol=~\"$symbol\"}[5m]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fill-price advantage lost (bps) — distribution all books",
+      "transparent": false,
+      "type": "heatmap"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (le) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\",symbol=~\"$symbol\"}[5m]))",
-          "legendFormat": "{{le}}",
-          "format": "heatmap"
-        }
-      ],
-      "options": {
-        "yAxis": {
-          "unit": "short"
-        },
-        "calculate": false
-      },
+      "description": "paper-trading-realism phase-7b: paper_slippage_vs_decision_bps — signed bps between fill price and the decision-time mid. Positive = book paid more (BUY) / received less (SELL) than the strategy's signal-time view of the market. Captures latency drift + half-spread + slippage cushion in one number — distinct from the existing `Fill-price advantage lost` heatmap (which compares pricing models). Heatmap with cumulative-le buckets. Populates only after the next paper-trader image rolls (the metric is new in this phase; pre-rollout the panel will be empty).",
       "fieldConfig": {
         "defaults": {
           "custom": {
             "scaleDistribution": {
-              "type": "log",
-              "log": 10
+              "type": "linear"
             }
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
-      }
-    },
-    {
-      "id": 140,
-      "type": "heatmap",
-      "title": "Slippage vs decision-time mid (bps)",
-      "description": "paper-trading-realism phase-7b: paper_slippage_vs_decision_bps \u2014 signed bps between fill price and the decision-time mid. Positive = book paid more (BUY) / received less (SELL) than the strategy's signal-time view of the market. Captures latency drift + half-spread + slippage cushion in one number \u2014 distinct from the existing `Fill-price advantage lost` heatmap (which compares pricing models). Heatmap with cumulative-le buckets. Populates only after the next paper-trader image rolls (the metric is new in this phase; pre-rollout the panel will be empty).",
+      },
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
         "y": 124
       },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (le) (rate(paper_slippage_vs_decision_bps_bucket[$__rate_interval]))",
-          "format": "heatmap",
-          "legendFormat": "{{le}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "scaleDistribution": {
-              "type": "linear"
-            }
-          }
-        },
-        "overrides": []
-      },
+      "id": 1103,
       "options": {
         "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "exponent": 0,
+          "fill": "",
+          "mode": "scheme",
+          "reverse": false,
+          "scheme": "Spectral",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "selectionMode": "x",
+        "showValue": "auto",
+        "tooltip": {
+          "mode": ""
+        },
         "yAxis": {
           "unit": "short"
-        },
-        "color": {
-          "scheme": "Spectral",
-          "mode": "scheme"
         }
-      }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum by (le) (rate(paper_slippage_vs_decision_bps_bucket[$__rate_interval]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Slippage vs decision-time mid (bps)",
+      "transparent": false,
+      "type": "heatmap"
     },
     {
-      "id": 24,
-      "type": "row",
-      "title": "Hygiene",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 132
       },
-      "collapsed": false
+      "id": 1200,
+      "panels": [],
+      "title": "Hygiene",
+      "type": "row"
     },
     {
-      "id": 25,
-      "type": "stat",
-      "title": "Orphaned position $ (all books)",
-      "description": "paper-trading-realism phase-3: sum of paper_orphaned_position_usd across every (book, symbol). Non-zero = a book holds inventory the strategy will never close; operator must reconcile manually. Green = healthy, red = intervention required.",
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 0,
-        "y": 133
-      },
       "datasource": {
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(paper_orphaned_position_usd{book_id=~\"$book_id\"}) or vector(0)",
-          "instant": true
-        }
-      ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "colorMode": "background",
-        "graphMode": "none"
-      },
+      "description": "paper-trading-realism phase-3: sum of paper_orphaned_position_usd across every (book, symbol). Non-zero = a book holds inventory the strategy will never close; operator must reconcile manually. Green = healthy, red = intervention required.",
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -2005,34 +2239,96 @@
                 "value": 0.01
               }
             ]
-          }
+          },
+          "unit": "currencyUSD"
         },
         "overrides": []
-      }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 133
+      },
+      "id": 1201,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum(paper_orphaned_position_usd{book_id=~\"$book_id\"}) or vector(0)",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Orphaned position $ (all books)",
+      "transparent": false,
+      "type": "stat"
     },
     {
-      "id": 26,
-      "type": "table",
-      "title": "Orphaned positions by (book, symbol)",
-      "description": "paper-trading-realism phase-3: one row per (book, symbol) where the strategy no longer trades the symbol but the position map still holds inventory. MarkValue = qty \u00d7 current_mid from the adapter's cached quote. Empty table = healthy.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-3: one row per (book, symbol) where the strategy no longer trades the symbol but the position map still holds inventory. MarkValue = qty × current_mid from the adapter's cached quote. Empty table = healthy.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MarkValue (USD)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "custom.align",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
       "gridPos": {
         "h": 7,
         "w": 16,
         "x": 8,
         "y": 133
       },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
-      },
+      "id": 1202,
+      "repeatDirection": "h",
       "targets": [
         {
-          "refId": "A",
           "expr": "paper_orphaned_position_usd{book_id=~\"$book_id\"}",
+          "format": "table",
           "instant": true,
-          "format": "table"
+          "range": false,
+          "refId": "A"
         }
       ],
+      "title": "Orphaned positions by (book, symbol)",
       "transformations": [
         {
           "id": "organize",
@@ -2055,32 +2351,75 @@
           }
         }
       ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "left"
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "MarkValue (USD)"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "currencyUSD"
-              },
-              {
-                "id": "custom.align",
-                "value": "right"
-              }
-            ]
-          }
-        ]
-      }
+      "transparent": false,
+      "type": "table"
     }
   ],
-  "description": "Paper-trading sandbox dashboard. See workstreams/paper-trading-realism/briefs/research-platform-architecture.md and workstreams/paper-trading-realism/briefs/sandbox-live-separation.md for what `research-grade` means here, and the phase-7b retro for decisions behind the row layout (KPI strip on top, strategy-quality and strategy-comparison rows for promotion-decision support)."
+  "refresh": "30s",
+  "schemaVersion": 42,
+  "tags": [
+    "paper-trading"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": true,
+        "auto": false,
+        "auto_count": 30,
+        "auto_min": "10s",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "timescaledb"
+        },
+        "includeAll": true,
+        "multi": true,
+        "name": "book_id",
+        "query": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills WHERE time \u003e NOW() - INTERVAL '7 days' UNION SELECT book_id FROM paper_cash WHERE time \u003e NOW() - INTERVAL '7 days') sub ORDER BY book_id",
+        "refresh": 1,
+        "skipUrlSync": false,
+        "type": "query"
+      },
+      {
+        "allowCustomValue": true,
+        "auto": false,
+        "auto_count": 30,
+        "auto_min": "10s",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "timescaledb"
+        },
+        "includeAll": true,
+        "multi": true,
+        "name": "symbol",
+        "query": "SELECT DISTINCT symbol FROM paper_positions ORDER BY symbol",
+        "refresh": 1,
+        "skipUrlSync": false,
+        "type": "query"
+      },
+      {
+        "allowCustomValue": true,
+        "auto": false,
+        "auto_count": 30,
+        "auto_min": "10s",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "timescaledb"
+        },
+        "includeAll": true,
+        "multi": true,
+        "name": "strategy",
+        "query": "SELECT DISTINCT strategy FROM paper_fills ORDER BY strategy",
+        "refresh": 1,
+        "skipUrlSync": false,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Paper Trading",
+  "uid": "paper-trading"
 }

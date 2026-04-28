@@ -174,17 +174,71 @@ dashboards as siblings without restructuring `common/`.
 | Phase | Deliverable | Status |
 | --- | --- | --- |
 | **7e1** | Go skeleton + 7-panel vertical slice exercising every panel type + CI determinism gate + this doc | **shipped** |
-| **7e2** | Port remaining 38 panels, deterministic ID renumbering, cluster validation, `paper-trading.json` cutover, CI drift gate flipped on, `phase-7b-dashboard-upgrade.py` deleted | queued |
+| **7e2** | Port remaining 38 panels, deterministic ID renumbering, `paper-trading.json` cutover, CI drift gate flipped on, `phase-7b-dashboard-upgrade.py` deleted | **shipped** |
 
-7e2 will:
+## Panel ID renumbering (7e2)
 
-1. Renumber all panel IDs to `row_index * 100 + child_index` to fix the
-   duplicate-id-20 bug that exists in the phase-7b JSON.
-2. Add a CI step to `validate-dashboards.yml` that runs `bash
-   scripts/dashboards/build.sh && git diff --exit-code k8s/apps/schwab/go-paper-trader/files/paper-trading.json`.
-3. Validate cluster render via port-forward + Import-as-preview before
-   PR.
-4. Delete `scripts/phase-7b-dashboard-upgrade.py`.
+7e2 renumbered every panel ID to `row_index * 100 + child_index_within_row`,
+which (a) self-documents row layout from the panel ID alone and
+(b) resolves the duplicate id=20 carried over from phase-7b (one
+panel + one row both at id=20). The banner stays at `id=1`.
+
+Old → new mapping (for anyone holding URL bookmarks):
+
+| Old | New | Title |
+| ---:| ---:| --- |
+| 1 | 1 | banner |
+| 100 | 200 | _row_ Summary (at-a-glance) |
+| 101 | 201 | Equity vs starting cash |
+| 102 | 202 | Today P&L per book |
+| 103 | 203 | Max drawdown (session) |
+| 104 | 204 | Win rate per book |
+| 30 | 300 | _row_ Risk |
+| 31 | 301 | Daily P&L per book (USD, UTC day) |
+| 32 | 302 | Books halted (today) |
+| 33 | 303 | Halt reject rate per book (5m) |
+| 34 | 304 | Daily loss limit per book |
+| 110 | 400 | _row_ Strategy quality |
+| 111 | 401 | Sharpe ratio (30d rolling) |
+| 112 | 402 | Sortino ratio (30d rolling) |
+| 113 | 403 | Profit factor |
+| 114 | 404 | Avg win / Avg loss (per day) |
+| 120 | 500 | _row_ Strategy comparison |
+| 121 | 501 | Equity by strategy |
+| 122 | 502 | Fills per hour by strategy |
+| 123 | 503 | Slippage tax by strategy (USD) |
+| 124 | 504 | Realized P&L distribution by strategy |
+| 2 | 600 | _row_ Account |
+| 3 | 601 | Equity curve (cash + mark) by book |
+| 4 | 602 | Current equity by book |
+| 5 | 603 | Open positions by book |
+| 20 (timeseries) | 604 | Cumulative realized P&L by book |
+| 6 | 605 | Drawdown % by book (peak-to-trough) |
+| 130 | 606 | Rolling return % by book (7d / 30d) |
+| 7 | 700 | _row_ Positions & trades |
+| 8 | 701 | Live positions |
+| 9 | 702 | Trade log (last 50 fills) |
+| 10 | 800 | _row_ Activity |
+| 11 | 801 | Total fills |
+| 12 | 802 | Buys |
+| 13 | 803 | Sells |
+| 14 | 804 | Notional traded |
+| 15 | 805 | By-strategy notional |
+| 16 | 900 | _row_ Simulator health |
+| 17 | 901 | Quote age per symbol |
+| 18 | 902 | NATS dropped messages (rate/5m) |
+| 19 | 903 | Fill persist p99 latency |
+| 20 (row) | 1000 | _row_ Execution quality |
+| 21 | 1001 | Market-closed rejects by book |
+| 22 | 1002 | Fill spread distribution (bps) |
+| 23 | 1003 | Fill spread P50 / P95 / P99 by book |
+| 27 | 1100 | _row_ Fill realism |
+| 28 | 1101 | Fill-price advantage lost — P50 / P95 |
+| 29 | 1102 | Fill-price advantage lost — distribution |
+| 140 | 1103 | Slippage vs decision-time mid (bps) |
+| 24 | 1200 | _row_ Hygiene |
+| 25 | 1201 | Orphaned position $ (all books) |
+| 26 | 1202 | Orphaned positions by (book, symbol) |
 
 ## Known limitations
 

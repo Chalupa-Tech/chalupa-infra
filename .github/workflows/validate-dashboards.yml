@@ -1,15 +1,13 @@
-# Phase 7e safety: scripts/dashboards/ is the source of truth for the
-# paper-trading dashboard. Production JSON at
+# scripts/dashboards/ is the source of truth for the paper-trading
+# dashboard. Production JSON at
 # k8s/apps/schwab/go-paper-trader/files/paper-trading.json is a
 # generated artifact. This workflow:
 #   1. Compiles the Go module.
 #   2. Builds twice and verifies byte-identical output (determinism).
-#   3. (7e2) Re-runs build.sh and asserts no drift against the
-#      committed JSON.
-#
-# 7e1 ships only the determinism check; the drift check lights up in
-# 7e2 once the full 52-panel port lands and we regenerate the
-# committed JSON.
+#   3. Re-runs build.sh and asserts no drift between source-rendered
+#      output and the committed JSON. A PR that hand-edits the JSON
+#      without updating Go sources fails this step; a PR that updates
+#      Go sources without re-running build.sh also fails.
 name: Validate Dashboards
 
 on:
@@ -53,3 +51,14 @@ jobs:
             exit 1
           fi
           echo "Renders are byte-identical ($(wc -l < /tmp/render1.json) lines)."
+
+      - name: Assert no drift between source and rendered JSON
+        run: |
+          set -euo pipefail
+          bash scripts/dashboards/build.sh
+          if ! git diff --exit-code k8s/apps/schwab/go-paper-trader/files/paper-trading.json; then
+            echo "::error::scripts/dashboards/ source and committed paper-trading.json are out of sync."
+            echo "::error::Run \`bash scripts/dashboards/build.sh\` and commit the regenerated JSON."
+            exit 1
+          fi
+          echo "Source and committed JSON are in sync."
