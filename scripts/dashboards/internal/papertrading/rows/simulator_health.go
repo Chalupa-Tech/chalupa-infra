@@ -58,7 +58,11 @@ func natsDroppedMessages(y int) *timeseries.PanelBuilder {
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().
 			RefId("A").
-			Expr(`rate(paper_nats_dropped_messages_total[5m])`).
+			// `or vector(0)` ensures the panel renders a flat green line at
+			// 0 when the counter has never incremented (steady state).
+			// Without this, an empty timeseries is ambiguous to operators —
+			// "panel broken" vs "no drops". Aligns with panels 302/1201.
+			Expr(`rate(paper_nats_dropped_messages_total[5m]) or vector(0)`).
 			LegendFormat("drops/s")).
 		Unit("short").
 		Thresholds(dashboard.NewThresholdsConfigBuilder().

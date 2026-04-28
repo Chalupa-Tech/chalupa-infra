@@ -300,6 +300,9 @@
           "custom": {
             "fillOpacity": 10,
             "lineWidth": 2
+          },
+          "color": {
+            "mode": "palette-classic"
           }
         }
       }
@@ -330,6 +333,9 @@
             "stacking": {
               "mode": "normal"
             }
+          },
+          "color": {
+            "mode": "palette-classic"
           }
         }
       }
