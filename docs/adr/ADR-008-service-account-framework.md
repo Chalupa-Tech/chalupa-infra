@@ -131,6 +131,30 @@ stakater/reloader is the community-consensus answer for "rotated
 secret triggers pod restart," but without an in-cluster SA consumer
 today it has no user. Revisit when the first agent lands.
 
+### D6. SQLite persistence enabled (added 2026-04-28, session 126)
+
+D3's "reset admin from env on every boot" is **scoped to admin credentials only**.
+The original framework assumed all other Grafana SQLite state could be ephemeral too — that was wrong.
+Service accounts, UI-saved dashboards, folders, alerts, annotations, and user prefs all live in SQLite, and none of them have an env-var equivalent that Grafana re-asserts on boot.
+Pod restart from any cause (helm upgrade, OOM, node reboot) wiped them silently.
+
+This surfaced when phase-1 (Image Renderer install) bumped the chart, which rolled the Grafana pod, which wiped the `claude-desktop` SA out of SQLite.
+The OpenBao token then pointed at a SA-id that no longer existed; mcp-grafana's Bearer auth started 401-ing; auto-redirect to OIDC turned the 401 into HTML; mcp-grafana base64-encoded the HTML as a "PNG"; Anthropic's Vision API rejected it with HTTP 400.
+
+**Fix:** `persistence.enabled: true` on the Grafana subchart, 10Gi on `longhorn-single`, matching the rest of the observability stack.
+SQLite now survives pod restarts.
+Admin still self-heals from env (D3) — defense in depth in case the PVC is ever recreated.
+Deployment strategy switched from RollingUpdate to Recreate because a ReadWriteOnce PVC with `replicas: 1` cannot surge — the new pod would stay Pending on volume attach.
+
+**Why not Grafana Operator with `GrafanaServiceAccount` CRD?**
+The operator path heals SA loss via reconciliation rather than preventing it.
+Architecturally elegant but adds a whole controller to run for a single-replica Grafana on a homelab.
+Reconsider when dashboards-as-code becomes a primary workflow with multiple SAs and many CRD-managed dashboards.
+
+**Why not external Postgres backend?**
+Right answer if HA Grafana ever becomes a goal.
+Premature for one user on one Pi5.
+
 ---
 
 ## Consequences

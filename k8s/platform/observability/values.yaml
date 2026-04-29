@@ -43,16 +43,25 @@ victoria-metrics-k8s-stack:
   grafana:
     enabled: true
     replicas: 1
+    # ReadWriteOnce PVC + replicas: 1 → Recreate, not RollingUpdate.
+    # Surging to a second pod is impossible while the old pod holds the
+    # PVC; the new pod would stay Pending on volume attach. Brief
+    # downtime during upgrade is acceptable for a single-user instance.
     deploymentStrategy:
-      type: RollingUpdate
-      rollingUpdate:
-        maxUnavailable: 0
-        maxSurge: 1
+      type: Recreate
+    # SQLite holds service accounts, UI-saved dashboards/folders/alerts,
+    # annotations, and user prefs. Without a PVC, every pod restart
+    # (helm upgrade, OOM, node reboot) wipes them. See ADR-008 §Persistence.
     persistence:
-      enabled: false
-    # Pin admin credentials to OpenBao-backed Secret so Grafana resets its
-    # SQLite admin hash from env vars on every pod boot. See
-    # docs/service-account-framework.md Appendix A and ADR-008.
+      enabled: true
+      type: pvc
+      size: 10Gi
+      storageClassName: longhorn-single
+      accessModes:
+        - ReadWriteOnce
+    # Admin credentials are still reset from env vars on every boot — that
+    # path remains independent of SQLite persistence (defense in depth in
+    # case the PVC is ever recreated). See ADR-008 Appendix A.
     admin:
       existingSecret: grafana-admin-secret
       userKey: admin-user
