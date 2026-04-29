@@ -175,6 +175,89 @@ for this before falling back to a port-forward browser session.
   the upstream docs target. If a dense dashboard OOMs, raise the
   per-renderer limit or skip that panel rather than over-provisioning.
 
+### Token rotation (`claude-desktop` SA)
+
+The MCP client authenticates to Grafana with the `claude-desktop`
+service account, minted once by the `grafana-sa-mint-claude-desktop`
+PostSync Job (see `templates/grafana-sa-mint-claude-desktop-job.yaml`).
+The mint script is idempotent and skips on re-run unless `ROTATE=true`,
+so re-firing the ArgoCD sync alone will not produce a new token.
+
+Rotate when:
+
+- The SA is missing in Grafana (e.g. SQLite was wiped before the PVC
+  pivot in phase-1a) but a stale token still sits in OpenBao at
+  `secret/platform/grafana/claude-desktop-token` — the script's
+  idempotency check sees the OpenBao token and skips, leaving
+  mcp-grafana 401-ing forever.
+- The token leaked, was rotated by a Grafana admin via the UI, or you
+  want to verify persistence end-to-end.
+
+Procedure (validated in session 127):
+
+1. **One-shot rotation Job.** Render a copy of
+   `templates/grafana-sa-mint-claude-desktop-job.yaml` with a unique
+   name (e.g. `grafana-sa-mint-claude-desktop-rotate-<epoch>`), strip
+   the `argocd.argoproj.io/hook*` annotations (this is not a hook),
+   and add `ROTATE=true` to the `env` block. Apply it directly:
+   `kubectl apply -f /tmp/rotate.yaml`. `ttlSecondsAfterFinished: 600`
+   auto-cleans the Job 10 min after completion. No git commit needed —
+   the next ArgoCD sync of the observability Application will re-fire
+   the canonical hook (without ROTATE), which then no-ops because the
+   freshly written OpenBao token satisfies the idempotency check.
+2. **Wait for completion + read logs:** `kubectl -n observability wait
+   --for=condition=complete job/<name> --timeout=120s` then
+   `kubectl -n observability logs job/<name>` should end with
+   `minted SA claude-desktop (id=<n>), role=Viewer, stored at
+   platform/grafana/claude-desktop-token`.
+3. **Pull the new token from OpenBao.** `user-ddowell-policy` lacks
+   `platform/grafana/*` read; either use a privileged bao token, or
+   one-shot a pod with the minter SA mounted:
+   ```sh
+   kubectl -n observability run bao-read-$(date +%s) --rm -i \
+     --restart=Never --image=alpine:3.20 --quiet \
+     --overrides='{"spec":{"serviceAccountName":"grafana-sa-minter"}}' \
+     -- sh -c 'apk add --no-cache curl jq >/dev/null 2>&1 && \
+       SA_JWT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token) && \
+       BAO_TOKEN=$(curl -sf -X POST \
+         http://openbao-active.openbao.svc.cluster.local:8200/v1/auth/kubernetes/login \
+         -d "{\"role\":\"grafana-sa-minter-role\",\"jwt\":\"$SA_JWT\"}" \
+         | jq -r .auth.client_token) && \
+       curl -sf -H "X-Vault-Token: $BAO_TOKEN" \
+         http://openbao-active.openbao.svc.cluster.local:8200/v1/secret/data/platform/grafana/claude-desktop-token \
+       | jq -r .data.data.token'
+   ```
+4. **Update the MCP client env.** Claude Code stores the grafana MCP
+   binding at user scope (the binary is shared with the Claude Desktop
+   extension install but the env is independent). Replace the env via
+   `claude mcp` from a shell outside the running Claude session:
+   ```sh
+   claude mcp remove grafana -s user
+   claude mcp add grafana -s user \
+     --env GRAFANA_URL=https://grafana.chalupatech.com \
+     --env GRAFANA_SERVICE_ACCOUNT_TOKEN=<new-token> \
+     -- '/Users/<you>/Library/Application Support/Claude/Claude Extensions/ant.dir.gh.grafana.grafana-mcp/server/darwin-arm64/mcp-grafana' \
+     --disable-write
+   ```
+   Updating Claude Desktop's UI does **not** affect Claude Code — the
+   two register MCP servers separately even when sharing the binary.
+5. **Restart Claude Code.** MCP servers snapshot env at session start;
+   a hot reload won't see the new token.
+6. **Smoke test in the new session.**
+   `mcp__grafana__get_panel_image dashboardUid=paper-trading panel_id=301`
+   should return PNG bytes. Renderer pod logs should show a
+   `/render?...viewPanel=301 status=200` line; Grafana logs should show
+   `userId=<n> uname=sa-1-claude-desktop` with no `invalid API key`.
+7. **Optional persistence check.**
+   `kubectl -n observability rollout restart deploy/observability-grafana`
+   then re-run the smoke test. If the SA survives, the SQLite-on-PVC
+   persistence (phase-1a) is doing its job.
+
+If the smoke test crashes Claude rather than returning bytes, see the
+`reference_mcp_grafana_panel_image_failure_modes` brain memory — the
+HTML-as-PNG silent-corruption mode is the usual culprit when the token
+is wrong or the redirect chain hits the OAuth login page.
+
 ## Migration plan for the other custom dashboards
 
 | Dashboard | File | Lines | Status |
