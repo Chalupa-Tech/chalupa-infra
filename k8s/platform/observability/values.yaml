@@ -66,10 +66,6 @@ victoria-metrics-k8s-stack:
       existingSecret: grafana-admin-secret
       userKey: admin-user
       passwordKey: admin-password
-    admin:
-      existingSecret: grafana-admin-secret
-      userKey: admin-user
-      passwordKey: admin-password
     readinessProbe:
       httpGet:
         path: /api/health
