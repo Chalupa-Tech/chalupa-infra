@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (platform-dashboards phase-1a — Grafana SQLite persistence)
+
+- **Enable PVC-backed persistence for Grafana** in `k8s/platform/observability/values.yaml`.
+  Flip `victoria-metrics-k8s-stack.grafana.persistence.enabled` from `false` → `true`, 10Gi on `longhorn-single` to match the rest of the observability stack (VMSingle 20Gi, VictoriaLogs 10Gi, VictoriaTraces 8Gi, NATS JetStream 1Gi).
+  ADR-008 §D6 documents the decision and why we chose PVC over Grafana Operator or external Postgres for a single-replica homelab Grafana.
+- **Switch Grafana Deployment strategy from RollingUpdate to Recreate.**
+  ReadWriteOnce PVC + `replicas: 1` cannot surge — the new pod would stay Pending on volume attach while the old pod still holds the PVC.
+  Brief downtime during upgrade is acceptable for a single-user instance.
+- **Why now.**
+  Phase-1 (Image Renderer install) rolled the Grafana pod via a Helm template hash change, which wiped the SQLite DB and took the `claude-desktop` service account with it.
+  The token in OpenBao then pointed at a SA-id that no longer existed; mcp-grafana's Bearer auth started 401-ing; the OIDC auto-redirect converted the 401 into HTML; mcp-grafana base64-encoded the HTML as a "PNG"; Anthropic's Vision API rejected it with HTTP 400.
+  With persistence on, this class of bug goes away — and UI-saved dashboards, folders, alerts, and annotations now survive helm upgrades too.
+- **Admin password drift protection unchanged.**
+  `admin.existingSecret` plus `GF_SECURITY_ADMIN_*` env vars still reset the SQLite admin hash on every boot — defense in depth in case the PVC is ever recreated.
+- **Out of scope for this PR.**
+  Re-minting the `claude-desktop` SA into the now-persistent DB and rotating its token in OpenBao + Claude Desktop is phase-1a PR #2.
+  Bumping mcp-grafana to a release with the [#745](https://github.com/grafana/mcp-grafana/issues/745) fix (visible error on non-`image/*` `/render` responses) is phase-1b PR #3.
+
 ### Added (paper-trading-realism phase-7b)
 
 - **Paper Trading dashboard — research-grade upgrade for
