@@ -263,11 +263,11 @@ is wrong or the redirect chain hits the OAuth login page.
 | Dashboard | File | Lines | Status |
 | --- | --- | --- | --- |
 | Paper trading | `k8s/apps/schwab/go-paper-trader/files/paper-trading.json` | ~2086 | **Phase 7e1** (slice ported) → **Phase 7e2** (full port + cutover) |
-| Schwab trading | `k8s/apps/schwab/go-schwab-feed/files/schwab-trading.json` | 1360 | TBD |
-| Schwab feed | `k8s/apps/schwab/go-schwab-feed/files/schwab-feed.json` | 695 | TBD |
-| Schwab Argo Rollouts | `k8s/apps/schwab/go-schwab-feed/files/schwab-rollouts.json` | 290 | TBD |
-| Schwab auth lifecycle | `k8s/apps/schwab/go-schwab-auth/files/schwab-auth-lifecycle.json` | 329 | TBD |
-| Telemetry mesh | `k8s/apps/telemetry-mesh/files/telemetry-mesh-dashboard.json` | 972 | TBD |
+| Schwab feed | `k8s/apps/schwab/go-schwab-feed/files/schwab-feed.json` | 695 → 917 | **platform-dashboards phase-2** (ported, single-PR cutover) |
+| Schwab trading | `k8s/apps/schwab/go-schwab-feed/files/schwab-trading.json` | 1360 | TBD (`phase-4-port-schwab-rollouts` queued; trading port queued separately) |
+| Schwab Argo Rollouts | `k8s/apps/schwab/go-schwab-feed/files/schwab-rollouts.json` | 290 | TBD (`phase-4-port-schwab-rollouts` queued) |
+| Schwab auth lifecycle | `k8s/apps/schwab/go-schwab-auth/files/schwab-auth-lifecycle.json` | 329 | TBD (`phase-5-port-schwab-auth-lifecycle` queued) |
+| Telemetry mesh | `k8s/apps/telemetry-mesh/files/telemetry-mesh-dashboard.json` | 972 | TBD (`phase-6-port-telemetry-mesh` queued) |
 
 Each migration gets its own phase informed by phase-7e's lessons. The
 package layout (`internal/<dashboard>/`) is designed to absorb new
@@ -279,6 +279,7 @@ dashboards as siblings without restructuring `common/`.
 | --- | --- | --- |
 | **7e1** | Go skeleton + 7-panel vertical slice exercising every panel type + CI determinism gate + this doc | **shipped** |
 | **7e2** | Port remaining 38 panels, deterministic ID renumbering, `paper-trading.json` cutover, CI drift gate flipped on, `phase-7b-dashboard-upgrade.py` deleted | **shipped** |
+| **platform-dashboards phase-2** | Port `schwab-feed.json` (14 panels), generalize `build.sh` over `cmd/*`, add `bargauge` + `piechart` panel-type SDK usage, extend CI drift gate, drop noisy tags | **shipped** |
 
 ## Panel ID renumbering (7e2)
 
@@ -361,6 +362,15 @@ Old → new mapping (for anyone holding URL bookmarks):
   the SDK panel via an escape-hatch helper (not yet added —
   introduce when needed, document each call site, remove when SDK
   catches up).
+- **Folder placement (`meta.folderTitle`) is unreachable via the SDK.**
+  The `Dashboard` Go struct has no `Meta` field, so emitting a
+  top-level `meta.folderTitle: "Trading"` would require either a
+  raw-overlay escape hatch or moving folder placement into the
+  ConfigMap label (`grafana_folder: <title>` on the sidecar-watched
+  ConfigMap, which the kube-prometheus-stack importer respects).
+  Today every committed dashboard ConfigMap is unlabelled and lives at
+  Grafana's root; defer the folder taxonomy until a separate phase
+  decides whether to emit `grafana_folder` cluster-wide.
 
 ## Audit findings (7e3)
 
@@ -376,7 +386,7 @@ deferred to the operator's local port-forward browser session.
 | --- | ---: | --- | --- | --- |
 | paper-trading (SDK, 7e2 baseline) | 52 | Panel 902 NATS-drops timeseries had no `or vector(0)` for steady-state empty rendering (ambiguous "panel broken" vs "no drops") | Inline (Go source) | **shipped this PR** |
 | schwab-trading | 24 | None — every multi-series timeseries already uses palette-classic, 18 panel overrides honored, gridPos clean. Largest sibling (1360 lines). | None | **queue for SDK port** (`phase-7e<n>-port-schwab-trading`) |
-| schwab-feed | 14 | 2 multi-series timeseries missing palette-classic (Poll Duration, NATS Publish Rate) — without it, all `by (type)` series rendered the same color | Inline JSON `+3 lines × 2` | **shipped this PR** |
+| schwab-feed | 14 | 2 multi-series timeseries missing palette-classic (Poll Duration, NATS Publish Rate) — without it, all `by (type)` series rendered the same color | Inline JSON `+3 lines × 2` then superseded by SDK port (`platform-dashboards phase-2`) | **shipped 7e3 inline** + **resuperseded by SDK port** (palette-classic preserved in port; tags renumbered to `[chalupa, schwab-feed, trading]`) |
 | schwab-rollouts | 6 | 4 multi-series panels missing palette-classic; `$namespace` is a `constant` variable (not user-pickable — intentional? unclear) | Trivial in source, but JSON uses compact-style nested objects → round-trip patch produces +237 lines of formatting churn for 4 substantive lines. Skip inline. | **queue for SDK port** (palette-classic + namespace var ride along) |
 | schwab-auth-lifecycle | 11 | (a) 4 multi-series panels missing palette-classic. (b) **3 referenced metrics absent from registry**: `schwab_auth_refresh_total`, `schwab_auth_refresh_duration_seconds_bucket`, `schwab_auth_last_successful_refresh_timestamp_seconds`. `go-schwab-auth` v0.6.0 (phase-9) instrumented these on the *scheduler* refresh path; the in-cluster pod is emitting only `schwab_auth_token_expiry_timestamp_seconds`. Possible causes: (i) callback-path refresh updates vault but not metrics (this is exactly **alert-triage phase-15**'s scope, already queued); (ii) scheduler hasn't actually attempted a refresh since the last pod restart (the access-token expiry shows 2.6d in the past — gauge is stale, suggesting no scheduler-path success). | (a) Same compact-JSON churn problem; defer. (b) **Service-side fix tracked under alert-triage phase-15** — already queued (`phase-15-auth-callback-metric-emission.md`). 7e3 audit confirms the gap still exists in production today; phase-15 may need to widen scope to also fix the scheduler-path staleness. Not a dashboard fix; reference only. | (a) **queue for SDK port** (palette-classic rides along). (b) **already covered** by alert-triage phase-15; flag the scheduler-staleness sub-finding in that phase's prompt. |
 | telemetry-mesh | 24 | 4 multi-series panels missing palette-classic; 1 templated datasource variable (`DS_VM` type=datasource) is a legacy pattern that should pin to `VictoriaMetrics` constant on port | Inline JSON `+3 lines × 4` | **shipped this PR** (palette only); DS_VM cleanup rides along with SDK port |

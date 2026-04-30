@@ -1,13 +1,19 @@
-# scripts/dashboards/ is the source of truth for the paper-trading
-# dashboard. Production JSON at
-# k8s/apps/schwab/go-paper-trader/files/paper-trading.json is a
-# generated artifact. This workflow:
+# scripts/dashboards/ is the source of truth for every dashboard whose
+# committed JSON lives next to a chart's `files/`. The committed JSONs
+# are generated artifacts. This workflow:
 #   1. Compiles the Go module.
-#   2. Builds twice and verifies byte-identical output (determinism).
+#   2. Builds twice (each cmd/* binary) and verifies byte-identical
+#      output (determinism).
 #   3. Re-runs build.sh and asserts no drift between source-rendered
-#      output and the committed JSON. A PR that hand-edits the JSON
-#      without updating Go sources fails this step; a PR that updates
-#      Go sources without re-running build.sh also fails.
+#      output and the committed JSON. A PR that hand-edits any covered
+#      JSON without updating Go sources fails this step; a PR that
+#      updates Go sources without re-running build.sh also fails.
+#
+# To onboard a new dashboard: add a `cmd/<name>/main.go` + matching
+# entry in scripts/dashboards/build.sh, list the JSON path under
+# `pull_request.paths`, and add the path to the determinism + drift
+# loops below. The drift loop's path list is the contract; any JSON
+# not listed is unguarded.
 name: Validate Dashboards
 
 on:
@@ -15,6 +21,7 @@ on:
     paths:
       - 'scripts/dashboards/**'
       - 'k8s/apps/schwab/go-paper-trader/files/paper-trading.json'
+      - 'k8s/apps/schwab/go-schwab-feed/files/schwab-feed.json'
       - '.github/workflows/validate-dashboards.yml'
 
 concurrency:
@@ -39,25 +46,32 @@ jobs:
           go vet ./...
           go build ./...
 
-      - name: Render twice and assert byte-identical output
+      - name: Render each cmd/ binary twice and assert byte-identical output
         working-directory: scripts/dashboards
         run: |
           set -euo pipefail
-          go run ./cmd/paper-trader > /tmp/render1.json
-          go run ./cmd/paper-trader > /tmp/render2.json
-          if ! diff -q /tmp/render1.json /tmp/render2.json; then
-            echo "::error::Two consecutive renders produced different JSON. The build is non-deterministic."
-            diff -u /tmp/render1.json /tmp/render2.json | head -40
-            exit 1
-          fi
-          echo "Renders are byte-identical ($(wc -l < /tmp/render1.json) lines)."
+          for bin in cmd/*/; do
+            name="$(basename "${bin}")"
+            go run "./${bin}" > "/tmp/${name}-1.json"
+            go run "./${bin}" > "/tmp/${name}-2.json"
+            if ! diff -q "/tmp/${name}-1.json" "/tmp/${name}-2.json"; then
+              echo "::error::cmd/${name}: two consecutive renders produced different JSON. Build is non-deterministic."
+              diff -u "/tmp/${name}-1.json" "/tmp/${name}-2.json" | head -40
+              exit 1
+            fi
+            echo "${name}: byte-identical ($(wc -l < "/tmp/${name}-1.json") lines)."
+          done
 
       - name: Assert no drift between source and rendered JSON
         run: |
           set -euo pipefail
           bash scripts/dashboards/build.sh
-          if ! git diff --exit-code k8s/apps/schwab/go-paper-trader/files/paper-trading.json; then
-            echo "::error::scripts/dashboards/ source and committed paper-trading.json are out of sync."
+          guarded=(
+            "k8s/apps/schwab/go-paper-trader/files/paper-trading.json"
+            "k8s/apps/schwab/go-schwab-feed/files/schwab-feed.json"
+          )
+          if ! git diff --exit-code "${guarded[@]}"; then
+            echo "::error::scripts/dashboards/ source and one or more committed JSONs are out of sync."
             echo "::error::Run \`bash scripts/dashboards/build.sh\` and commit the regenerated JSON."
             exit 1
           fi

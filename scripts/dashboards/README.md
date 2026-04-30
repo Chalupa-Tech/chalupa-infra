@@ -3,18 +3,26 @@
 Source of truth for chalupa-infra Grafana dashboards. Built with
 [grafana-foundation-sdk Go](https://github.com/grafana/grafana-foundation-sdk).
 
-The committed JSON at
-`k8s/apps/schwab/go-paper-trader/files/paper-trading.json`
-is a **generated artifact**. Do not hand-edit it. CI fails any PR
-where the checked-in JSON drifts from `bash scripts/dashboards/build.sh`.
+The committed JSONs at
+
+- `k8s/apps/schwab/go-paper-trader/files/paper-trading.json`
+- `k8s/apps/schwab/go-schwab-feed/files/schwab-feed.json`
+
+are **generated artifacts**.
+Do not hand-edit them.
+CI fails any PR where a checked-in JSON drifts from `bash scripts/dashboards/build.sh`.
+The set of guarded paths is the `RENDERS` array in `build.sh` plus the
+matching `pull_request.paths` + drift-loop entries in
+`.github/workflows/validate-dashboards.yml` — onboard a new dashboard by editing all three.
 
 ## Layout
 
 ```
 scripts/dashboards/
   go.mod
-  build.sh                              # generate JSON into the Helm chart
+  build.sh                              # iterates RENDERS, generates each JSON
   cmd/paper-trader/main.go              # `go run ./cmd/paper-trader > out.json`
+  cmd/schwab-feed/main.go               # `go run ./cmd/schwab-feed > out.json`
   internal/
     common/                             # reused across dashboards
       datasources/                      # VictoriaMetrics, TimescaleDB UIDs
@@ -28,6 +36,9 @@ scripts/dashboards/
       build.go templating.go
       rows/                             # one Go file per dashboard row
         summary.go risk.go ...
+    schwabfeed/                         # the schwab market feed dashboard
+      build.go templating.go
+      rows/feed_health.go rows/market_data.go
 ```
 
 `internal/` keeps each dashboard's row builders private. Cross-cutting
@@ -52,10 +63,12 @@ diff -q /tmp/a.json /tmp/b.json    # must be silent
 
 ## Editing a panel
 
-1. Find the row module under `internal/papertrading/rows/<row>.go`.
+1. Find the row module under `internal/<dashboard>/rows/<row>.go`
+   (e.g., `internal/papertrading/rows/summary.go`,
+   `internal/schwabfeed/rows/feed_health.go`).
 2. Edit the panel-builder factory (e.g., `equityVsStartingCash`).
 3. `bash scripts/dashboards/build.sh` to regenerate JSON.
-4. Commit Python sources + regenerated JSON in one PR.
+4. Commit Go sources + regenerated JSON in one PR.
 
 ## CI gate
 

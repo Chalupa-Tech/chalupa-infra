@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (platform-dashboards phase-2 — schwab-feed dashboard ported to the SDK)
+
+- **Port `schwab-feed.json` (14 panels) from hand-written JSON to the
+  grafana-foundation-sdk Go module.** New
+  `scripts/dashboards/cmd/schwab-feed` binary plus
+  `internal/schwabfeed/{build.go, templating.go, rows/{feed_health,
+  market_data}.go}`. The committed JSON at
+  `k8s/apps/schwab/go-schwab-feed/files/schwab-feed.json` is now a
+  generated artifact; CI fails any PR that hand-edits it.
+- **First SDK-builder usage of `bargauge` and `piechart` panel types.**
+  Both reproduce the source dashboard's behaviour without
+  escape-hatch overlays — neither resisted the SDK. Documented in
+  `docs/dashboards-as-code.md` § Phase-7e split.
+- **Generalize `scripts/dashboards/build.sh`** to iterate every binary
+  in `cmd/*`, indexed by a `bin:relpath` `RENDERS` array. Onboard a
+  new dashboard by adding `cmd/<name>/main.go`, one `RENDERS` entry,
+  and one path to `.github/workflows/validate-dashboards.yml`'s
+  `pull_request.paths` + drift loop.
+- **Extend the CI drift gate** to cover `schwab-feed.json` alongside
+  `paper-trading.json`. The determinism + drift checks now loop over
+  every `cmd/*/` and an explicit `guarded` array.
+- **Tag taxonomy cleanup.** Tags renumbered from `[schwab, feed,
+  market]` → `[chalupa, schwab-feed, trading]` per the
+  `briefs/dashboard-navigation-plan.md` tag-axis rule. The
+  palette-classic fix shipped inline in 7e3 (panels 106 / 107) is
+  preserved by the port.
+
 ### Changed (platform-dashboards phase-1a — Grafana SQLite persistence)
 
 - **Enable PVC-backed persistence for Grafana** in `k8s/platform/observability/values.yaml`.
