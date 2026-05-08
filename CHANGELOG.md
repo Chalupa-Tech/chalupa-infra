@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (platform phase-9a — Schwab clients flipped from `openbao-active` to load-balanced `openbao` service)
+
+- **Flip Vault client `addr` for `go-schwab-auth`, `go-schwab-feed`,
+  `go-notify`, and the Schwab `base` chart from
+  `openbao-active.openbao.svc.cluster.local` to
+  `openbao.openbao.svc.cluster.local`.** The session-130 outage
+  root-caused to every cluster-internal client pointing at the
+  leader-only Service: when 2 of 3 OpenBao pods were sealed and the
+  third couldn't claim leadership, `service_registration "kubernetes"`
+  pulled `vault-active=true` off all pods, leaving `openbao-active`
+  with zero endpoints and every client receiving `connect: connection
+  refused`.
+- **Why this is strictly safer.** The load-balanced `openbao` Service
+  has a readiness-filtered selector (no `openbao-active=true`
+  requirement). Standbys forward writes to the active leader (or
+  return 307 if forwarding is disabled); the OpenBao Go client
+  follows one redirect hop natively. During a routine leader
+  election, clients now see ~1–4s of retry instead of the full
+  election window of hard failure. Research backing the change at
+  `docs/research/2026-05-08-openbao-client-service-choice.md`.
+- **What this does NOT solve.** When ≥2 of 3 pods are sealed, the
+  load-balanced Service still drops them from endpoints (readiness
+  probe `bao status` exits 2 for sealed) — the surviving unsealed
+  standby returns structured 503s instead of `connection refused`.
+  Phase-8 (auto-unseal) eliminates the seal cascade itself; phase-9
+  only narrows the leader-transition failure window. Phase-9b will
+  flip ESO + Grafana OIDC + the remaining `observability/templates/*`
+  client sites once 9a has baked.
+- **Out of scope for this PR.** ESO `SecretStore`, Grafana OIDC
+  endpoints, and the `gh-actions-telemetry` / `grafana-sa-mint` /
+  `grafana-admin` external-secret + script-cm sites all still point
+  at `openbao-active` and ship in phase-9b after 24h of bake time on
+  9a.
+
 ### Added (platform-dashboards phase-2 — schwab-feed dashboard ported to the SDK)
 
 - **Port `schwab-feed.json` (14 panels) from hand-written JSON to the

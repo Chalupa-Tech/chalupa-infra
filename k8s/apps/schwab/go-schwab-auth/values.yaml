@@ -4,7 +4,7 @@ image:
   tag: v0.6.0
 
 vault:
-  addr: "http://openbao-active.openbao.svc.cluster.local:8200"
+  addr: "http://openbao.openbao.svc.cluster.local:8200"
 
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
