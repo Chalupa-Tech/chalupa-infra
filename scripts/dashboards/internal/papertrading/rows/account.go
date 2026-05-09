@@ -164,19 +164,24 @@ func drawdownPctByBook(y int) *timeseries.PanelBuilder {
 }
 
 func rollingReturnByBook(y int) *timeseries.PanelBuilder {
+	// Single CTE chain (declared once at top) shared by both UNION arms.
+	// PostgreSQL grammar disallows `WITH ... UNION ALL WITH ...`; the
+	// previous form concatenated DailyReturnsCTE on both sides, which
+	// rendered an SQLSTATE 42601 syntax error and a permanently empty
+	// panel. Each arm inlines its own window frame because a named
+	// WINDOW clause cannot span the UNION boundary either.
 	rawSQL := cte.DailyReturnsCTE +
 		"SELECT trade_date AS time, book_id || '-7d'  AS metric," +
-		"   EXP(SUM(LN(1 + COALESCE(ret, 0))) OVER w7)  - 1 AS r" +
+		"   EXP(SUM(LN(1 + COALESCE(ret, 0))) OVER (PARTITION BY book_id" +
+		"                ORDER BY trade_date" +
+		"                ROWS BETWEEN 6  PRECEDING AND CURRENT ROW))  - 1 AS r" +
 		" FROM returns" +
-		" WINDOW w7  AS (PARTITION BY book_id ORDER BY trade_date" +
-		"                ROWS BETWEEN 6  PRECEDING AND CURRENT ROW)" +
-		" UNION ALL " +
-		cte.DailyReturnsCTE +
-		"SELECT trade_date AS time, book_id || '-30d' AS metric," +
-		"   EXP(SUM(LN(1 + COALESCE(ret, 0))) OVER w30) - 1 AS r" +
+		" UNION ALL" +
+		" SELECT trade_date AS time, book_id || '-30d' AS metric," +
+		"   EXP(SUM(LN(1 + COALESCE(ret, 0))) OVER (PARTITION BY book_id" +
+		"                ORDER BY trade_date" +
+		"                ROWS BETWEEN 29 PRECEDING AND CURRENT ROW)) - 1 AS r" +
 		" FROM returns" +
-		" WINDOW w30 AS (PARTITION BY book_id ORDER BY trade_date" +
-		"                ROWS BETWEEN 29 PRECEDING AND CURRENT ROW)" +
 		" ORDER BY time"
 	return timeseries.NewPanelBuilder().
 		Id(606).
