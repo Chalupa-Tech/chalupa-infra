@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-11a — Reconciliation dashboard row)
+
+- **New `Reconciliation` row on `paper-trading.json`** (row id 920,
+  panels 921-923), inserted directly below `Simulator health`. Three
+  panels surface the per-book reconciler state shipped in
+  `go-schwab-accounts-and-trading` phase-11a:
+  - **Panel 921: Seconds since last reconcile sweep** (stat). Renders
+    `time() - paper_reconcile_last_run_timestamp_seconds{book_id=~"$book_id"}`.
+    Green at < 60s (default cadence), yellow at the next missed tick
+    (60–120s), red past 2× cadence — a stalled reconciler goroutine
+    surfaces here before the divergence counter goes silent.
+  - **Panel 922: Healthy sweeps (last 15m)** (stat). Renders
+    `sum by (book_id) (increase(paper_reconcile_healthy_sweeps_total[15m]))`.
+    Red at zero (reconciler not running OR every sweep is divergent);
+    green at ≥1.
+  - **Panel 923: Divergence rate by kind** (timeseries,
+    palette-classic, red threshold at 0.001). Renders
+    `sum by (book_id, kind) (rate(paper_reconciliation_divergence_total[15m]))`.
+    Sim's steady state is a flat zero line; any non-zero rate is a
+    write-through ordering bug. Drilldown to the structured log line
+    via VictoriaLogs explorer with `_msg:"reconciliation discrepancy"`
+    is documented in each panel description.
+- **`thresholds.ReconcileLiveness` and
+  `thresholds.ReconcileDivergence`** in
+  `scripts/dashboards/internal/common/thresholds/thresholds.go` for
+  the new panels' threshold tables.
+
 ### Added (paper-trading-realism phase-10b — limit_example deploy)
 
 - **4th paper-trader book `ddowell-limit-example`** in

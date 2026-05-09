@@ -39,6 +39,7 @@ var orderedRows = []rowFunc{
 	rows.Orders,
 	rows.WorkingOrders,
 	rows.SimulatorHealth,
+	rows.Reconciliation,
 	rows.ExecutionQuality,
 	rows.FillRealism,
 	rows.Hygiene,

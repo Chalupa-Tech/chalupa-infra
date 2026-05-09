@@ -2493,6 +2493,195 @@
         "x": 0,
         "y": 140
       },
+      "id": 920,
+      "panels": [],
+      "title": "Reconciliation",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-11a: time elapsed since the per-book reconciler last completed a sweep. Default cadence is 60s; yellow at the next missed tick, red past 2× cadence — a stalled reconciler goroutine surfaces here before the divergence counter goes silent. For divergent sweeps, drill into VictoriaLogs explorer with the query `_msg:\"reconciliation discrepancy\" AND app:\"go-paper-trader\"`.",
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "red",
+                "value": 120
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 141
+      },
+      "id": 921,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "time() - paper_reconcile_last_run_timestamp_seconds{book_id=~\"$book_id\"}",
+          "instant": true,
+          "legendFormat": "{{book_id}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Seconds since last reconcile sweep",
+      "transparent": false,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-11a: count of reconciler sweeps in the last 15m that found zero divergence between the adapter broker-view and the projection-from-events view. With the default 60s cadence and a healthy sim, expect ≈15. Zero is red — either the reconciler is not running or every sweep is divergent (cross-check the Divergence rate panel and the Liveness stat).",
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 141
+      },
+      "id": 922,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum by (book_id) (increase(paper_reconcile_healthy_sweeps_total{book_id=~\"$book_id\"}[15m])) or vector(0)",
+          "instant": true,
+          "legendFormat": "{{book_id}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Healthy sweeps (last 15m)",
+      "transparent": false,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-11a: rate(paper_reconciliation_divergence_total[15m]) split by kind ∈ {broker_only_order, local_only_order, position_qty_mismatch, cash_mismatch}. Sim's steady state is a flat zero line — any non-zero rate is a write-through ordering bug. Stack drill: open the matching log line in VictoriaLogs with `_msg:\"reconciliation discrepancy\"` and the divergent book_id.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 1
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.001
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 141
+      },
+      "id": 923,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum by (book_id, kind) (rate(paper_reconciliation_divergence_total{book_id=~\"$book_id\"}[15m])) or vector(0)",
+          "legendFormat": "{{book_id}} / {{kind}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Divergence rate by kind",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 149
+      },
       "id": 1000,
       "panels": [],
       "title": "Execution quality",
@@ -2517,7 +2706,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 141
+        "y": 150
       },
       "id": 1001,
       "repeatDirection": "h",
@@ -2553,7 +2742,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 141
+        "y": 150
       },
       "id": 1002,
       "options": {
@@ -2616,7 +2805,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 141
+        "y": 150
       },
       "id": 1003,
       "repeatDirection": "h",
@@ -2647,7 +2836,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 149
+        "y": 158
       },
       "id": 1100,
       "panels": [],
@@ -2688,7 +2877,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 150
+        "y": 159
       },
       "id": 1101,
       "repeatDirection": "h",
@@ -2729,7 +2918,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 150
+        "y": 159
       },
       "id": 1102,
       "options": {
@@ -2794,7 +2983,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 158
+        "y": 167
       },
       "id": 1103,
       "options": {
@@ -2845,7 +3034,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 166
+        "y": 175
       },
       "id": 1200,
       "panels": [],
@@ -2881,7 +3070,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 167
+        "y": 176
       },
       "id": 1201,
       "options": {
@@ -2948,7 +3137,7 @@
         "h": 7,
         "w": 16,
         "x": 8,
-        "y": 167
+        "y": 176
       },
       "id": 1202,
       "repeatDirection": "h",
