@@ -24,7 +24,10 @@ const (
 type rowFunc func(db *dashboard.DashboardBuilder, yBase int) int
 
 // orderedRows defines the top-to-bottom row order. Order matches the
-// phase-7b committed JSON.
+// phase-7b committed JSON, with phase-8's Orders row sitting after
+// Activity (lifecycle of orders is conceptually adjacent to the
+// activity counts; both look at "what is/was happening" rather than
+// long-term quality).
 var orderedRows = []rowFunc{
 	rows.Summary,
 	rows.Risk,
@@ -33,6 +36,7 @@ var orderedRows = []rowFunc{
 	rows.Account,
 	rows.PositionsTrades,
 	rows.Activity,
+	rows.Orders,
 	rows.SimulatorHealth,
 	rows.ExecutionQuality,
 	rows.FillRealism,

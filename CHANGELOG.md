@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-8 — Orders dashboard row)
+
+- **New "Orders" row on `paper-trading.json`** rendering the phase-8
+  order-lifecycle metrics from the trader. Three panels:
+  - **Pending orders** (stat) — count of orders currently in
+    `submitted | acknowledged | partial`. v1 sim collapses the full
+    sequence inside one PlaceOrder so the value is typically zero;
+    phase-10 limit orders will sit in `acknowledged` until the limit
+    crosses the market.
+  - **Rejection rate by reason** (timeseries) —
+    `rate(paper_order_rejects_total[5m])` split by the bounded
+    `reject_reason` enum (`stale_quote | market_closed |
+    daily_loss_halt | insufficient_long | append_fill | validation`).
+    Steady state flat-zero; any bar means orders the strategy fired
+    could not land.
+  - **State transitions** (timeseries) —
+    `rate(paper_order_state_transitions_total[5m])` split by
+    `(from_state → to_state)`. Healthy operation shows three
+    matching curves (`→submitted`, `submitted→acknowledged`,
+    `acknowledged→filled`); divergence between them flags
+    validation rejecting work the strategy still thinks is
+    succeeding.
+- **Source-of-truth row** at
+  `scripts/dashboards/internal/papertrading/rows/orders.go`; wired
+  into `build.go`'s `orderedRows` between `Activity` and
+  `SimulatorHealth`. Regenerated `paper-trading.json` artifact via
+  `scripts/dashboards/build.sh`.
+
 ### Changed (platform-dashboards phase-4 — port `schwab-rollouts` to grafana-foundation-sdk)
 
 - **Port `k8s/apps/schwab/go-schwab-feed/files/schwab-rollouts.json` to the SDK.** New `cmd/schwab-rollouts/` + `internal/schwabrollouts/` packages following the phase-2 schwab-feed layout (no `rows/` subdir — source has no row separators). Output path is unchanged so the existing chart's ConfigMap mount keeps working.
