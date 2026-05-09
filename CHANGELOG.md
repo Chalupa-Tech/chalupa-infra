@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (platform-dashboards phase-4 — port `schwab-rollouts` to grafana-foundation-sdk)
+
+- **Port `k8s/apps/schwab/go-schwab-feed/files/schwab-rollouts.json` to the SDK.** New `cmd/schwab-rollouts/` + `internal/schwabrollouts/` packages following the phase-2 schwab-feed layout (no `rows/` subdir — source has no row separators). Output path is unchanged so the existing chart's ConfigMap mount keeps working.
+- **First SDK-builder usage of `state-timeline` and `barchart`.** Both reproduce the source dashboard's value-mapped color behavior. Like phase-2's piechart, every legend block requires explicit `ShowLegend(true)` — the SDK defaults `showLegend` to `false` even when `displayMode` is set, which would silently hide legends.
+- **First use of `stat` panel value-mappings** (Rollout Phase, 6 mappings: Completed/Progressing/Paused/Abort/Error/Timeout) via `dashboard.ValueMap` + `MappingTypeValueToText`.
+- **`$namespace` promoted from hidden constant to single-value query variable** backed by `label_values(rollout_phase, exported_namespace)`. Single-value (non-multi) keeps the dependent `$service` query (`exported_namespace="$namespace"`) sensible without rewriting it as `=~`. Aligns with the multi-tenant paper-trading direction.
+- **4 deferred 7e3 palette-classic fixes shipped.** Panels 3–6 (Pod Up Status, Container Restarts, Canary vs Stable Restarts, Rollout Replicas) all multi-series via `pod` label — without palette-classic, every series collided on the same hash color.
+- **Tag taxonomy cleanup.** Tags `[schwab, rollouts, canary]` → `[chalupa, platform, argo-rollouts]`. The pre-port `canary` tag was too narrow (the dashboard covers all rollout phases).
+- **CI drift gate extended** to cover `schwab-rollouts.json`. `pull_request.paths`, the determinism loop (which already iterates `cmd/*/`), and the explicit `guarded` array all updated.
+- **Three-render md5 stability** verified (`9f5b9ad0fa1d0f408b0431e57ec55877`). Cosmetic JSON diff is +257 lines, dominated by SDK default-emission (panel-option defaults like `repeatDirection: h`, `transparent: false`, expanded option/threshold structures).
+
 ### Changed (platform phase-9a — Schwab clients flipped from `openbao-active` to load-balanced `openbao` service)
 
 - **Flip Vault client `addr` for `go-schwab-auth`, `go-schwab-feed`,

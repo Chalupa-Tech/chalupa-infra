@@ -1,78 +1,107 @@
 {
-  "annotations": {
-    "list": []
-  },
+  "annotations": {},
   "editable": true,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "title": "Schwab Argo Rollouts",
-  "uid": "schwab-rollouts",
-  "tags": [
-    "schwab",
-    "rollouts",
-    "canary"
-  ],
-  "time": {
-    "from": "now-6h",
-    "to": "now"
-  },
-  "refresh": "30s",
-  "templating": {
-    "list": [
-      {
-        "name": "namespace",
-        "type": "constant",
-        "query": "schwab-ddowell",
-        "hide": 2
-      },
-      {
-        "name": "service",
-        "type": "query",
-        "datasource": "VictoriaMetrics",
-        "query": "label_values(rollout_phase{exported_namespace=\"$namespace\"}, name)",
-        "refresh": 2,
-        "includeAll": true,
-        "multi": true,
-        "sort": 1,
-        "hide": 0,
-        "label": "Rollout"
-      }
-    ]
-  },
   "panels": [
     {
-      "title": "Rollout Phase",
-      "type": "stat",
-      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "1": { "text": "Completed", "color": "green" } } },
-            { "type": "value", "options": { "2": { "text": "Progressing", "color": "yellow" } } },
-            { "type": "value", "options": { "3": { "text": "Paused", "color": "blue" } } },
-            { "type": "value", "options": { "4": { "text": "Abort", "color": "red" } } },
-            { "type": "value", "options": { "5": { "text": "Error", "color": "dark-red" } } },
-            { "type": "value", "options": { "6": { "text": "Timeout", "color": "orange" } } }
+            {
+              "options": {
+                "1": {
+                  "color": "green",
+                  "text": "Completed"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "2": {
+                  "color": "yellow",
+                  "text": "Progressing"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "3": {
+                  "color": "blue",
+                  "text": "Paused"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "4": {
+                  "color": "red",
+                  "text": "Abort"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "5": {
+                  "color": "dark-red",
+                  "text": "Error"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "6": {
+                  "color": "orange",
+                  "text": "Timeout"
+                }
+              },
+              "type": "value"
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
-      "options": {
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "horizontal",
-        "textMode": "auto",
-        "colorMode": "background",
-        "graphMode": "none"
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
       },
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
       "targets": [
         {
           "expr": "(rollout_phase{exported_namespace=\"$namespace\", phase=\"Completed\"} == 1) * 1\nor\n(rollout_phase{exported_namespace=\"$namespace\", phase=\"Progressing\"} == 1) * 2\nor\n(rollout_phase{exported_namespace=\"$namespace\", phase=\"Paused\"} == 1) * 3\nor\n(rollout_phase{exported_namespace=\"$namespace\", phase=\"Abort\"} == 1) * 4\nor\n(rollout_phase{exported_namespace=\"$namespace\", phase=\"Error\"} == 1) * 5\nor\n(rollout_phase{exported_namespace=\"$namespace\", phase=\"Timeout\"} == 1) * 6",
@@ -80,35 +109,101 @@
           "refId": "A"
         }
       ],
-      "datasource": "VictoriaMetrics"
+      "title": "Rollout Phase",
+      "transparent": false,
+      "type": "stat"
     },
     {
-      "title": "AnalysisRun Results",
-      "type": "state-timeline",
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 4 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "Running", "color": "yellow" } } },
-            { "type": "value", "options": { "1": { "text": "Successful", "color": "green" } } },
-            { "type": "value", "options": { "2": { "text": "Failed", "color": "red" } } },
-            { "type": "value", "options": { "3": { "text": "Inconclusive", "color": "orange" } } },
-            { "type": "value", "options": { "4": { "text": "Error", "color": "dark-red" } } }
+            {
+              "options": {
+                "0": {
+                  "color": "yellow",
+                  "text": "Running"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "1": {
+                  "color": "green",
+                  "text": "Successful"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "2": {
+                  "color": "red",
+                  "text": "Failed"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "3": {
+                  "color": "orange",
+                  "text": "Inconclusive"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "4": {
+                  "color": "dark-red",
+                  "text": "Error"
+                }
+              },
+              "type": "value"
+            }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "transparent" }
+              {
+                "color": "transparent",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
-      "options": {
-        "showValue": "auto",
-        "mergeValues": true,
-        "alignValue": "left"
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 4
       },
+      "id": 2,
+      "options": {
+        "alignValue": "left",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "mergeValues": true,
+        "perPage": 20,
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "repeatDirection": "h",
       "targets": [
         {
           "expr": "(analysis_run_phase{exported_namespace=\"$namespace\", phase=\"Running\"} == 1) * 0\nor\n(analysis_run_phase{exported_namespace=\"$namespace\", phase=\"Successful\"} == 1) * 1\nor\n(analysis_run_phase{exported_namespace=\"$namespace\", phase=\"Failed\"} == 1) * 2\nor\n(analysis_run_phase{exported_namespace=\"$namespace\", phase=\"Inconclusive\"} == 1) * 3\nor\n(analysis_run_phase{exported_namespace=\"$namespace\", phase=\"Error\"} == 1) * 4",
@@ -116,43 +211,68 @@
           "refId": "A"
         }
       ],
-      "datasource": "VictoriaMetrics"
+      "title": "AnalysisRun Results",
+      "transparent": false,
+      "type": "state-timeline"
     },
     {
-      "title": "Pod Up Status (per pod)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
       "fieldConfig": {
         "defaults": {
-          "min": 0,
-          "max": 1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto"
+          },
           "decimals": 0,
-          "unit": "short",
+          "max": 1,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "red" },
-              { "value": 1, "color": "green" }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           },
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "pointSize": 5,
-            "showPoints": "auto"
-          }
+          "unit": "short"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "id": 3,
       "options": {
         "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["lastNotNull"]
+          "showLegend": true
         },
-        "tooltip": { "mode": "multi" }
+        "tooltip": {
+          "mode": "multi",
+          "sort": ""
+        }
       },
+      "repeatDirection": "h",
       "targets": [
         {
           "expr": "up{namespace=\"$namespace\", container=~\"$service\"}",
@@ -160,42 +280,68 @@
           "refId": "A"
         }
       ],
-      "datasource": "VictoriaMetrics"
+      "title": "Pod Up Status (per pod)",
+      "transparent": false,
+      "type": "timeseries"
     },
     {
-      "title": "Container Restarts (per pod)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
       "fieldConfig": {
         "defaults": {
-          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto"
+          },
           "decimals": 0,
-          "unit": "short",
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" },
-              { "value": 1, "color": "red" }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
           },
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "pointSize": 5,
-            "showPoints": "auto"
-          }
+          "unit": "short"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "id": 4,
       "options": {
         "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["lastNotNull", "max"]
+          "showLegend": true
         },
-        "tooltip": { "mode": "multi" }
+        "tooltip": {
+          "mode": "multi",
+          "sort": ""
+        }
       },
+      "repeatDirection": "h",
       "targets": [
         {
           "expr": "kube_pod_container_status_restarts_total{namespace=\"$namespace\", container=~\"$service\"}",
@@ -203,38 +349,73 @@
           "refId": "A"
         }
       ],
-      "datasource": "VictoriaMetrics"
+      "title": "Container Restarts (per pod)",
+      "transparent": false,
+      "type": "timeseries"
     },
     {
-      "title": "Canary vs Stable Restarts (rate/5m)",
-      "type": "barchart",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "lineWidth": 1
+          },
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" },
-              { "value": 1, "color": "red" }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
           },
-          "custom": {
-            "fillOpacity": 80
-          }
+          "unit": "short"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 5,
       "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
         "orientation": "horizontal",
         "showValue": "auto",
         "stacking": "none",
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        }
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        },
+        "xTickLabelMaxLength": 0,
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
+      "repeatDirection": "h",
       "targets": [
         {
           "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\", container=~\"$service\"}[5m]))",
@@ -242,34 +423,55 @@
           "refId": "A"
         }
       ],
-      "datasource": "VictoriaMetrics"
+      "title": "Canary vs Stable Restarts (rate/5m)",
+      "transparent": false,
+      "type": "barchart"
     },
     {
-      "title": "Rollout Replicas",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
       "fieldConfig": {
         "defaults": {
-          "min": 0,
-          "decimals": 0,
-          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
             "fillOpacity": 10,
-            "stacking": { "mode": "none" }
-          }
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "decimals": 0,
+          "min": 0,
+          "unit": "short"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 6,
       "options": {
         "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
           "displayMode": "table",
           "placement": "bottom",
-          "calcs": ["lastNotNull"]
+          "showLegend": true
         },
-        "tooltip": { "mode": "multi" }
+        "tooltip": {
+          "mode": "multi",
+          "sort": ""
+        }
       },
+      "repeatDirection": "h",
       "targets": [
         {
           "expr": "kube_pod_status_ready{namespace=\"$namespace\", pod=~\"($service)-.+\", condition=\"true\"}",
@@ -282,9 +484,64 @@
           "refId": "B"
         }
       ],
-      "datasource": "VictoriaMetrics"
+      "title": "Rollout Replicas",
+      "transparent": false,
+      "type": "timeseries"
     }
   ],
-  "schemaVersion": 39,
-  "version": 1
+  "refresh": "30s",
+  "schemaVersion": 42,
+  "tags": [
+    "argo-rollouts",
+    "chalupa",
+    "platform"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": true,
+        "auto": false,
+        "auto_count": 30,
+        "auto_min": "10s",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "VictoriaMetrics"
+        },
+        "includeAll": false,
+        "multi": false,
+        "name": "namespace",
+        "query": "label_values(rollout_phase, exported_namespace)",
+        "refresh": 1,
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allowCustomValue": true,
+        "auto": false,
+        "auto_count": 30,
+        "auto_min": "10s",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "VictoriaMetrics"
+        },
+        "includeAll": true,
+        "label": "Rollout",
+        "multi": true,
+        "name": "service",
+        "query": "label_values(rollout_phase{exported_namespace=\"$namespace\"}, name)",
+        "refresh": 1,
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Schwab Argo Rollouts",
+  "uid": "schwab-rollouts"
 }

@@ -14,6 +14,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RENDERS=(
   "paper-trader:k8s/apps/schwab/go-paper-trader/files/paper-trading.json"
   "schwab-feed:k8s/apps/schwab/go-schwab-feed/files/schwab-feed.json"
+  "schwab-rollouts:k8s/apps/schwab/go-schwab-feed/files/schwab-rollouts.json"
 )
 
 cd "${REPO_ROOT}/scripts/dashboards"
