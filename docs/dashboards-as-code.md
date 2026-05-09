@@ -74,6 +74,60 @@ means a new `cmd/<name>/main.go` + `internal/<name>/` package.
    typical change, expect ~30 lines of JSON delta.
 4. Commit Go source + regenerated JSON in the same PR.
 
+### Cross-dashboard drilldowns
+
+Panel-level data links seed cross-dashboard navigation: a drilldown
+button appears in the panel header (and on per-series legend / data
+points), preserves the source dashboard's time window, and seeds the
+target dashboard's variables.
+
+Use the `internal/common/links` helper, which wraps
+`dashboard.NewDashboardLinkBuilder()` with chalupa-tech defaults
+(`→ <target>` title prefix, `targetBlank=true`, `type=link`):
+
+```go
+import (
+    "github.com/grafana/grafana-foundation-sdk/go/cog"
+    "github.com/grafana/grafana-foundation-sdk/go/dashboard"
+
+    "github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/links"
+)
+
+panel.DataLinks([]cog.Builder[dashboard.DashboardLink]{
+    links.To(
+        "schwab-feed Poll Duration",
+        "/d/schwab-feed?from=${__from}&to=${__to}&var-symbol=${__series.name}",
+    ),
+})
+```
+
+Three rules:
+
+1. **Use `DataLinks()`, not `Links()`.** They write to different JSON
+   paths. `DataLinks` writes to `fieldConfig.defaults.links` and
+   resolves the per-series interpolation tokens
+   (`${__field.labels.<name>}`, `${__series.name}`,
+   `${__data.fields.<name>}`). `Links` writes to the panel-header link
+   array and only resolves `${__from}`, `${__to}`, and
+   `${var-<dashboardvar>}` — it will pass the unresolved literal
+   `${__series.name}` to the target if you mix them up.
+2. **Always embed `from=${__from}&to=${__to}` in the URL** — preserves
+   the source dashboard's currently visible window. Don't rely on the
+   SDK's `KeepTime` flag; it uses Grafana's URL-fragment time-range
+   carry-over which races with the target's default-time on initial
+   load.
+3. **Reserve variable names across dashboards.** `book_id`, `symbol`,
+   `strategy`, `registration` are reserved (see
+   `briefs/dashboard-navigation-plan.md` in the brain repo). When
+   adding a new dashboard with one of these concepts, reuse the
+   reserved name so cross-dashboard drilldowns can pass values through
+   `var-<name>=...` without rewiring the target.
+
+Multiple links on one panel render as a sub-menu in Grafana — useful
+when one source signal has two candidate root causes (panel 302 in
+paper-trading uses this for halt → auth-refresh OR cross-site
+latency).
+
 ## CI gate
 
 `.github/workflows/validate-dashboards.yml` triggers on PRs touching

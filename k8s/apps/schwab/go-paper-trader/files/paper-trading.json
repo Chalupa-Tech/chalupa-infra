@@ -417,6 +417,34 @@
       "description": "paper-trading-realism phase-6: number of books that have hit the daily max-loss guard at least once in the current 24h window. Red when any book is halted; green otherwise. A halted book recovers at UTC midnight without intervention.",
       "fieldConfig": {
         "defaults": {
+          "links": [
+            {
+              "asDropdown": false,
+              "icon": "",
+              "includeVars": false,
+              "keepTime": false,
+              "placement": "inControlsMenu",
+              "tags": [],
+              "targetBlank": true,
+              "title": "→ schwab-auth-lifecycle",
+              "tooltip": "",
+              "type": "link",
+              "url": "/d/schwab-auth-lifecycle?from=${__from}\u0026to=${__to}"
+            },
+            {
+              "asDropdown": false,
+              "icon": "",
+              "includeVars": false,
+              "keepTime": false,
+              "placement": "inControlsMenu",
+              "tags": [],
+              "targetBlank": true,
+              "title": "→ telemetry-mesh Cross-site P99",
+              "tooltip": "",
+              "type": "link",
+              "url": "/d/telemetry-mesh?from=${__from}\u0026to=${__to}"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1289,6 +1317,21 @@
             "fillOpacity": 10,
             "lineWidth": 2
           },
+          "links": [
+            {
+              "asDropdown": false,
+              "icon": "",
+              "includeVars": false,
+              "keepTime": false,
+              "placement": "inControlsMenu",
+              "tags": [],
+              "targetBlank": true,
+              "title": "→ Quote age (panel 901)",
+              "tooltip": "",
+              "type": "link",
+              "url": "/d/paper-trading/?from=${__from}\u0026to=${__to}\u0026viewPanel=901\u0026var-book_id=${__field.labels.book_id}"
+            }
+          ],
           "unit": "percent"
         },
         "overrides": []
@@ -1737,6 +1780,21 @@
           "custom": {
             "lineWidth": 1
           },
+          "links": [
+            {
+              "asDropdown": false,
+              "icon": "",
+              "includeVars": false,
+              "keepTime": false,
+              "placement": "inControlsMenu",
+              "tags": [],
+              "targetBlank": true,
+              "title": "→ schwab-feed Poll Duration",
+              "tooltip": "",
+              "type": "link",
+              "url": "/d/schwab-feed?from=${__from}\u0026to=${__to}\u0026var-symbol=${__series.name}"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1784,6 +1842,21 @@
       },
       "fieldConfig": {
         "defaults": {
+          "links": [
+            {
+              "asDropdown": false,
+              "icon": "",
+              "includeVars": false,
+              "keepTime": false,
+              "placement": "inControlsMenu",
+              "tags": [],
+              "targetBlank": true,
+              "title": "→ schwab-feed NATS Publish Rate",
+              "tooltip": "",
+              "type": "link",
+              "url": "/d/schwab-feed?from=${__from}\u0026to=${__to}"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -2047,6 +2120,21 @@
           "color": {
             "mode": "palette-classic"
           },
+          "links": [
+            {
+              "asDropdown": false,
+              "icon": "",
+              "includeVars": false,
+              "keepTime": false,
+              "placement": "inControlsMenu",
+              "tags": [],
+              "targetBlank": true,
+              "title": "→ schwab-feed Quote Prices",
+              "tooltip": "",
+              "type": "link",
+              "url": "/d/schwab-feed?from=${__from}\u0026to=${__to}\u0026var-symbol=${__field.labels.symbol}"
+            }
+          ],
           "unit": "short"
         },
         "overrides": []

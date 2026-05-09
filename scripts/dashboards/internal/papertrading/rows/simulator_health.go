@@ -4,12 +4,14 @@
 package rows
 
 import (
+	"github.com/grafana/grafana-foundation-sdk/go/cog"
 	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 	"github.com/grafana/grafana-foundation-sdk/go/prometheus"
 	"github.com/grafana/grafana-foundation-sdk/go/timeseries"
 
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/datasources"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/layout"
+	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/links"
 )
 
 const (
@@ -47,7 +49,15 @@ func quoteAgePerSymbol(y int) *timeseries.PanelBuilder {
 				{Color: "green", Value: nil},
 				{Color: "yellow", Value: p64(5)},
 				{Color: "red", Value: p64(30)},
-			}))
+			})).
+		// Drilldown #2: quote staleness is a feed problem — hop to the
+		// schwab-feed dashboard with the affected symbol pre-selected.
+		DataLinks([]cog.Builder[dashboard.DashboardLink]{
+			links.To(
+				"schwab-feed Poll Duration",
+				"/d/schwab-feed?from=${__from}&to=${__to}&var-symbol=${__series.name}",
+			),
+		})
 }
 
 func natsDroppedMessages(y int) *timeseries.PanelBuilder {
@@ -70,7 +80,15 @@ func natsDroppedMessages(y int) *timeseries.PanelBuilder {
 			Steps([]dashboard.Threshold{
 				{Color: "green", Value: nil},
 				{Color: "red", Value: p64(0.001)},
-			}))
+			})).
+		// Drilldown #3: cross-check this dropped-counter against the
+		// publisher-side rate. Delta = subscriber-side issue.
+		DataLinks([]cog.Builder[dashboard.DashboardLink]{
+			links.To(
+				"schwab-feed NATS Publish Rate",
+				"/d/schwab-feed?from=${__from}&to=${__to}",
+			),
+		})
 }
 
 func fillPersistP99(y int) *timeseries.PanelBuilder {

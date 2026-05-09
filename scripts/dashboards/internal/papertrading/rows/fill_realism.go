@@ -4,6 +4,7 @@
 package rows
 
 import (
+	"github.com/grafana/grafana-foundation-sdk/go/cog"
 	"github.com/grafana/grafana-foundation-sdk/go/common"
 	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 	"github.com/grafana/grafana-foundation-sdk/go/heatmap"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/datasources"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/layout"
+	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/links"
 )
 
 const (
@@ -53,7 +55,19 @@ func midFillBiasQuantiles(y int) *timeseries.PanelBuilder {
 			Expr(`histogram_quantile(0.95, sum by (le, book_id) (rate(paper_mid_fill_bias_bps_bucket{book_id=~"$book_id"}[15m])))`).
 			LegendFormat("P95 {{book_id}}")).
 		Unit("short").
-		ColorScheme(dashboard.NewFieldColorBuilder().Mode(dashboard.FieldColorModeIdPaletteClassic))
+		ColorScheme(dashboard.NewFieldColorBuilder().Mode(dashboard.FieldColorModeIdPaletteClassic)).
+		// Drilldown #4: high slippage spike means the spread widened —
+		// verify on the source feed. The query aggregates by (le, book_id)
+		// so symbol isn't on the series; ${__field.labels.symbol} stays
+		// per the navigation-plan contract for SDK-port consistency, and
+		// schwab-feed falls back to its own default when the token is
+		// unresolved.
+		DataLinks([]cog.Builder[dashboard.DashboardLink]{
+			links.To(
+				"schwab-feed Quote Prices",
+				"/d/schwab-feed?from=${__from}&to=${__to}&var-symbol=${__field.labels.symbol}",
+			),
+		})
 }
 
 func midFillBiasDistribution(y int) *heatmap.PanelBuilder {

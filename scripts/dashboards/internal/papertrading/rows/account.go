@@ -4,6 +4,7 @@
 package rows
 
 import (
+	"github.com/grafana/grafana-foundation-sdk/go/cog"
 	"github.com/grafana/grafana-foundation-sdk/go/common"
 	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 	"github.com/grafana/grafana-foundation-sdk/go/prometheus"
@@ -13,6 +14,7 @@ import (
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/cte"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/datasources"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/layout"
+	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/links"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/sql"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/thresholds"
 )
@@ -148,7 +150,17 @@ func drawdownPctByBook(y int) *timeseries.PanelBuilder {
 		Unit("percent").
 		LineWidth(2).
 		FillOpacity(10).
-		ColorScheme(dashboard.NewFieldColorBuilder().Mode(dashboard.FieldColorModeIdPaletteClassic))
+		ColorScheme(dashboard.NewFieldColorBuilder().Mode(dashboard.FieldColorModeIdPaletteClassic)).
+		// Drilldown #1 (paper-trading-realism phase-7e3 navigation
+		// plan): drawdown spikes often coincide with stale quotes. Hop
+		// to the same-board quote-age panel with the affected book
+		// pre-selected, time window preserved.
+		DataLinks([]cog.Builder[dashboard.DashboardLink]{
+			links.To(
+				"Quote age (panel 901)",
+				"/d/paper-trading/?from=${__from}&to=${__to}&viewPanel=901&var-book_id=${__field.labels.book_id}",
+			),
+		})
 }
 
 func rollingReturnByBook(y int) *timeseries.PanelBuilder {
