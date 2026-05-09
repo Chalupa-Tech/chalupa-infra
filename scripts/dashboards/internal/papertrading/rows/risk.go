@@ -4,6 +4,7 @@
 package rows
 
 import (
+	"github.com/grafana/grafana-foundation-sdk/go/cog"
 	"github.com/grafana/grafana-foundation-sdk/go/common"
 	"github.com/grafana/grafana-foundation-sdk/go/dashboard"
 	"github.com/grafana/grafana-foundation-sdk/go/prometheus"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/datasources"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/layout"
+	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/links"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/thresholds"
 )
 
@@ -88,7 +90,21 @@ func booksHalted(y int) *stat.PanelBuilder {
 		ColorMode(common.BigValueColorModeBackground).
 		GraphMode(common.BigValueGraphModeNone).
 		ReduceOptions(common.NewReduceDataOptionsBuilder().
-			Calcs([]string{"lastNotNull"}))
+			Calcs([]string{"lastNotNull"})).
+		// Drilldown #5: a halt may be downstream of stale data that's
+		// downstream of a failed token refresh — or of a cluster-latency
+		// fill-decision lag. Two candidate root causes, two links;
+		// Grafana renders both as a sub-menu off the panel.
+		DataLinks([]cog.Builder[dashboard.DashboardLink]{
+			links.To(
+				"schwab-auth-lifecycle",
+				"/d/schwab-auth-lifecycle?from=${__from}&to=${__to}",
+			),
+			links.To(
+				"telemetry-mesh Cross-site P99",
+				"/d/telemetry-mesh?from=${__from}&to=${__to}",
+			),
+		})
 }
 
 func haltRejectRate(y int) *timeseries.PanelBuilder {
