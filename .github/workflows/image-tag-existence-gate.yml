@@ -1,0 +1,170 @@
+---
+# Image Tag Existence Gate
+#
+# Pre-flight check on PRs that change `image.tag` in any chart values
+# file under `k8s/apps/**/values.yaml`. For each (registry, repository,
+# tag) tuple introduced by the diff, query the registry over Tailscale
+# and fail the PR if the tag does not exist.
+#
+# Catches the failure mode that put go-paper-trader into ImagePullBackOff
+# in 2026-05: chalupa-infra PR #440 bumped image.tag to v0.10.0 before
+# the trader-side Release workflow had cut the tag, so ArgoCD synced a
+# chart pointing at an image that did not exist in Gitea.
+#
+# Only Gitea (gitea.tailbecff0.ts.net) is checked — that's where every
+# chalupa-tech app image lives. Public-registry images (postgres,
+# tigerbeetle, etc.) are out of scope.
+
+name: Image Tag Existence Gate
+
+on:
+  pull_request:
+    paths:
+      - 'k8s/apps/**/values.yaml'
+      - '.github/workflows/image-tag-existence-gate.yml'
+
+jobs:
+  check-image-tags:
+    name: Verify image.tag values exist in Gitea
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install yq
+        run: |
+          set -euo pipefail
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Collect (registry, repository, tag) tuples added by this PR
+        id: collect
+        run: |
+          set -euo pipefail
+          BASE="origin/${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only "${BASE}...HEAD" -- 'k8s/apps/**/values.yaml')
+
+          if [ -z "$CHANGED" ]; then
+            echo "No values.yaml files changed under k8s/apps/. Nothing to verify."
+            echo "tuples=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Changed values files:"
+          echo "$CHANGED" | sed 's/^/  - /'
+
+          # For each changed values.yaml, extract the HEAD-side
+          # (registry, repository, tag) and compare against BASE.
+          # We only want NEW (registry, repository, tag) tuples
+          # introduced by this PR — unchanged tuples should not be
+          # re-validated (they have been deployed and are presumed live).
+          tuples_file=$(mktemp)
+          : > "$tuples_file"
+
+          for f in $CHANGED; do
+            # The file may have been deleted by the PR — skip if so.
+            if [ ! -f "$f" ]; then continue; fi
+
+            head_reg=$(yq -r '.image.registry // ""' "$f")
+            head_repo=$(yq -r '.image.repository // ""' "$f")
+            head_tag=$(yq -r '.image.tag // ""' "$f")
+
+            # No image.* in this values.yaml — skip (not every chart
+            # has one at the top level; subcharts/sidecars are not
+            # in scope for the v1 gate).
+            if [ -z "$head_reg" ] || [ -z "$head_repo" ] || [ -z "$head_tag" ]; then
+              continue
+            fi
+
+            # Only enforce against Gitea — public registries (Docker
+            # Hub, ghcr.io, registry.k8s.io, etc.) are out of scope.
+            case "$head_reg" in
+              gitea.tailbecff0.ts.net) ;;
+              *) continue ;;
+            esac
+
+            # Compare to the base-side tuple from the same file. If
+            # all three fields are unchanged, this PR is not bumping
+            # the image — skip (no need to re-verify a live tag).
+            base_blob=$(git show "${BASE}:${f}" 2>/dev/null || true)
+            if [ -n "$base_blob" ]; then
+              base_reg=$(echo "$base_blob" | yq -r '.image.registry // ""')
+              base_repo=$(echo "$base_blob" | yq -r '.image.repository // ""')
+              base_tag=$(echo "$base_blob" | yq -r '.image.tag // ""')
+              if [ "$head_reg" = "$base_reg" ] && [ "$head_repo" = "$base_repo" ] && [ "$head_tag" = "$base_tag" ]; then
+                echo "  [$f] image.tag unchanged ($head_tag) — skipping verification."
+                continue
+              fi
+            fi
+
+            echo "  [$f] new image: ${head_reg}/${head_repo}:${head_tag}"
+            echo "${f}|${head_reg}|${head_repo}|${head_tag}" >> "$tuples_file"
+          done
+
+          # Pass the file path to the next step via output. (Outputs
+          # are size-bounded, but file paths persist within the job.)
+          echo "tuples_file=${tuples_file}" >> "$GITHUB_OUTPUT"
+          tuple_count=$(wc -l < "$tuples_file" | tr -d ' ')
+          echo "tuple_count=${tuple_count}" >> "$GITHUB_OUTPUT"
+          echo "Found ${tuple_count} new image tuple(s) to verify."
+
+      - name: Join Tailscale (only if there are tuples to verify)
+        if: steps.collect.outputs.tuple_count != '0' && steps.collect.outputs.tuple_count != ''
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+          args: "--accept-dns=false"
+
+      - name: Add Gitea to /etc/hosts
+        if: steps.collect.outputs.tuple_count != '0' && steps.collect.outputs.tuple_count != ''
+        run: |
+          set -euo pipefail
+          GITEA_IP=$(tailscale ip -4 gitea.tailbecff0.ts.net 2>/dev/null || tailscale status --json | jq -r '.Peer[] | select(.HostName=="gitea") | .TailscaleIPs[0]')
+          echo "${GITEA_IP} gitea.tailbecff0.ts.net" | sudo tee -a /etc/hosts >/dev/null
+          echo "Resolved gitea.tailbecff0.ts.net -> ${GITEA_IP}"
+
+      - name: Verify each tag exists in Gitea
+        if: steps.collect.outputs.tuple_count != '0' && steps.collect.outputs.tuple_count != ''
+        env:
+          GITEA_USER: ${{ secrets.GITEA_REGISTRY_USER }}
+          GITEA_PASS: ${{ secrets.GITEA_REGISTRY_PASSWORD }}
+          TUPLES_FILE: ${{ steps.collect.outputs.tuples_file }}
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS='|' read -r file registry repository tag; do
+            [ -z "$file" ] && continue
+            url="https://${registry}/v2/${repository}/manifests/${tag}"
+            # OCI manifest GET requires the v2 manifest Accept header.
+            # 200 = exists; 404 = missing; anything else is treated
+            # as missing-with-warning so the gate fails loud.
+            status=$(curl -sS -o /dev/null -w '%{http_code}' \
+              -u "${GITEA_USER}:${GITEA_PASS}" \
+              -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
+              -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+              -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+              "$url" || echo "000")
+            case "$status" in
+              200)
+                echo "OK  [$file] ${registry}/${repository}:${tag}"
+                ;;
+              404)
+                echo "::error file=${file}::image ${registry}/${repository}:${tag} does not exist in registry. ArgoCD will sync this chart and the resulting pod will be in ImagePullBackOff. Cut a release in the source repo first, then merge this bump."
+                fail=1
+                ;;
+              *)
+                echo "::error file=${file}::registry returned HTTP ${status} for ${registry}/${repository}:${tag}. Treating as missing — verify the registry is reachable and the credentials are valid."
+                fail=1
+                ;;
+            esac
+          done < "$TUPLES_FILE"
+
+          if [ $fail -ne 0 ]; then
+            exit 1
+          fi
+          echo "All new image tags exist in Gitea."
