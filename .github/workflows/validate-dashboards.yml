@@ -22,6 +22,7 @@ on:
       - 'scripts/dashboards/**'
       - 'k8s/apps/schwab/go-paper-trader/files/paper-trading.json'
       - 'k8s/apps/schwab/go-schwab-feed/files/schwab-feed.json'
+      - 'k8s/apps/schwab/go-schwab-feed/files/schwab-rollouts.json'
       - '.github/workflows/validate-dashboards.yml'
 
 concurrency:
@@ -69,6 +70,7 @@ jobs:
           guarded=(
             "k8s/apps/schwab/go-paper-trader/files/paper-trading.json"
             "k8s/apps/schwab/go-schwab-feed/files/schwab-feed.json"
+            "k8s/apps/schwab/go-schwab-feed/files/schwab-rollouts.json"
           )
           if ! git diff --exit-code "${guarded[@]}"; then
             echo "::error::scripts/dashboards/ source and one or more committed JSONs are out of sync."

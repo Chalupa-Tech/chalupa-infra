@@ -7,6 +7,7 @@ The committed JSONs at
 
 - `k8s/apps/schwab/go-paper-trader/files/paper-trading.json`
 - `k8s/apps/schwab/go-schwab-feed/files/schwab-feed.json`
+- `k8s/apps/schwab/go-schwab-feed/files/schwab-rollouts.json`
 
 are **generated artifacts**.
 Do not hand-edit them.
@@ -23,6 +24,7 @@ scripts/dashboards/
   build.sh                              # iterates RENDERS, generates each JSON
   cmd/paper-trader/main.go              # `go run ./cmd/paper-trader > out.json`
   cmd/schwab-feed/main.go               # `go run ./cmd/schwab-feed > out.json`
+  cmd/schwab-rollouts/main.go           # `go run ./cmd/schwab-rollouts > out.json`
   internal/
     common/                             # reused across dashboards
       datasources/                      # VictoriaMetrics, TimescaleDB UIDs
@@ -39,6 +41,8 @@ scripts/dashboards/
     schwabfeed/                         # the schwab market feed dashboard
       build.go templating.go
       rows/feed_health.go rows/market_data.go
+    schwabrollouts/                     # the schwab argo rollouts dashboard
+      build.go templating.go panels.go  # 6 panels, no rows in source
 ```
 
 `internal/` keeps each dashboard's row builders private. Cross-cutting
