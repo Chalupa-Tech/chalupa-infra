@@ -28,6 +28,16 @@ data:
     jqPathExpressions:
       - .spec.volumeClaimTemplates[]?.spec
 
+  # ESO CRD defaults populate these server-side; ArgoCD tracks data[] atomically
+  # so they surface as permanent drift even with ServerSideApply + RespectIgnoreDifferences.
+  resource.customizations.ignoreDifferences.external-secrets.io_ExternalSecret: |
+    jqPathExpressions:
+      - .spec.data[]?.remoteRef.conversionStrategy
+      - .spec.data[]?.remoteRef.decodingStrategy
+      - .spec.data[]?.remoteRef.metadataPolicy
+      - .spec.target.deletionPolicy
+      - .spec.target.template.mergePolicy
+
   # --- ignoreResourceUpdates ---
   # Suppress unnecessary sync triggers from high-churn resources.
   # These prevent ArgoCD from re-syncing when only status/metadata changes.
