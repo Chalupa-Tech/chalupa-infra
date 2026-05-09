@@ -595,12 +595,134 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-9: rate of orders rejected by a pre-trade risk gate, partitioned by reason. risk_max_order_qty = fat-finger qty cap. risk_max_notional = single-order $ cap. risk_buying_power = BUY notional \u003e cash. risk_max_position = BUY would push long qty over the per-symbol cap. A non-zero sustained rate means a strategy is hot-looping against a cap or the cap is misconfigured.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 305,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum by (reject_reason) (rate(paper_order_rejects_total{book_id=~\"$book_id\", reject_reason=~\"risk_.*\"}[5m]))",
+          "legendFormat": "{{reject_reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Pre-trade rejects per reason (5m rate)",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-9: configured pre-trade risk caps per book. max_order_qty / max_notional_usd / max_position_qty_per_symbol — 0 means the gate is disabled. buying_power_required is 0 (off) or 1 (on). Books with all gates at 0 + buying_power_required=0 are running unguarded — fine for back-compat tests, intentional opt-out for some books.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 306,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "paper_risk_max_order_qty{book_id=~\"$book_id\"}",
+          "instant": true,
+          "legendFormat": "max_order_qty / {{book_id}}",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "expr": "paper_risk_max_notional_per_order_usd{book_id=~\"$book_id\"}",
+          "instant": true,
+          "legendFormat": "max_notional_usd / {{book_id}}",
+          "range": false,
+          "refId": "B"
+        },
+        {
+          "expr": "paper_risk_max_position_qty_per_symbol{book_id=~\"$book_id\"}",
+          "instant": true,
+          "legendFormat": "max_position_qty / {{book_id}}",
+          "range": false,
+          "refId": "C"
+        },
+        {
+          "expr": "paper_risk_buying_power_required{book_id=~\"$book_id\"}",
+          "instant": true,
+          "legendFormat": "buying_power_required / {{book_id}}",
+          "range": false,
+          "refId": "D"
+        }
+      ],
+      "title": "Risk gate config per book",
+      "transparent": false,
+      "type": "stat"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 26
       },
       "id": 400,
       "panels": [],
@@ -630,7 +752,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 19
+        "y": 27
       },
       "id": 401,
       "options": {
@@ -680,7 +802,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 19
+        "y": 27
       },
       "id": 402,
       "options": {
@@ -744,7 +866,7 @@
         "h": 4,
         "w": 12,
         "x": 0,
-        "y": 27
+        "y": 35
       },
       "id": 403,
       "options": {
@@ -799,7 +921,7 @@
         "h": 4,
         "w": 12,
         "x": 12,
-        "y": 27
+        "y": 35
       },
       "id": 404,
       "options": {
@@ -832,7 +954,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 39
       },
       "id": 500,
       "panels": [],
@@ -862,7 +984,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 32
+        "y": 40
       },
       "id": 501,
       "options": {
@@ -908,7 +1030,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 40
       },
       "id": 502,
       "options": {
@@ -970,7 +1092,7 @@
         "h": 4,
         "w": 12,
         "x": 0,
-        "y": 40
+        "y": 48
       },
       "id": 503,
       "options": {
@@ -1018,7 +1140,7 @@
         "h": 4,
         "w": 12,
         "x": 12,
-        "y": 40
+        "y": 48
       },
       "id": 504,
       "options": {
@@ -1074,7 +1196,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 52
       },
       "id": 600,
       "panels": [],
@@ -1103,7 +1225,7 @@
         "h": 9,
         "w": 16,
         "x": 0,
-        "y": 45
+        "y": 53
       },
       "id": 601,
       "options": {
@@ -1167,7 +1289,7 @@
         "h": 4,
         "w": 8,
         "x": 16,
-        "y": 45
+        "y": 53
       },
       "id": 602,
       "options": {
@@ -1219,7 +1341,7 @@
         "h": 5,
         "w": 8,
         "x": 16,
-        "y": 49
+        "y": 57
       },
       "id": 603,
       "options": {
@@ -1275,7 +1397,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 62
       },
       "id": 604,
       "options": {
@@ -1340,7 +1462,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 62
+        "y": 70
       },
       "id": 605,
       "repeatDirection": "h",
@@ -1378,7 +1500,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 70
+        "y": 78
       },
       "id": 606,
       "options": {
@@ -1411,7 +1533,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 78
+        "y": 86
       },
       "id": 700,
       "panels": [],
@@ -1495,7 +1617,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 79
+        "y": 87
       },
       "id": 701,
       "repeatDirection": "h",
@@ -1541,7 +1663,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 79
+        "y": 87
       },
       "id": 702,
       "repeatDirection": "h",
@@ -1562,7 +1684,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 86
+        "y": 94
       },
       "id": 800,
       "panels": [],
@@ -1585,7 +1707,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 87
+        "y": 95
       },
       "id": 801,
       "repeatDirection": "h",
@@ -1620,7 +1742,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 87
+        "y": 95
       },
       "id": 802,
       "repeatDirection": "h",
@@ -1655,7 +1777,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 87
+        "y": 95
       },
       "id": 803,
       "repeatDirection": "h",
@@ -1686,7 +1808,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 87
+        "y": 95
       },
       "id": 804,
       "repeatDirection": "h",
@@ -1716,7 +1838,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 91
+        "y": 99
       },
       "id": 805,
       "options": {
@@ -1760,7 +1882,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 97
+        "y": 105
       },
       "id": 850,
       "panels": [],
@@ -1783,7 +1905,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 98
+        "y": 106
       },
       "id": 851,
       "options": {
@@ -1839,7 +1961,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 98
+        "y": 106
       },
       "id": 852,
       "options": {
@@ -1890,7 +2012,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 98
+        "y": 106
       },
       "id": 853,
       "options": {
@@ -1923,7 +2045,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 106
+        "y": 114
       },
       "id": 900,
       "panels": [],
@@ -1983,7 +2105,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 107
+        "y": 115
       },
       "id": 901,
       "repeatDirection": "h",
@@ -2041,7 +2163,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 107
+        "y": 115
       },
       "id": 902,
       "repeatDirection": "h",
@@ -2088,7 +2210,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 107
+        "y": 115
       },
       "id": 903,
       "repeatDirection": "h",
@@ -2109,7 +2231,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 115
+        "y": 123
       },
       "id": 1000,
       "panels": [],
@@ -2135,7 +2257,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 116
+        "y": 124
       },
       "id": 1001,
       "repeatDirection": "h",
@@ -2171,7 +2293,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 116
+        "y": 124
       },
       "id": 1002,
       "options": {
@@ -2234,7 +2356,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 116
+        "y": 124
       },
       "id": 1003,
       "repeatDirection": "h",
@@ -2265,7 +2387,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 124
+        "y": 132
       },
       "id": 1100,
       "panels": [],
@@ -2306,7 +2428,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 125
+        "y": 133
       },
       "id": 1101,
       "repeatDirection": "h",
@@ -2347,7 +2469,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 125
+        "y": 133
       },
       "id": 1102,
       "options": {
@@ -2412,7 +2534,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 133
+        "y": 141
       },
       "id": 1103,
       "options": {
@@ -2463,7 +2585,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 141
+        "y": 149
       },
       "id": 1200,
       "panels": [],
@@ -2499,7 +2621,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 142
+        "y": 150
       },
       "id": 1201,
       "options": {
@@ -2566,7 +2688,7 @@
         "h": 7,
         "w": 16,
         "x": 8,
-        "y": 142
+        "y": 150
       },
       "id": 1202,
       "repeatDirection": "h",
