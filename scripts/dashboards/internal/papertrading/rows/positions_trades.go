@@ -36,6 +36,12 @@ func livePositions(y int) *table.PanelBuilder {
 	return table.NewPanelBuilder().
 		Id(701).
 		Title("Live positions").
+		Description(
+			"Current open positions for the selected books and symbols, " +
+				"with avg cost, mark, and unrealized P&L. Pulls the latest " +
+				"row per (book, symbol) from paper_positions where " +
+				"quantity != 0 — closed positions disappear deterministically " +
+				"once SimAdapter prunes the gauge series.").
 		GridPos(layout.Pos(0, y, 12, 7)).
 		Datasource(datasources.Timescale()).
 		WithTarget(sql.Table("A", rawSQL)).
@@ -63,6 +69,11 @@ func tradeLog(y int) *table.PanelBuilder {
 	return table.NewPanelBuilder().
 		Id(702).
 		Title("Trade log (last 50 fills)").
+		Description(
+			"Most recent 50 fills across the selected books / symbols / " +
+				"strategies, oldest at bottom. realized_pl is non-NULL on " +
+				"SELLs only — BUYs render blank in that column; that's the " +
+				"phase-4b invariant, not missing data.").
 		GridPos(layout.Pos(12, y, 12, 7)).
 		Datasource(datasources.Timescale()).
 		WithTarget(sql.Table("A", rawSQL)).

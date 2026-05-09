@@ -19,8 +19,9 @@ const strategyQuery = "SELECT DISTINCT strategy FROM paper_fills ORDER BY strate
 
 // queryVariable is a small constructor for our 3 multi-select query
 // variables, all backed by TimescaleDB.
-func queryVariable(name, query string) *dashboard.QueryVariableBuilder {
+func queryVariable(name, label, query string) *dashboard.QueryVariableBuilder {
 	return dashboard.NewQueryVariableBuilder(name).
+		Label(label).
 		Datasource(datasources.Timescale()).
 		Query(dashboard.StringOrMap{String: stringPtr(query)}).
 		Multi(true).
@@ -29,15 +30,15 @@ func queryVariable(name, query string) *dashboard.QueryVariableBuilder {
 }
 
 func bookIDVar() *dashboard.QueryVariableBuilder {
-	return queryVariable("book_id", bookIDQuery)
+	return queryVariable("book_id", "Book", bookIDQuery)
 }
 
 func symbolVar() *dashboard.QueryVariableBuilder {
-	return queryVariable("symbol", symbolQuery)
+	return queryVariable("symbol", "Symbol", symbolQuery)
 }
 
 func strategyVar() *dashboard.QueryVariableBuilder {
-	return queryVariable("strategy", strategyQuery)
+	return queryVariable("strategy", "Strategy", strategyQuery)
 }
 
 func stringPtr(s string) *string { return &s }

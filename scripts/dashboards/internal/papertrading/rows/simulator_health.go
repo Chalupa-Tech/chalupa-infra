@@ -20,11 +20,21 @@ const (
 	simulatorHealthHeight   = 9 // 1 + 8 (timeseries h)
 )
 
+// SimulatorHealth wires its three operator-debug panels under a
+// default-collapsed row (paper-trading-realism phase-11c). The panels
+// remain accessible (one click to expand) but don't dominate the
+// landing view during a 30-day evaluation window — they belong on
+// screen during build, not measurement. To preserve the collapsed
+// behavior in committed JSON, panels are nested into the row builder
+// rather than at the dashboard top level: when collapsed, only the
+// nested panels hide; sibling rows remain at top-level gridPos.
 func SimulatorHealth(db *dashboard.DashboardBuilder, yBase int) int {
-	db.WithRow(layout.Row(simulatorHealthRowID, yBase, simulatorHealthRowTitle))
-	db.WithPanel(quoteAgePerSymbol(yBase + 1))
-	db.WithPanel(natsDroppedMessages(yBase + 1))
-	db.WithPanel(fillPersistP99(yBase + 1))
+	row := layout.Row(simulatorHealthRowID, yBase, simulatorHealthRowTitle).
+		Collapsed(true).
+		WithPanel(quoteAgePerSymbol(yBase + 1)).
+		WithPanel(natsDroppedMessages(yBase + 1)).
+		WithPanel(fillPersistP99(yBase + 1))
+	db.WithRow(row)
 	return simulatorHealthHeight
 }
 
@@ -34,6 +44,13 @@ func quoteAgePerSymbol(y int) *timeseries.PanelBuilder {
 	return timeseries.NewPanelBuilder().
 		Id(901).
 		Title("Quote age per symbol").
+		Description(
+			"Seconds since the last cached quote per symbol — computed as " +
+				"`time() - paper_quote_last_update_timestamp_seconds`. >30s " +
+				"during market hours means the SimAdapter's stale-quote " +
+				"refusal is firing (orders for that symbol bounce with " +
+				"ErrStaleQuote); check NATS health and feed-side metrics " +
+				"first, then the symbol watchlist.").
 		GridPos(layout.Pos(0, y, 8, 8)).
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().
@@ -64,6 +81,13 @@ func natsDroppedMessages(y int) *timeseries.PanelBuilder {
 	return timeseries.NewPanelBuilder().
 		Id(902).
 		Title("NATS dropped messages (rate/5m)").
+		Description(
+			"5-minute rate of NATS slow-consumer drops per book. Healthy " +
+				"steady state = 0 (the `or vector(0)` keeps the line green " +
+				"when the counter has never incremented). Sustained drops " +
+				"mean the trader is falling behind quote ingest — typical " +
+				"causes are TimescaleDB write-stalls on AppendFill or the " +
+				"strategy goroutine blocking on a slow PlaceOrder.").
 		GridPos(layout.Pos(8, y, 8, 8)).
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().
@@ -95,6 +119,13 @@ func fillPersistP99(y int) *timeseries.PanelBuilder {
 	return timeseries.NewPanelBuilder().
 		Id(903).
 		Title("Fill persist p99 latency").
+		Description(
+			"P99 of the AppendFill write-through to TimescaleDB " +
+				"(paper_fill_persist_duration_seconds). Internal SLO: <50ms " +
+				"steady state, <100ms tolerable. Sustained spikes correlate " +
+				"with TSDB pressure (chunk pruning, vacuum, or a misbehaving " +
+				"sibling tenant on the cluster) and will eventually surface " +
+				"as NATS drops as the trader falls behind.").
 		GridPos(layout.Pos(16, y, 8, 8)).
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().

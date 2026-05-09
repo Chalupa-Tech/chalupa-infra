@@ -22,11 +22,19 @@ const (
 	fillRealismHeight   = 17 // 1 + 8 (P50/P95 + heatmap) + 8 (slippage heatmap)
 )
 
+// FillRealism renders three fill-realism debug panels under a default-
+// collapsed row (paper-trading-realism phase-11c). Mirrors
+// SimulatorHealth's collapsed treatment: panels stay one click away
+// during a 30-day evaluation window without dominating the landing
+// view. Panels are nested into the row builder so the collapsed
+// behavior survives in committed JSON.
 func FillRealism(db *dashboard.DashboardBuilder, yBase int) int {
-	db.WithRow(layout.Row(fillRealismRowID, yBase, fillRealismRowTitle))
-	db.WithPanel(midFillBiasQuantiles(yBase + 1))
-	db.WithPanel(midFillBiasDistribution(yBase + 1))
-	db.WithPanel(slippageVsDecisionMid(yBase + 9))
+	row := layout.Row(fillRealismRowID, yBase, fillRealismRowTitle).
+		Collapsed(true).
+		WithPanel(midFillBiasQuantiles(yBase + 1)).
+		WithPanel(midFillBiasDistribution(yBase + 1)).
+		WithPanel(slippageVsDecisionMid(yBase + 9))
+	db.WithRow(row)
 	return fillRealismHeight
 }
 

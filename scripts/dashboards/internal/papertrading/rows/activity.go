@@ -116,6 +116,12 @@ func byStrategyNotional(y int) *barchart.PanelBuilder {
 	return barchart.NewPanelBuilder().
 		Id(805).
 		Title("By-strategy notional").
+		Description(
+			"sum(quantity × price) per strategy in the visible window. " +
+				"High notional on a low-cash strategy = churn (slippage tax " +
+				"is the dominant P&L driver); pair with the Cumulative " +
+				"realized P&L panel above to judge whether the churn is " +
+				"actually profitable.").
 		GridPos(layout.Pos(0, y, 24, 6)).
 		Datasource(datasources.Timescale()).
 		WithTarget(sql.Table("A", rawSQL)).
