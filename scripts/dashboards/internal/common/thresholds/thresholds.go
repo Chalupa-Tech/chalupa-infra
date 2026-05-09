@@ -88,6 +88,23 @@ var BooksHalted = []Step{
 	{Color: "red", Value: p(1)},
 }
 
+// ReconcileLiveness — Reconciliation tile id=921 ("Seconds since last
+// reconcile sweep"). 60s default cadence ⇒ green < 60s, yellow at the
+// next missed tick (60–120s), red beyond 2× cadence. Phase-11a.
+var ReconcileLiveness = []Step{
+	{Color: "green", Value: nil},
+	{Color: "yellow", Value: p(60)},
+	{Color: "red", Value: p(120)},
+}
+
+// ReconcileDivergence — Reconciliation tile id=922 ("Divergences in
+// last 15m"). Green when zero, red when any. Sim's steady state is
+// zero divergence; any non-zero needs investigation. Phase-11a.
+var ReconcileDivergence = []Step{
+	{Color: "green", Value: nil},
+	{Color: "red", Value: p(1)},
+}
+
 // Build returns an SDK ThresholdsConfigBuilder in absolute mode for
 // the given step list. The returned *ThresholdsConfigBuilder satisfies
 // cog.Builder[ThresholdsConfig] structurally, so it can be passed
