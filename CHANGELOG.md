@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-10b — limit_example deploy)
+
+- **4th paper-trader book `ddowell-limit-example`** in
+  `k8s/apps/schwab/go-paper-trader/values.yaml`. Single-symbol
+  (`AMD`) LIMIT-using book exercising the phase-10
+  place / cancel / replace lifecycle. Knobs:
+  `offsetBps: 10`, `maxRestDuration: 5m`, `rebalanceBps: 5`,
+  `quantity: 5`, `startingCash: 5000`, `session: regular`.
+  Exists so the phase-10 "Working orders" dashboard row populates
+  with real acknowledged LIMITs during market hours and the
+  EOD-cancel + matching-engine paths see live traffic — phase-10
+  shipped the surface but no shipping strategy exercised it.
+- **`go-paper-trader` chart bumped to `0.3.12`** with image tag
+  `v0.10.0`, picking up the trader-side `limit_example` strategy
+  package and `cmd/paper-trader` wiring. The book added above
+  references `strategy: limit_example`, which only exists at
+  `appVersion >= 0.10.0`; the chart bump and book add land in the
+  same PR so ArgoCD never reconciles a state where the YAML
+  references a strategy the running image cannot construct.
+
 ### Added (paper-trading-realism phase-10 — working-orders dashboard row)
 
 - **New `Working orders (phase-10)` row** on `paper-trading.json`,
