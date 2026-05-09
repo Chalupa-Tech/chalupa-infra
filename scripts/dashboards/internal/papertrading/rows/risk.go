@@ -1,8 +1,10 @@
 // risk.go — daily P&L per book, halts, halt-reject rate, daily-loss
 // limit. Phase-9 added pre-trade-reject rate by reason and per-book
-// risk-gate config.
-// Renumbered: row 300, panels 301-306.
-// (Phase-7b ids: row 30, panels 31-34. Phase-9 added 305/306.)
+// risk-gate config. Phase-9b added buying-power utilization and
+// per-symbol position concentration.
+// Renumbered: row 300, panels 301-308.
+// (Phase-7b ids: row 30, panels 31-34. Phase-9 added 305/306. Phase-9b
+// added 307/308.)
 package rows
 
 import (
@@ -22,8 +24,9 @@ import (
 const (
 	riskRowID    = 300
 	riskRowTitle = "Risk"
-	// 1 (row header) + 9 (panel 301 h) + 8 (phase-9 panels 305/306 h).
-	riskHeight = 18
+	// 1 (row header) + 9 (panel 301 h) + 8 (phase-9 panels 305/306 h)
+	// + 8 (phase-9b panels 307/308 h).
+	riskHeight = 26
 )
 
 func Risk(db *dashboard.DashboardBuilder, yBase int) int {
@@ -35,6 +38,11 @@ func Risk(db *dashboard.DashboardBuilder, yBase int) int {
 	// Phase-9: pre-trade-reject rate + per-book risk gate config.
 	db.WithPanel(preTradeRejectsByReason(yBase + 10))
 	db.WithPanel(riskGateConfig(yBase + 10))
+	// Phase-9b: buying-power utilization + per-symbol position
+	// concentration. Both observability-shaped — visualize how close
+	// each book is to its risk envelope before the gates fire.
+	db.WithPanel(buyingPowerUtilization(yBase + 18))
+	db.WithPanel(positionConcentration(yBase + 18))
 	return riskHeight
 }
 
@@ -244,4 +252,77 @@ func riskGateConfig(y int) *stat.PanelBuilder {
 		GraphMode(common.BigValueGraphModeNone).
 		ReduceOptions(common.NewReduceDataOptionsBuilder().
 			Calcs([]string{"lastNotNull"}))
+}
+
+// buyingPowerUtilization renders 1 - (cash / starting_cash) per book —
+// the fraction of the book's risk envelope currently in positions
+// rather than parked cash. Sustained high utilization on a long-only
+// book = position-heavy and approaching the buying-power gate; low
+// utilization = over-hedged or underdeployed. paper-trading-realism
+// phase-9b.
+func buyingPowerUtilization(y int) *timeseries.PanelBuilder {
+	return timeseries.NewPanelBuilder().
+		Id(307).
+		Title("Buying-power utilization per book").
+		Description(
+			"paper-trading-realism phase-9b: 1 - paper_cash_usd / " +
+				"paper_starting_cash_usd per book. 0 = all cash, no positions; " +
+				"1 = fully deployed (no remaining buying power). Crossing 1 is " +
+				"impossible without leverage, so high values approaching 1 are " +
+				"the leading indicator of a risk_buying_power rejection on the " +
+				"next BUY. Low utilization on a strategy that should be active " +
+				"= the strategy is under-decided or over-rejected upstream.").
+		GridPos(layout.Pos(0, y, 12, 8)).
+		Datasource(datasources.Victoria()).
+		WithTarget(prometheus.NewDataqueryBuilder().
+			RefId("A").
+			Expr(`1 - (paper_cash_usd{book_id=~"$book_id"} / paper_starting_cash_usd{book_id=~"$book_id"})`).
+			LegendFormat("{{book_id}}")).
+		Unit("percentunit").
+		ColorScheme(dashboard.NewFieldColorBuilder().Mode(dashboard.FieldColorModeIdPaletteClassic)).
+		DrawStyle(common.GraphDrawStyleLine).
+		LineWidth(2).
+		FillOpacity(20).
+		Stacking(common.NewStackingConfigBuilder().Mode(common.StackingModeNormal)).
+		Legend(common.NewVizLegendOptionsBuilder().
+			DisplayMode(common.LegendDisplayModeList).
+			Placement(common.LegendPlacementBottom).
+			ShowLegend(true))
+}
+
+// positionConcentration renders paper_position_qty / max_position_qty
+// per (book, symbol) — how close each holding is to the per-symbol
+// gate before risk_max_position fires. The denominator is filtered
+// through `> 0` so books with the gate disabled don't show up at all
+// (rather than rendering NaN/+Inf), matching the prompt's "dashboards
+// shouldn't divide by zero" rule. paper-trading-realism phase-9b.
+func positionConcentration(y int) *timeseries.PanelBuilder {
+	return timeseries.NewPanelBuilder().
+		Id(308).
+		Title("Position concentration vs cap (per book, symbol)").
+		Description(
+			"paper-trading-realism phase-9b: paper_position_qty / " +
+				"paper_risk_max_position_qty_per_symbol per (book, symbol). " +
+				"1.0 = at the cap; the next BUY of that symbol on that book " +
+				"will be rejected with reason=risk_max_position. Books that " +
+				"didn't opt into the per-symbol cap (gauge = 0) don't render " +
+				"here — the denominator filter `> 0` drops them. Stacking is " +
+				"normal so the contribution of each (book, symbol) holding is " +
+				"visible in aggregate.").
+		GridPos(layout.Pos(12, y, 12, 8)).
+		Datasource(datasources.Victoria()).
+		WithTarget(prometheus.NewDataqueryBuilder().
+			RefId("A").
+			Expr(`paper_position_qty{book_id=~"$book_id"} / on(book_id) group_left() (paper_risk_max_position_qty_per_symbol{book_id=~"$book_id"} > 0)`).
+			LegendFormat("{{book_id}} / {{symbol}}")).
+		Unit("percentunit").
+		ColorScheme(dashboard.NewFieldColorBuilder().Mode(dashboard.FieldColorModeIdPaletteClassic)).
+		DrawStyle(common.GraphDrawStyleLine).
+		LineWidth(2).
+		FillOpacity(30).
+		Stacking(common.NewStackingConfigBuilder().Mode(common.StackingModeNormal)).
+		Legend(common.NewVizLegendOptionsBuilder().
+			DisplayMode(common.LegendDisplayModeList).
+			Placement(common.LegendPlacementBottom).
+			ShowLegend(true))
 }
