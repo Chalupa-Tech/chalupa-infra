@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-9b — Risk row utilization + concentration panels)
+
+- **Two new panels on the `paper-trading.json` Risk row**, both
+  observability-shaped (not part of the gate-correctness path):
+  - **Panel 307: Buying-power utilization per book** (timeseries,
+    stacked, palette-classic, `percentunit`). Renders
+    `1 - (paper_cash_usd / paper_starting_cash_usd)` per book — the
+    fraction of the book's risk envelope currently in positions
+    rather than parked cash. Approaching 1.0 = next BUY likely
+    rejected with `reason=risk_buying_power`; persistently low =
+    strategy under-decided or over-rejected upstream.
+  - **Panel 308: Position concentration vs cap (per book, symbol)**
+    (timeseries, stacked, palette-classic, `percentunit`). Renders
+    `paper_position_qty / paper_risk_max_position_qty_per_symbol`
+    per `(book, symbol)`, with the denominator filtered through
+    `> 0` so books that didn't opt into the per-symbol cap don't
+    render (rather than producing NaN/+Inf — dashboards shouldn't
+    divide by zero). Series approaching 1.0 = next BUY of that
+    symbol on that book will be rejected with
+    `reason=risk_max_position`.
+- **`riskHeight` 18 → 26** on `internal/papertrading/rows/risk.go`
+  to fit the new sub-row at `yBase + 18`. Both panels are 12 wide ×
+  8 high, side-by-side. `paper-trading.json` regenerated
+  deterministically via `scripts/dashboards/build.sh`; the
+  `validate-dashboards` CI gate (build twice → byte-identical, then
+  drift check) passes locally.
+
 ### Added (paper-trading-realism phase-8 — Orders dashboard row)
 
 - **New "Orders" row on `paper-trading.json`** rendering the phase-8

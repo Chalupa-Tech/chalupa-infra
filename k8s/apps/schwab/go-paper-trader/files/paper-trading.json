@@ -717,12 +717,120 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-9b: 1 - paper_cash_usd / paper_starting_cash_usd per book. 0 = all cash, no positions; 1 = fully deployed (no remaining buying power). Crossing 1 is impossible without leverage, so high values approaching 1 are the leading indicator of a risk_buying_power rejection on the next BUY. Low utilization on a strategy that should be active = the strategy is under-decided or over-rejected upstream.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "id": 307,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "1 - (paper_cash_usd{book_id=~\"$book_id\"} / paper_starting_cash_usd{book_id=~\"$book_id\"})",
+          "legendFormat": "{{book_id}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Buying-power utilization per book",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-9b: paper_position_qty / paper_risk_max_position_qty_per_symbol per (book, symbol). 1.0 = at the cap; the next BUY of that symbol on that book will be rejected with reason=risk_max_position. Books that didn't opt into the per-symbol cap (gauge = 0) don't render here — the denominator filter `\u003e 0` drops them. Stacking is normal so the contribution of each (book, symbol) holding is visible in aggregate.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "id": 308,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "paper_position_qty{book_id=~\"$book_id\"} / on(book_id) group_left() (paper_risk_max_position_qty_per_symbol{book_id=~\"$book_id\"} \u003e 0)",
+          "legendFormat": "{{book_id}} / {{symbol}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Position concentration vs cap (per book, symbol)",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 34
       },
       "id": 400,
       "panels": [],
@@ -752,7 +860,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 27
+        "y": 35
       },
       "id": 401,
       "options": {
@@ -802,7 +910,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 27
+        "y": 35
       },
       "id": 402,
       "options": {
@@ -866,7 +974,7 @@
         "h": 4,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 43
       },
       "id": 403,
       "options": {
@@ -921,7 +1029,7 @@
         "h": 4,
         "w": 12,
         "x": 12,
-        "y": 35
+        "y": 43
       },
       "id": 404,
       "options": {
@@ -954,7 +1062,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 47
       },
       "id": 500,
       "panels": [],
@@ -984,7 +1092,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 40
+        "y": 48
       },
       "id": 501,
       "options": {
@@ -1030,7 +1138,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 40
+        "y": 48
       },
       "id": 502,
       "options": {
@@ -1092,7 +1200,7 @@
         "h": 4,
         "w": 12,
         "x": 0,
-        "y": 48
+        "y": 56
       },
       "id": 503,
       "options": {
@@ -1140,7 +1248,7 @@
         "h": 4,
         "w": 12,
         "x": 12,
-        "y": 48
+        "y": 56
       },
       "id": 504,
       "options": {
@@ -1196,7 +1304,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 52
+        "y": 60
       },
       "id": 600,
       "panels": [],
@@ -1225,7 +1333,7 @@
         "h": 9,
         "w": 16,
         "x": 0,
-        "y": 53
+        "y": 61
       },
       "id": 601,
       "options": {
@@ -1289,7 +1397,7 @@
         "h": 4,
         "w": 8,
         "x": 16,
-        "y": 53
+        "y": 61
       },
       "id": 602,
       "options": {
@@ -1341,7 +1449,7 @@
         "h": 5,
         "w": 8,
         "x": 16,
-        "y": 57
+        "y": 65
       },
       "id": 603,
       "options": {
@@ -1397,7 +1505,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 62
+        "y": 70
       },
       "id": 604,
       "options": {
@@ -1462,7 +1570,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 70
+        "y": 78
       },
       "id": 605,
       "repeatDirection": "h",
@@ -1500,7 +1608,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 78
+        "y": 86
       },
       "id": 606,
       "options": {
@@ -1533,7 +1641,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 86
+        "y": 94
       },
       "id": 700,
       "panels": [],
@@ -1617,7 +1725,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 87
+        "y": 95
       },
       "id": 701,
       "repeatDirection": "h",
@@ -1663,7 +1771,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 87
+        "y": 95
       },
       "id": 702,
       "repeatDirection": "h",
@@ -1684,7 +1792,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 94
+        "y": 102
       },
       "id": 800,
       "panels": [],
@@ -1707,7 +1815,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 95
+        "y": 103
       },
       "id": 801,
       "repeatDirection": "h",
@@ -1742,7 +1850,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 95
+        "y": 103
       },
       "id": 802,
       "repeatDirection": "h",
@@ -1777,7 +1885,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 95
+        "y": 103
       },
       "id": 803,
       "repeatDirection": "h",
@@ -1808,7 +1916,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 95
+        "y": 103
       },
       "id": 804,
       "repeatDirection": "h",
@@ -1838,7 +1946,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 99
+        "y": 107
       },
       "id": 805,
       "options": {
@@ -1882,7 +1990,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 105
+        "y": 113
       },
       "id": 850,
       "panels": [],
@@ -1905,7 +2013,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 106
+        "y": 114
       },
       "id": 851,
       "options": {
@@ -1961,7 +2069,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 106
+        "y": 114
       },
       "id": 852,
       "options": {
@@ -2012,7 +2120,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 106
+        "y": 114
       },
       "id": 853,
       "options": {
@@ -2045,7 +2153,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 114
+        "y": 122
       },
       "id": 900,
       "panels": [],
@@ -2105,7 +2213,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 115
+        "y": 123
       },
       "id": 901,
       "repeatDirection": "h",
@@ -2163,7 +2271,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 115
+        "y": 123
       },
       "id": 902,
       "repeatDirection": "h",
@@ -2210,7 +2318,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 115
+        "y": 123
       },
       "id": 903,
       "repeatDirection": "h",
@@ -2231,7 +2339,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 123
+        "y": 131
       },
       "id": 1000,
       "panels": [],
@@ -2257,7 +2365,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 124
+        "y": 132
       },
       "id": 1001,
       "repeatDirection": "h",
@@ -2293,7 +2401,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 124
+        "y": 132
       },
       "id": 1002,
       "options": {
@@ -2356,7 +2464,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 124
+        "y": 132
       },
       "id": 1003,
       "repeatDirection": "h",
@@ -2387,7 +2495,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 132
+        "y": 140
       },
       "id": 1100,
       "panels": [],
@@ -2428,7 +2536,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 133
+        "y": 141
       },
       "id": 1101,
       "repeatDirection": "h",
@@ -2469,7 +2577,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 133
+        "y": 141
       },
       "id": 1102,
       "options": {
@@ -2534,7 +2642,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 141
+        "y": 149
       },
       "id": 1103,
       "options": {
@@ -2585,7 +2693,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 149
+        "y": 157
       },
       "id": 1200,
       "panels": [],
@@ -2621,7 +2729,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 150
+        "y": 158
       },
       "id": 1201,
       "options": {
@@ -2688,7 +2796,7 @@
         "h": 7,
         "w": 16,
         "x": 8,
-        "y": 150
+        "y": 158
       },
       "id": 1202,
       "repeatDirection": "h",
