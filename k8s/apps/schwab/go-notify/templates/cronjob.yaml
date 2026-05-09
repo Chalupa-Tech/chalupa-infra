@@ -14,6 +14,10 @@ spec:
     spec:
       ttlSecondsAfterFinished: 3600
       backoffLimit: 1
+      # Cap any single Job at 5 min. Reports normally run ~1-2 min;
+      # this guards against a stuck Schwab API call or retry loop
+      # blocking the next scheduled run.
+      activeDeadlineSeconds: 300
       template:
         metadata:
           labels:
