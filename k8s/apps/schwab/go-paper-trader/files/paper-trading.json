@@ -1762,6 +1762,169 @@
         "x": 0,
         "y": 97
       },
+      "id": 850,
+      "panels": [],
+      "title": "Orders",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-8: count of orders currently in a non-terminal lifecycle state (submitted | acknowledged | partial). v1 sim collapses the full Submitted→Acknowledged→Filled sequence inside one synchronous PlaceOrder call, so this panel reads as \"orders the strategy submitted that haven't reached Filled yet\" — typically zero. Phase-10 limit orders will linger in acknowledged for as long as the limit doesn't cross the market.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 98
+      },
+      "id": 851,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum by (book_id) (paper_order_state_gauge{state=~\"submitted|acknowledged|partial\", book_id=~\"$book_id\"})",
+          "instant": true,
+          "legendFormat": "{{book_id}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Pending orders",
+      "transparent": false,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-8: rate(paper_order_rejects_total[5m]) split by reject_reason. Bounded enum: stale_quote (no fresh quote available), market_closed (book's session window doesn't include now), daily_loss_halt (book breached its UTC-day limit), insufficient_long (SELL \u003e long, v1 has no shorting), append_fill (DB persistence error), validation (unsupported instruction or zero-priced quote). Steady state is flat-zero; any bar means orders that the strategy fired could not land.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 98
+      },
+      "id": 852,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum by (reject_reason) (rate(paper_order_rejects_total{book_id=~\"$book_id\"}[5m]))",
+          "legendFormat": "{{reject_reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Rejection rate by reason (5m)",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-8: rate(paper_order_state_transitions_total[5m]) split by (from_state → to_state). Healthy operation: three matching curves at the same magnitude — →submitted, submitted→acknowledged, acknowledged→filled. A submitted→rejected curve climbing while acknowledged→filled falls means validation is rejecting work the strategy still thinks is succeeding.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 98
+      },
+      "id": 853,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum by (from_state, to_state) (rate(paper_order_state_transitions_total{book_id=~\"$book_id\"}[5m]))",
+          "legendFormat": "{{from_state}}→{{to_state}}",
+          "refId": "A"
+        }
+      ],
+      "title": "State transitions (5m)",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 106
+      },
       "id": 900,
       "panels": [],
       "title": "Simulator health",
@@ -1820,7 +1983,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 98
+        "y": 107
       },
       "id": 901,
       "repeatDirection": "h",
@@ -1878,7 +2041,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 98
+        "y": 107
       },
       "id": 902,
       "repeatDirection": "h",
@@ -1925,7 +2088,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 98
+        "y": 107
       },
       "id": 903,
       "repeatDirection": "h",
@@ -1946,7 +2109,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 106
+        "y": 115
       },
       "id": 1000,
       "panels": [],
@@ -1972,7 +2135,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 107
+        "y": 116
       },
       "id": 1001,
       "repeatDirection": "h",
@@ -2008,7 +2171,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 107
+        "y": 116
       },
       "id": 1002,
       "options": {
@@ -2071,7 +2234,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 107
+        "y": 116
       },
       "id": 1003,
       "repeatDirection": "h",
@@ -2102,7 +2265,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 115
+        "y": 124
       },
       "id": 1100,
       "panels": [],
@@ -2143,7 +2306,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 116
+        "y": 125
       },
       "id": 1101,
       "repeatDirection": "h",
@@ -2184,7 +2347,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 116
+        "y": 125
       },
       "id": 1102,
       "options": {
@@ -2249,7 +2412,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 124
+        "y": 133
       },
       "id": 1103,
       "options": {
@@ -2300,7 +2463,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 132
+        "y": 141
       },
       "id": 1200,
       "panels": [],
@@ -2336,7 +2499,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 133
+        "y": 142
       },
       "id": 1201,
       "options": {
@@ -2403,7 +2566,7 @@
         "h": 7,
         "w": 16,
         "x": 8,
-        "y": 133
+        "y": 142
       },
       "id": 1202,
       "repeatDirection": "h",
