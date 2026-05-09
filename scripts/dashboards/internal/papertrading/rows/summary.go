@@ -36,17 +36,19 @@ func equityVsStartingCash(y int) *stat.PanelBuilder {
 		Id(201).
 		Title("Equity vs starting cash").
 		Description(
-			"paper-trading-realism phase-7b: (paper_equity_usd / 10000) − 1. " +
-				"Hardcodes $10k starting cash, which matches the per-book " +
-				"values.yaml today; if startingCash ever varies per book this " +
-				"becomes wrong silently and we'll need a paper_starting_cash_usd " +
-				"metric. Green ≥ +1% (book is compounding); neutral ±1% (noise " +
-				"floor); amber −1% to −5%; red < −5%.").
+			"paper-trading-realism phase-11c: (paper_equity_usd / " +
+				"paper_starting_cash_usd) − 1, joined per-book. The phase-7b " +
+				"panel hardcoded $10k as the divisor and silently produced " +
+				"wrong numbers for books that start with anything else (e.g. " +
+				"limit_example uses $5k); paper_starting_cash_usd has been " +
+				"emitted since phase-9b and now drives the divisor. Green ≥ " +
+				"+1% (book is compounding); neutral ±1% (noise floor); amber " +
+				"−1% to −5%; red < −5%.").
 		GridPos(layout.Pos(0, y, 6, 4)).
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().
 			RefId("A").
-			Expr(`paper_equity_usd{book_id=~"$book_id"} / 10000 - 1`).
+			Expr(`paper_equity_usd{book_id=~"$book_id"} / on(book_id) group_left() paper_starting_cash_usd{book_id=~"$book_id"} - 1`).
 			LegendFormat("{{book_id}}").
 			Instant()).
 		Unit("percentunit").

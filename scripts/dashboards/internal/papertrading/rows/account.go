@@ -22,7 +22,7 @@ import (
 const (
 	accountRowID    = 600
 	accountRowTitle = "Account"
-	accountHeight   = 34 // 1 + 9 (equity curve) + 8*3 (cum / drawdown / rolling)
+	accountHeight   = 42 // 1 + 9 (equity curve) + 8*4 (multiple / cum / drawdown / rolling)
 )
 
 func Account(db *dashboard.DashboardBuilder, yBase int) int {
@@ -30,9 +30,10 @@ func Account(db *dashboard.DashboardBuilder, yBase int) int {
 	db.WithPanel(equityCurveByBook(yBase + 1))
 	db.WithPanel(currentEquityByBook(yBase + 1))
 	db.WithPanel(openPositionsByBook(yBase + 5))
-	db.WithPanel(cumulativeRealizedPL(yBase + 10))
-	db.WithPanel(drawdownPctByBook(yBase + 18))
-	db.WithPanel(rollingReturnByBook(yBase + 26))
+	db.WithPanel(equityMultipleByBook(yBase + 10))
+	db.WithPanel(cumulativeRealizedPL(yBase + 18))
+	db.WithPanel(drawdownPctByBook(yBase + 26))
+	db.WithPanel(rollingReturnByBook(yBase + 34))
 	return accountHeight
 }
 
@@ -47,6 +48,13 @@ func equityCurveByBook(y int) *timeseries.PanelBuilder {
 	return timeseries.NewPanelBuilder().
 		Id(601).
 		Title("Equity curve (cash + mark) by book").
+		Description(
+			"Total per-book account value over time: cash + sum(qty × " +
+				"mark_price). Compare books using the equity-multiple panel " +
+				"below — raw USD curves mislead when books start at different " +
+				"wall-clock times (a 14-day-old book and a 1-day-old book on " +
+				"the same axis will show a structural gap unrelated to " +
+				"strategy quality).").
 		GridPos(layout.Pos(0, y, 16, 9)).
 		Datasource(datasources.Timescale()).
 		WithTarget(sql.TimeSeries("A", rawSQL)).
@@ -91,6 +99,11 @@ func openPositionsByBook(y int) *stat.PanelBuilder {
 	return stat.NewPanelBuilder().
 		Id(603).
 		Title("Open positions by book").
+		Description(
+			"Count of symbols with non-zero long quantity per book. " +
+				"alternator hovers near 0–1 (single symbol, flat between " +
+				"trades); sma fluctuates with crossovers; buy_and_hold sits " +
+				"at numSymbols once allocated and never moves again.").
 		GridPos(layout.Pos(16, y, 8, 5)).
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().
@@ -108,6 +121,40 @@ func openPositionsByBook(y int) *stat.PanelBuilder {
 			Values(false))
 }
 
+// equityMultipleByBook is paper-trading-realism phase-11c's canonical
+// "which strategy wins?" panel. Per-book equity expressed as a multiple
+// of starting cash so books that started at different wall-clock times
+// share a dimensionless axis. paper_starting_cash_usd is the divisor
+// (set once at adapter construction, refreshed every MTM tick) — never
+// hardcode the literal $10k since limit_example uses $5k and future
+// books may differ.
+func equityMultipleByBook(y int) *timeseries.PanelBuilder {
+	return timeseries.NewPanelBuilder().
+		Id(607).
+		Title("Equity multiple of starting cash by book").
+		Description(
+			"Per-book equity expressed as a multiple of starting cash " +
+				"(1.0 = breakeven, 1.10 = +10%, 0.95 = -5%). Compare " +
+				"strategies on this axis — absolute USD curves above mislead " +
+				"when books start at different wall-clock times. " +
+				"buy_and_hold tracks the watchlist's underlying performance " +
+				"and is the passive floor every active strategy must beat to " +
+				"earn its slippage tax.").
+		GridPos(layout.Pos(0, y, 24, 8)).
+		Datasource(datasources.Victoria()).
+		WithTarget(prometheus.NewDataqueryBuilder().
+			RefId("A").
+			Expr(`paper_equity_usd{book_id=~"$book_id"} / on(book_id) group_left() paper_starting_cash_usd{book_id=~"$book_id"}`).
+			LegendFormat("{{book_id}}")).
+		Unit("none").
+		LineWidth(2).
+		FillOpacity(10).
+		ColorScheme(dashboard.NewFieldColorBuilder().Mode(dashboard.FieldColorModeIdPaletteClassic)).
+		Legend(common.NewVizLegendOptionsBuilder().
+			DisplayMode(common.LegendDisplayModeList).
+			Placement(common.LegendPlacementBottom))
+}
+
 func cumulativeRealizedPL(y int) *timeseries.PanelBuilder {
 	rawSQL := "SELECT time, book_id AS metric," +
 		" SUM(realized_pl) OVER (PARTITION BY book_id ORDER BY time) AS cumulative_realized_pl" +
@@ -117,6 +164,12 @@ func cumulativeRealizedPL(y int) *timeseries.PanelBuilder {
 	return timeseries.NewPanelBuilder().
 		Id(604).
 		Title("Cumulative realized P&L by book").
+		Description(
+			"Running SUM(paper_fills.realized_pl) per book over the visible " +
+				"window. Realized only — open positions' unrealized P&L lives " +
+				"on the Equity curve. buy_and_hold reads as flat here by " +
+				"design (it never sells); compare it against the others on " +
+				"the equity-multiple panel instead.").
 		GridPos(layout.Pos(0, y, 24, 8)).
 		Datasource(datasources.Timescale()).
 		WithTarget(sql.TimeSeries("A", rawSQL)).

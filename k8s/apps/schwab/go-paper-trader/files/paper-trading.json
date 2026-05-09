@@ -39,7 +39,7 @@
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "description": "paper-trading-realism phase-7b: (paper_equity_usd / 10000) − 1. Hardcodes $10k starting cash, which matches the per-book values.yaml today; if startingCash ever varies per book this becomes wrong silently and we'll need a paper_starting_cash_usd metric. Green ≥ +1% (book is compounding); neutral ±1% (noise floor); amber −1% to −5%; red \u003c −5%.",
+      "description": "paper-trading-realism phase-11c: (paper_equity_usd / paper_starting_cash_usd) − 1, joined per-book. The phase-7b panel hardcoded $10k as the divisor and silently produced wrong numbers for books that start with anything else (e.g. limit_example uses $5k); paper_starting_cash_usd has been emitted since phase-9b and now drives the divisor. Green ≥ +1% (book is compounding); neutral ±1% (noise floor); amber −1% to −5%; red \u003c −5%.",
       "fieldConfig": {
         "defaults": {
           "thresholds": {
@@ -94,7 +94,7 @@
       "repeatDirection": "h",
       "targets": [
         {
-          "expr": "paper_equity_usd{book_id=~\"$book_id\"} / 10000 - 1",
+          "expr": "paper_equity_usd{book_id=~\"$book_id\"} / on(book_id) group_left() paper_starting_cash_usd{book_id=~\"$book_id\"} - 1",
           "instant": true,
           "legendFormat": "{{book_id}}",
           "range": false,
@@ -1316,6 +1316,7 @@
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
+      "description": "Total per-book account value over time: cash + sum(qty × mark_price). Compare books using the equity-multiple panel below — raw USD curves mislead when books start at different wall-clock times (a 14-day-old book and a 1-day-old book on the same axis will show a structural gap unrelated to strategy quality).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1436,6 +1437,7 @@
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
+      "description": "Count of symbols with non-zero long quantity per book. alternator hovers near 0–1 (single symbol, flat between trades); sma fluctuates with crossovers; buy_and_hold sits at numSymbols once allocated and never moves again.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1485,9 +1487,60 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "Per-book equity expressed as a multiple of starting cash (1.0 = breakeven, 1.10 = +10%, 0.95 = -5%). Compare strategies on this axis — absolute USD curves above mislead when books start at different wall-clock times. buy_and_hold tracks the watchlist's underlying performance and is the passive floor every active strategy must beat to earn its slippage tax.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 70
+      },
+      "id": 607,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "paper_equity_usd{book_id=~\"$book_id\"} / on(book_id) group_left() paper_starting_cash_usd{book_id=~\"$book_id\"}",
+          "legendFormat": "{{book_id}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Equity multiple of starting cash by book",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
+      "description": "Running SUM(paper_fills.realized_pl) per book over the visible window. Realized only — open positions' unrealized P\u0026L lives on the Equity curve. buy_and_hold reads as flat here by design (it never sells); compare it against the others on the equity-multiple panel instead.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1505,7 +1558,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 70
+        "y": 78
       },
       "id": 604,
       "options": {
@@ -1570,7 +1623,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 78
+        "y": 86
       },
       "id": 605,
       "repeatDirection": "h",
@@ -1608,7 +1661,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 86
+        "y": 94
       },
       "id": 606,
       "options": {
@@ -1641,7 +1694,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 94
+        "y": 102
       },
       "id": 700,
       "panels": [],
@@ -1653,6 +1706,7 @@
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
+      "description": "Current open positions for the selected books and symbols, with avg cost, mark, and unrealized P\u0026L. Pulls the latest row per (book, symbol) from paper_positions where quantity != 0 — closed positions disappear deterministically once SimAdapter prunes the gauge series.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -1725,7 +1779,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 95
+        "y": 103
       },
       "id": 701,
       "repeatDirection": "h",
@@ -1745,6 +1799,7 @@
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
+      "description": "Most recent 50 fills across the selected books / symbols / strategies, oldest at bottom. realized_pl is non-NULL on SELLs only — BUYs render blank in that column; that's the phase-4b invariant, not missing data.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -1771,7 +1826,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 95
+        "y": 103
       },
       "id": 702,
       "repeatDirection": "h",
@@ -1792,7 +1847,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 102
+        "y": 110
       },
       "id": 800,
       "panels": [],
@@ -1815,7 +1870,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 103
+        "y": 111
       },
       "id": 801,
       "repeatDirection": "h",
@@ -1850,7 +1905,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 103
+        "y": 111
       },
       "id": 802,
       "repeatDirection": "h",
@@ -1885,7 +1940,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 103
+        "y": 111
       },
       "id": 803,
       "repeatDirection": "h",
@@ -1916,7 +1971,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 103
+        "y": 111
       },
       "id": 804,
       "repeatDirection": "h",
@@ -1936,6 +1991,7 @@
         "type": "grafana-postgresql-datasource",
         "uid": "timescaledb"
       },
+      "description": "sum(quantity × price) per strategy in the visible window. High notional on a low-cash strategy = churn (slippage tax is the dominant P\u0026L driver); pair with the Cumulative realized P\u0026L panel above to judge whether the churn is actually profitable.",
       "fieldConfig": {
         "defaults": {
           "unit": "currencyUSD"
@@ -1946,7 +2002,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 107
+        "y": 115
       },
       "id": 805,
       "options": {
@@ -1990,7 +2046,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 113
+        "y": 121
       },
       "id": 850,
       "panels": [],
@@ -2013,7 +2069,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 114
+        "y": 122
       },
       "id": 851,
       "options": {
@@ -2069,7 +2125,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 114
+        "y": 122
       },
       "id": 852,
       "options": {
@@ -2120,7 +2176,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 114
+        "y": 122
       },
       "id": 853,
       "options": {
@@ -2153,7 +2209,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 122
+        "y": 130
       },
       "id": 870,
       "panels": [],
@@ -2187,7 +2243,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 123
+        "y": 131
       },
       "id": 871,
       "options": {
@@ -2224,7 +2280,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 123
+        "y": 131
       },
       "id": 872,
       "repeatDirection": "h",
@@ -2284,7 +2340,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 123
+        "y": 131
       },
       "id": 873,
       "repeatDirection": "h",
@@ -2300,198 +2356,202 @@
       "type": "table"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 131
+        "y": 139
       },
       "id": 900,
-      "panels": [],
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
+          },
+          "description": "Seconds since the last cached quote per symbol — computed as `time() - paper_quote_last_update_timestamp_seconds`. \u003e30s during market hours means the SimAdapter's stale-quote refusal is firing (orders for that symbol bounce with ErrStaleQuote); check NATS health and feed-side metrics first, then the symbol watchlist.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "lineWidth": 1
+              },
+              "links": [
+                {
+                  "asDropdown": false,
+                  "icon": "",
+                  "includeVars": false,
+                  "keepTime": false,
+                  "placement": "inControlsMenu",
+                  "tags": [],
+                  "targetBlank": true,
+                  "title": "→ schwab-feed Poll Duration",
+                  "tooltip": "",
+                  "type": "link",
+                  "url": "/d/schwab-feed?from=${__from}\u0026to=${__to}\u0026var-symbol=${__series.name}"
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 5
+                  },
+                  {
+                    "color": "red",
+                    "value": 30
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 140
+          },
+          "id": 901,
+          "repeatDirection": "h",
+          "targets": [
+            {
+              "expr": "time() - paper_quote_last_update_timestamp_seconds",
+              "legendFormat": "{{symbol}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Quote age per symbol",
+          "transparent": false,
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
+          },
+          "description": "5-minute rate of NATS slow-consumer drops per book. Healthy steady state = 0 (the `or vector(0)` keeps the line green when the counter has never incremented). Sustained drops mean the trader is falling behind quote ingest — typical causes are TimescaleDB write-stalls on AppendFill or the strategy goroutine blocking on a slow PlaceOrder.",
+          "fieldConfig": {
+            "defaults": {
+              "links": [
+                {
+                  "asDropdown": false,
+                  "icon": "",
+                  "includeVars": false,
+                  "keepTime": false,
+                  "placement": "inControlsMenu",
+                  "tags": [],
+                  "targetBlank": true,
+                  "title": "→ schwab-feed NATS Publish Rate",
+                  "tooltip": "",
+                  "type": "link",
+                  "url": "/d/schwab-feed?from=${__from}\u0026to=${__to}"
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.001
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 140
+          },
+          "id": 902,
+          "repeatDirection": "h",
+          "targets": [
+            {
+              "expr": "rate(paper_nats_dropped_messages_total[5m]) or vector(0)",
+              "legendFormat": "drops/s",
+              "refId": "A"
+            }
+          ],
+          "title": "NATS dropped messages (rate/5m)",
+          "transparent": false,
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
+          },
+          "description": "P99 of the AppendFill write-through to TimescaleDB (paper_fill_persist_duration_seconds). Internal SLO: \u003c50ms steady state, \u003c100ms tolerable. Sustained spikes correlate with TSDB pressure (chunk pruning, vacuum, or a misbehaving sibling tenant on the cluster) and will eventually surface as NATS drops as the trader falls behind.",
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.1
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 140
+          },
+          "id": 903,
+          "repeatDirection": "h",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(paper_fill_persist_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p99",
+              "refId": "A"
+            }
+          ],
+          "title": "Fill persist p99 latency",
+          "transparent": false,
+          "type": "timeseries"
+        }
+      ],
       "title": "Simulator health",
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "lineWidth": 1
-          },
-          "links": [
-            {
-              "asDropdown": false,
-              "icon": "",
-              "includeVars": false,
-              "keepTime": false,
-              "placement": "inControlsMenu",
-              "tags": [],
-              "targetBlank": true,
-              "title": "→ schwab-feed Poll Duration",
-              "tooltip": "",
-              "type": "link",
-              "url": "/d/schwab-feed?from=${__from}\u0026to=${__to}\u0026var-symbol=${__series.name}"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 5
-              },
-              {
-                "color": "red",
-                "value": 30
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 132
-      },
-      "id": 901,
-      "repeatDirection": "h",
-      "targets": [
-        {
-          "expr": "time() - paper_quote_last_update_timestamp_seconds",
-          "legendFormat": "{{symbol}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Quote age per symbol",
-      "transparent": false,
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "links": [
-            {
-              "asDropdown": false,
-              "icon": "",
-              "includeVars": false,
-              "keepTime": false,
-              "placement": "inControlsMenu",
-              "tags": [],
-              "targetBlank": true,
-              "title": "→ schwab-feed NATS Publish Rate",
-              "tooltip": "",
-              "type": "link",
-              "url": "/d/schwab-feed?from=${__from}\u0026to=${__to}"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 0.001
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 132
-      },
-      "id": 902,
-      "repeatDirection": "h",
-      "targets": [
-        {
-          "expr": "rate(paper_nats_dropped_messages_total[5m]) or vector(0)",
-          "legendFormat": "drops/s",
-          "refId": "A"
-        }
-      ],
-      "title": "NATS dropped messages (rate/5m)",
-      "transparent": false,
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 0.1
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 132
-      },
-      "id": 903,
-      "repeatDirection": "h",
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.99, sum(rate(paper_fill_persist_duration_seconds_bucket[5m])) by (le))",
-          "legendFormat": "p99",
-          "refId": "A"
-        }
-      ],
-      "title": "Fill persist p99 latency",
-      "transparent": false,
-      "type": "timeseries"
-    },
-    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 140
+        "y": 148
       },
       "id": 920,
       "panels": [],
@@ -2531,7 +2591,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 141
+        "y": 149
       },
       "id": 921,
       "options": {
@@ -2592,7 +2652,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 141
+        "y": 149
       },
       "id": 922,
       "options": {
@@ -2659,7 +2719,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 141
+        "y": 149
       },
       "id": 923,
       "repeatDirection": "h",
@@ -2680,7 +2740,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 149
+        "y": 157
       },
       "id": 1000,
       "panels": [],
@@ -2706,7 +2766,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 150
+        "y": 158
       },
       "id": 1001,
       "repeatDirection": "h",
@@ -2742,7 +2802,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 150
+        "y": 158
       },
       "id": 1002,
       "options": {
@@ -2805,7 +2865,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 150
+        "y": 158
       },
       "id": 1003,
       "repeatDirection": "h",
@@ -2831,210 +2891,211 @@
       "type": "timeseries"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 158
+        "y": 166
       },
       "id": 1100,
-      "panels": [],
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
+          },
+          "description": "paper-trading-realism phase-4: per-book quantiles of paper_mid_fill_bias_bps = signed (new ask/bid fill - old mid ± 5bps fill) / mid * 10_000. Positive = the phase-4 model costs the book MORE than the pre-phase-4 model would have (you now pay the real spread). Expected P50 ~= (spread_bps - 10)/2 per symbol: if P50 spread was 12bps, P50 bias should be ~1bps; if P50 spread was 5bps, P50 bias should be slightly negative (rare — phase-4 is cheaper than legacy only when half-spread \u003c 5bps).",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "links": [
+                {
+                  "asDropdown": false,
+                  "icon": "",
+                  "includeVars": false,
+                  "keepTime": false,
+                  "placement": "inControlsMenu",
+                  "tags": [],
+                  "targetBlank": true,
+                  "title": "→ schwab-feed Quote Prices",
+                  "tooltip": "",
+                  "type": "link",
+                  "url": "/d/schwab-feed?from=${__from}\u0026to=${__to}\u0026var-symbol=${__field.labels.symbol}"
+                }
+              ],
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 167
+          },
+          "id": 1101,
+          "repeatDirection": "h",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum by (le, book_id) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\"}[15m])))",
+              "legendFormat": "P50 {{book_id}}",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, book_id) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\"}[15m])))",
+              "legendFormat": "P95 {{book_id}}",
+              "refId": "B"
+            }
+          ],
+          "title": "Fill-price advantage lost (bps) — P50 / P95 by book (15m)",
+          "transparent": false,
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
+          },
+          "description": "paper-trading-realism phase-4: heatmap of paper_mid_fill_bias_bps across every (book, symbol). Y-axis is bucket upper bound in bps. Mass concentrated right of 0 = phase-4 routinely costs more than the pre-phase-4 proxy (expected on thin / off-hours names). Mass left of 0 = the old model was a tax, not a gift (rare). Empty panel = not enough fills to populate the histogram yet; check again after a full session.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "scaleDistribution": {
+                  "log": 10,
+                  "type": "log"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 167
+          },
+          "id": 1102,
+          "options": {
+            "calculate": false,
+            "cellGap": 1,
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "reverse": false,
+              "scheme": "Oranges",
+              "steps": 64
+            },
+            "exemplars": {
+              "color": "rgba(255,0,255,0.7)"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "selectionMode": "x",
+            "showValue": "auto",
+            "tooltip": {
+              "mode": ""
+            },
+            "yAxis": {
+              "unit": "short"
+            }
+          },
+          "repeatDirection": "h",
+          "targets": [
+            {
+              "expr": "sum by (le) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\",symbol=~\"$symbol\"}[5m]))",
+              "format": "heatmap",
+              "legendFormat": "{{le}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Fill-price advantage lost (bps) — distribution all books",
+          "transparent": false,
+          "type": "heatmap"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
+          },
+          "description": "paper-trading-realism phase-7b: paper_slippage_vs_decision_bps — signed bps between fill price and the decision-time mid. Positive = book paid more (BUY) / received less (SELL) than the strategy's signal-time view of the market. Captures latency drift + half-spread + slippage cushion in one number — distinct from the existing `Fill-price advantage lost` heatmap (which compares pricing models). Heatmap with cumulative-le buckets. Populates only after the next paper-trader image rolls (the metric is new in this phase; pre-rollout the panel will be empty).",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 175
+          },
+          "id": 1103,
+          "options": {
+            "calculate": false,
+            "cellGap": 1,
+            "color": {
+              "exponent": 0,
+              "fill": "",
+              "mode": "scheme",
+              "reverse": false,
+              "scheme": "Spectral",
+              "steps": 64
+            },
+            "exemplars": {
+              "color": "rgba(255,0,255,0.7)"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "selectionMode": "x",
+            "showValue": "auto",
+            "tooltip": {
+              "mode": ""
+            },
+            "yAxis": {
+              "unit": "short"
+            }
+          },
+          "repeatDirection": "h",
+          "targets": [
+            {
+              "expr": "sum by (le) (rate(paper_slippage_vs_decision_bps_bucket[$__rate_interval]))",
+              "format": "heatmap",
+              "legendFormat": "{{le}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Slippage vs decision-time mid (bps)",
+          "transparent": false,
+          "type": "heatmap"
+        }
+      ],
       "title": "Fill realism",
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
-      },
-      "description": "paper-trading-realism phase-4: per-book quantiles of paper_mid_fill_bias_bps = signed (new ask/bid fill - old mid ± 5bps fill) / mid * 10_000. Positive = the phase-4 model costs the book MORE than the pre-phase-4 model would have (you now pay the real spread). Expected P50 ~= (spread_bps - 10)/2 per symbol: if P50 spread was 12bps, P50 bias should be ~1bps; if P50 spread was 5bps, P50 bias should be slightly negative (rare — phase-4 is cheaper than legacy only when half-spread \u003c 5bps).",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "links": [
-            {
-              "asDropdown": false,
-              "icon": "",
-              "includeVars": false,
-              "keepTime": false,
-              "placement": "inControlsMenu",
-              "tags": [],
-              "targetBlank": true,
-              "title": "→ schwab-feed Quote Prices",
-              "tooltip": "",
-              "type": "link",
-              "url": "/d/schwab-feed?from=${__from}\u0026to=${__to}\u0026var-symbol=${__field.labels.symbol}"
-            }
-          ],
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 159
-      },
-      "id": 1101,
-      "repeatDirection": "h",
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.50, sum by (le, book_id) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\"}[15m])))",
-          "legendFormat": "P50 {{book_id}}",
-          "refId": "A"
-        },
-        {
-          "expr": "histogram_quantile(0.95, sum by (le, book_id) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\"}[15m])))",
-          "legendFormat": "P95 {{book_id}}",
-          "refId": "B"
-        }
-      ],
-      "title": "Fill-price advantage lost (bps) — P50 / P95 by book (15m)",
-      "transparent": false,
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
-      },
-      "description": "paper-trading-realism phase-4: heatmap of paper_mid_fill_bias_bps across every (book, symbol). Y-axis is bucket upper bound in bps. Mass concentrated right of 0 = phase-4 routinely costs more than the pre-phase-4 proxy (expected on thin / off-hours names). Mass left of 0 = the old model was a tax, not a gift (rare). Empty panel = not enough fills to populate the histogram yet; check again after a full session.",
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "scaleDistribution": {
-              "log": 10,
-              "type": "log"
-            }
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 159
-      },
-      "id": 1102,
-      "options": {
-        "calculate": false,
-        "cellGap": 1,
-        "color": {
-          "exponent": 0.5,
-          "fill": "dark-orange",
-          "reverse": false,
-          "scheme": "Oranges",
-          "steps": 64
-        },
-        "exemplars": {
-          "color": "rgba(255,0,255,0.7)"
-        },
-        "filterValues": {
-          "le": 1e-9
-        },
-        "legend": {
-          "show": true
-        },
-        "selectionMode": "x",
-        "showValue": "auto",
-        "tooltip": {
-          "mode": ""
-        },
-        "yAxis": {
-          "unit": "short"
-        }
-      },
-      "repeatDirection": "h",
-      "targets": [
-        {
-          "expr": "sum by (le) (rate(paper_mid_fill_bias_bps_bucket{book_id=~\"$book_id\",symbol=~\"$symbol\"}[5m]))",
-          "format": "heatmap",
-          "legendFormat": "{{le}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Fill-price advantage lost (bps) — distribution all books",
-      "transparent": false,
-      "type": "heatmap"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "VictoriaMetrics"
-      },
-      "description": "paper-trading-realism phase-7b: paper_slippage_vs_decision_bps — signed bps between fill price and the decision-time mid. Positive = book paid more (BUY) / received less (SELL) than the strategy's signal-time view of the market. Captures latency drift + half-spread + slippage cushion in one number — distinct from the existing `Fill-price advantage lost` heatmap (which compares pricing models). Heatmap with cumulative-le buckets. Populates only after the next paper-trader image rolls (the metric is new in this phase; pre-rollout the panel will be empty).",
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "scaleDistribution": {
-              "type": "linear"
-            }
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 167
-      },
-      "id": 1103,
-      "options": {
-        "calculate": false,
-        "cellGap": 1,
-        "color": {
-          "exponent": 0,
-          "fill": "",
-          "mode": "scheme",
-          "reverse": false,
-          "scheme": "Spectral",
-          "steps": 64
-        },
-        "exemplars": {
-          "color": "rgba(255,0,255,0.7)"
-        },
-        "filterValues": {
-          "le": 1e-9
-        },
-        "legend": {
-          "show": true
-        },
-        "selectionMode": "x",
-        "showValue": "auto",
-        "tooltip": {
-          "mode": ""
-        },
-        "yAxis": {
-          "unit": "short"
-        }
-      },
-      "repeatDirection": "h",
-      "targets": [
-        {
-          "expr": "sum by (le) (rate(paper_slippage_vs_decision_bps_bucket[$__rate_interval]))",
-          "format": "heatmap",
-          "legendFormat": "{{le}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Slippage vs decision-time mid (bps)",
-      "transparent": false,
-      "type": "heatmap"
-    },
-    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 175
+        "y": 183
       },
       "id": 1200,
       "panels": [],
@@ -3070,7 +3131,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 176
+        "y": 184
       },
       "id": 1201,
       "options": {
@@ -3137,7 +3198,7 @@
         "h": 7,
         "w": 16,
         "x": 8,
-        "y": 176
+        "y": 184
       },
       "id": 1202,
       "repeatDirection": "h",
@@ -3194,6 +3255,7 @@
           "uid": "timescaledb"
         },
         "includeAll": true,
+        "label": "Book",
         "multi": true,
         "name": "book_id",
         "query": "SELECT DISTINCT book_id FROM (SELECT book_id FROM paper_fills WHERE time \u003e NOW() - INTERVAL '7 days' UNION SELECT book_id FROM paper_cash WHERE time \u003e NOW() - INTERVAL '7 days') sub ORDER BY book_id",
@@ -3211,6 +3273,7 @@
           "uid": "timescaledb"
         },
         "includeAll": true,
+        "label": "Symbol",
         "multi": true,
         "name": "symbol",
         "query": "SELECT DISTINCT symbol FROM paper_positions ORDER BY symbol",
@@ -3228,6 +3291,7 @@
           "uid": "timescaledb"
         },
         "includeAll": true,
+        "label": "Strategy",
         "multi": true,
         "name": "strategy",
         "query": "SELECT DISTINCT strategy FROM paper_fills ORDER BY strategy",

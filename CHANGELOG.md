@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-11c — evaluation cleanup)
+
+- **5th paper-trader book `ddowell-buy-and-hold`** in
+  `k8s/apps/schwab/go-paper-trader/values.yaml`. `strategy:
+  buy_and_hold`, `startingCash: 10000`, `session: regular`, full
+  24-symbol watchlist matching `ddowell-alt-30s` /
+  `ddowell-alt-60s` / `ddowell-sma-5x20` so the equity-multiple panel
+  comparison is apples-to-apples. No `quantity` / cadence / window
+  knobs — sizing is derived from `StartingCash` and the symbol set;
+  the trader-side validate skips `quantity > 0` for `buy_and_hold`.
+- **Equity-multiple-of-starting-cash panel** (id 607) under the Account
+  row. Renders `paper_equity_usd / on(book_id) group_left()
+  paper_starting_cash_usd`, palette-classic per-book coloring
+  (memory `reference_grafana_multi_series_coloring`). The canonical
+  "which strategy wins?" panel — absolute USD curves mislead when
+  books start at different wall-clock times. Account row height grows
+  from 34 → 42 grid units.
+
+### Changed (paper-trading-realism phase-11c — evaluation cleanup)
+
+- **Summary row's "Equity vs starting cash" stat** (panel 201) divides
+  by `paper_starting_cash_usd{book_id}` instead of the hardcoded
+  `10000` literal. Books that start with anything other than $10k
+  (e.g. `ddowell-limit-example` at $5k) now render correctly instead
+  of silently misreporting. Description annotates the migration so
+  operators can audit.
+- **Default-collapsed rows: `Simulator health` + `Fill realism`.** Both
+  rows nest their child panels under a `Collapsed(true)` row builder
+  so the operator-debug surface stays one click away during a 30-day
+  evaluation window without dominating the landing view. Strategy
+  evaluation rows (Summary, Risk, Strategy quality, Strategy
+  comparison, Account, Positions & trades, Activity, Orders, Working
+  orders, Reconciliation, Execution quality, Hygiene) remain expanded.
+- **Variable display labels.** `book_id` → `Book`, `symbol` →
+  `Symbol`, `strategy` → `Strategy` via
+  `QueryVariableBuilder.Label(...)` in `templating.go`. Cosmetic but
+  legible.
+- **Tooltip text on 9 evaluation-flagship panels** that previously
+  rendered with no `description`: 601 (Equity curve), 603 (Open
+  positions), 604 (Cumulative realized P&L), 701 (Live positions),
+  702 (Trade log), 805 (By-strategy notional), 901 (Quote age), 902
+  (NATS dropped messages), 903 (Fill persist p99 latency).
+
 ### Added (paper-trading-realism phase-11a — Reconciliation dashboard row)
 
 - **New `Reconciliation` row on `paper-trading.json`** (row id 920,
