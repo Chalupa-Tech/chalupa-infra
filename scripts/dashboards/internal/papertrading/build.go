@@ -37,6 +37,7 @@ var orderedRows = []rowFunc{
 	rows.PositionsTrades,
 	rows.Activity,
 	rows.Orders,
+	rows.WorkingOrders,
 	rows.SimulatorHealth,
 	rows.ExecutionQuality,
 	rows.FillRealism,

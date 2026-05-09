@@ -2155,6 +2155,158 @@
         "x": 0,
         "y": 122
       },
+      "id": 870,
+      "panels": [],
+      "title": "Working orders (phase-10)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-10: paper_orders_by_type filtered to non-terminal states (acknowledged | partial). Stacks by order_type so a sudden climb in LIMIT acknowledges shows up as a growing area without the operator hunting through individual queries. Steady state for a market-only strategy (alternator/SMA) is flat zero; a limit-using strategy oscillates as orders rest and fill.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 40,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 123
+      },
+      "id": 871,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "",
+          "sort": ""
+        }
+      },
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum by (order_type) (paper_orders_by_type{state=~\"acknowledged|partial\", book_id=~\"$book_id\"})",
+          "legendFormat": "{{order_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Open orders by type",
+      "transparent": false,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
+      },
+      "description": "paper-trading-realism phase-10: paper_limit_fill_improvement_bps distribution per (book, symbol). Positive = the book got a fill BETTER than the limit demanded (real exchanges sometimes give price improvement). v1 sim fills at limit exactly, so the current steady state is 100% mass at the 0-bps bucket — phase-14 (SchwabAdapter) or a future improvement model would populate the right tail. Negative buckets are a regression signal (sim must never fill worse than the limit).",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 123
+      },
+      "id": 872,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "expr": "sum by (le) (rate(paper_limit_fill_improvement_bps_bucket{book_id=~\"$book_id\"}[15m]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Limit-fill price improvement (bps)",
+      "transparent": false,
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
+      "description": "paper-trading-realism phase-10: every paper_orders row in state='acknowledged' for the selected books. Age is NOW() - created_at — a working order whose age exceeds the strategy's expected fill window means either (a) the limit is badly priced or (b) the EOD-cancel pass missed a DAY order. The view excludes filled/canceled/rejected so it doesn't flood with terminal rows; for full lifecycle history, query paper_order_events directly.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "right",
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "limit_price"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "stop_price"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 123
+      },
+      "id": 873,
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT client_order_id, book_id, symbol, side, order_type, time_in_force, COALESCE(limit_price, NULL) AS limit_price, COALESCE(stop_price, NULL) AS stop_price, stop_triggered, quantity, filled_quantity, created_at, NOW() - created_at AS age FROM paper_orders WHERE state = 'acknowledged' AND book_id IN ($book_id) ORDER BY created_at DESC LIMIT 50",
+          "refId": "A"
+        }
+      ],
+      "title": "Working orders",
+      "transparent": false,
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 131
+      },
       "id": 900,
       "panels": [],
       "title": "Simulator health",
@@ -2213,7 +2365,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 123
+        "y": 132
       },
       "id": 901,
       "repeatDirection": "h",
@@ -2271,7 +2423,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 123
+        "y": 132
       },
       "id": 902,
       "repeatDirection": "h",
@@ -2318,7 +2470,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 123
+        "y": 132
       },
       "id": 903,
       "repeatDirection": "h",
@@ -2339,7 +2491,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 131
+        "y": 140
       },
       "id": 1000,
       "panels": [],
@@ -2365,7 +2517,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 132
+        "y": 141
       },
       "id": 1001,
       "repeatDirection": "h",
@@ -2401,7 +2553,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 132
+        "y": 141
       },
       "id": 1002,
       "options": {
@@ -2464,7 +2616,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 132
+        "y": 141
       },
       "id": 1003,
       "repeatDirection": "h",
@@ -2495,7 +2647,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 140
+        "y": 149
       },
       "id": 1100,
       "panels": [],
@@ -2536,7 +2688,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 141
+        "y": 150
       },
       "id": 1101,
       "repeatDirection": "h",
@@ -2577,7 +2729,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 141
+        "y": 150
       },
       "id": 1102,
       "options": {
@@ -2642,7 +2794,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 149
+        "y": 158
       },
       "id": 1103,
       "options": {
@@ -2693,7 +2845,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 157
+        "y": 166
       },
       "id": 1200,
       "panels": [],
@@ -2729,7 +2881,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 158
+        "y": 167
       },
       "id": 1201,
       "options": {
@@ -2796,7 +2948,7 @@
         "h": 7,
         "w": 16,
         "x": 8,
-        "y": 158
+        "y": 167
       },
       "id": 1202,
       "repeatDirection": "h",
