@@ -2,7 +2,7 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-paper-trader
-  tag: "v0.9.0"
+  tag: "v0.10.0"
   pullPolicy: IfNotPresent
 
 nats:
@@ -200,6 +200,32 @@ paperTrader:
         - UPS
         - V
         - WING
+    # paper-trading-realism phase-10b: first LIMIT-using shipping
+    # strategy. Place / cancel / replace lifecycle exercised against
+    # one symbol so the phase-10 "Working orders" dashboard row
+    # populates with real working orders during market hours and the
+    # EOD-cancel path sees live traffic. Single-book by design — the
+    # goal is exercising the LIMIT lifecycle, not multi-book research
+    # (multi-symbol limit_example is phase-12+).
+    #
+    # Knobs:
+    #   offsetBps: 10       — place 10bps below ask (BUY) / above bid (SELL)
+    #   maxRestDuration: 5m — cancel and re-post if unfilled for 5min
+    #   rebalanceBps: 5     — replace if intended price drifts >5bps
+    #                          from the working LIMIT
+    - bookID: ddowell-limit-example
+      strategy: limit_example
+      quantity: 5
+      offsetBps: 10
+      maxRestDuration: 5m
+      rebalanceBps: 5
+      startingCash: 5000
+      session: regular
+      fillModel:
+        extraSlippageBps: 0
+        latencyMs: 100
+      symbols:
+        - AMD
 
 resources:
   requests:

@@ -29,6 +29,15 @@ data:
 {{- if .smaSlow }}
         smaSlow: {{ .smaSlow | quote }}
 {{- end }}
+{{- if .offsetBps }}
+        offsetBps: {{ .offsetBps }}
+{{- end }}
+{{- if .maxRestDuration }}
+        maxRestDuration: {{ .maxRestDuration | quote }}
+{{- end }}
+{{- if .rebalanceBps }}
+        rebalanceBps: {{ .rebalanceBps }}
+{{- end }}
         startingCash: {{ .startingCash }}
 {{- if .session }}
         session: {{ .session | quote }}
