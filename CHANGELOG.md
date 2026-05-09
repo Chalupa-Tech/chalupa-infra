@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-10 — working-orders dashboard row)
+
+- **New `Working orders (phase-10)` row** on `paper-trading.json`,
+  inserted directly below the existing `Orders` row (id 850 → 870).
+  Three panels:
+  - **Panel 871: Open orders by type** (timeseries, stacked,
+    palette-classic). Renders
+    `sum by (order_type) (paper_orders_by_type{state=~"acknowledged|partial", book_id=~"$book_id"})`
+    so a sudden climb in resting LIMITs / STOPs is visible without
+    hunting through individual queries. Steady state for the
+    market-only alternator + SMA strategies is flat zero;
+    limit-using strategies oscillate as orders rest and fill.
+  - **Panel 872: Limit-fill price improvement (bps)** (heatmap on
+    `paper_limit_fill_improvement_bps_bucket`). v1 sim fills at the
+    limit price exactly, so the current steady state is mass at
+    the 0-bps bucket; phase-14 (SchwabAdapter) or a future
+    improvement model populates the right tail. Sub-zero buckets
+    are a regression signal — sim must never fill worse than the
+    limit demanded.
+  - **Panel 873: Working orders** (Postgres-backed table). Lists
+    every `paper_orders` row in `state='acknowledged'` for the
+    selected `$book_id`, including `client_order_id`, `symbol`,
+    `side`, `order_type`, `time_in_force`, `limit_price`,
+    `stop_price`, `stop_triggered`, `quantity`, `filled_quantity`,
+    `created_at`, and `NOW() - created_at AS age`. Sorted
+    `created_at DESC` so the freshest are at the top; LIMIT 50.
+    Drives the operator's "what's outstanding right now?" question
+    without leaving the dashboard.
+- **Source change** in `scripts/dashboards/internal/papertrading/`:
+  new `rows/working_orders.go` registered after `rows.Orders` in
+  `build.go`'s `orderedRows`. The row is 9 grid units tall (1 row
+  header + 8 panel) and the three panels split the 24-wide grid
+  evenly at x=0/8/16. Generated `paper-trading.json` is +166 / -14
+  lines; CI's drift gate
+  (`.github/workflows/validate-dashboards.yml`) is unchanged.
+
 ### Added (paper-trading-realism phase-9b — Risk row utilization + concentration panels)
 
 - **Two new panels on the `paper-trading.json` Risk row**, both
