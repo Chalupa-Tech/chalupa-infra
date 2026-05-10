@@ -38,6 +38,11 @@ data:
 {{- if .rebalanceBps }}
         rebalanceBps: {{ .rebalanceBps }}
 {{- end }}
+{{- if eq .strategy "mean_reversion" }}
+        lookbackN: {{ .lookbackN }}
+        entryThreshold: {{ .entryThreshold }}
+        exitThreshold: {{ .exitThreshold }}
+{{- end }}
         startingCash: {{ .startingCash }}
 {{- if .session }}
         session: {{ .session | quote }}

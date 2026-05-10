@@ -271,6 +271,52 @@ paperTrader:
         - UPS
         - V
         - WING
+    # paper-trading-realism phase-11d: first parametric predictive
+    # strategy. mean_reversion is a per-symbol z-score on rolling-window
+    # mid: BUY when current mid is z-below entry (default 2.0 stddev
+    # below rolling 20-quote mean), SELL when z reverts to-or-above
+    # exit threshold (default 0.0 = mean cross). Anti-correlated to the
+    # SMA book by construction — when SMA wins (trending markets) MR
+    # loses, and vice-versa. That negative correlation IS the
+    # discrimination value: a flip in the equity-multiple panel reveals
+    # the regime change.
+    #
+    # Strategy at pkg/strategy/mean_reversion/mean_reversion.go.
+    # Knobs:
+    #   lookbackN:      20   — rolling buffer in quotes (≈3.3min at 10s polling)
+    #   entryThreshold: 2.0  — strict |z| < -2.0 to BUY
+    #   exitThreshold:  0.0  — z >= 0 (mean cross) to flatten the long
+    #   quantity:       5    — fixed lot per BUY, applied to every symbol
+    #
+    # Symbol pick — 8 large-cap, intraday-liquid names from the
+    # ddowell-individual catalog. Prompt-as-written suggested AAPL /
+    # MSFT / GOOGL / META / TSLA; those aren't in the catalog (the
+    # catalog is contract-enforced via paper-trader-symbol-coverage-
+    # lint), so the actual pick substitutes V / UNH / BRK.B / PANW —
+    # similar large-cap intraday-liquid profile, all in the catalog.
+    # Operator may tune at session start; widening to all 23 catalog
+    # symbols is also valid (would dilute the per-symbol concentration
+    # panel readability but adds independent series for risk spread).
+    - bookID: ddowell-mean-reversion
+      strategy: mean_reversion
+      quantity: 5
+      lookbackN: 20
+      entryThreshold: 2.0
+      exitThreshold: 0.0
+      startingCash: 10000
+      session: regular
+      fillModel:
+        extraSlippageBps: 0
+        latencyMs: 100
+      symbols:
+        - AMD
+        - AMZN
+        - BRK.B
+        - GOOG
+        - NVDA
+        - PANW
+        - UNH
+        - V
 
 resources:
   requests:

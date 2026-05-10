@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-11d — first predictive strategy)
+
+- **6th paper-trader book `ddowell-mean-reversion`** in
+  `k8s/apps/schwab/go-paper-trader/values.yaml`. `strategy:
+  mean_reversion`, `quantity: 5`, `lookbackN: 20`, `entryThreshold:
+  2.0`, `exitThreshold: 0.0`, `startingCash: 10000`, `session:
+  regular`. 8-symbol large-cap intraday-liquid subset of the
+  `ddowell-individual` catalog: `[AMD, AMZN, BRK.B, GOOG, NVDA, PANW,
+  UNH, V]`. The phase-11d prompt suggested
+  `[AAPL, MSFT, GOOGL, META, TSLA, ...]`; those aren't in the catalog
+  (the catalog is contract-enforced via
+  `paper-trader-symbol-coverage-lint.yml` per phase-5a.2), so the
+  shipped pick substitutes catalog-resident large-caps with the same
+  intraday-liquid profile.
+- **Strategy-gated mean_reversion fields in
+  `templates/configmap.yaml`**: `lookbackN`, `entryThreshold`,
+  `exitThreshold` are emitted only when `strategy == "mean_reversion"`.
+  Per-strategy gate (vs the truthy `{{- if }}` pattern used by
+  `offsetBps` etc.) avoids the `exitThreshold: 0.0 → silently
+  omitted` trap that a truthy check would create for the
+  default-zero exit threshold.
+
 ### Added (paper-trading-realism phase-11c — evaluation cleanup)
 
 - **5th paper-trader book `ddowell-buy-and-hold`** in
