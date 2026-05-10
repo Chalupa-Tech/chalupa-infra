@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (hotfix — paper-trader CrashLoopBackOff after phase-11c)
+
+- **`go-paper-trader` chart bumped to `0.3.13`** with `appVersion`
+  `"0.11.0"` and `image.tag` `v0.11.0`. Phase-11c (#443) added the
+  `ddowell-buy-and-hold` book entry to `values.yaml` but the trader
+  binary release that knows the `buy_and_hold` strategy never shipped
+  — the trader-side phase-11c PR
+  (`Chalupa-Tech/go-schwab-accounts-and-trading#37`) merged without
+  a `release-deferred` label and without a version bump (CI gate from
+  `Chalupa-Tech/go-schwab-accounts-and-trading#35` should have caught
+  it but didn't). Result: cluster ran the v0.10.0 binary against the
+  v11c configmap for ~5 hours, crashing on
+  `book ddowell-buy-and-hold: quantity must be > 0`. The companion
+  trader hotfix at
+  `Chalupa-Tech/go-schwab-accounts-and-trading#38` cuts v0.11.0;
+  this PR bumps the chart to consume it. Recurrence of the pattern
+  PR #424's predecessor (trader v0.10.0 hotfix #33) already fixed.
+
 ### Added (paper-trading-realism phase-11c — evaluation cleanup)
 
 - **5th paper-trader book `ddowell-buy-and-hold`** in
