@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (repo-hygiene phase-6 — auto-release-promotion)
+
+- **`release-reusable.yml` learns tier-2 auto-promote.**
+  Two-tier behavior on every workflow run.
+  Tier 1 (unchanged): if CHANGELOG's first section is `## [X.Y.Z]`,
+  use it as-is.
+  Tier 2 (new): if the first section is `## [Unreleased]`, derive the
+  next version from conventional-commit subjects in `LAST_TAG..HEAD`
+  (`feat:`/`feat(scope):` → minor; `fix:`/`fix(scope):` → patch;
+  any type with `!:` or `BREAKING CHANGE:` in body → major; only
+  `chore:`/`docs:`/`ci:`/`test:`/`refactor:` → skip release), rewrite
+  CHANGELOG.md (`## [Unreleased]` → `## [Unreleased]\n\n## [X.Y.Z] -
+  DATE`), commit + push to main with `chore: promote Unreleased to
+  vX.Y.Z`, then continue to the existing tag → image → chart-bump
+  pipeline. Replaces the manual "hotfix: cut vX.Y.Z" PR pattern that
+  produced two reactive trader releases (v0.10.0, v0.11.0) in the
+  preceding week.
+- **`release-deferred` label escape hatch.** If every commit since
+  `LAST_TAG` is on a PR labeled `release-deferred`, the auto-promote
+  exits without bumping. Same label honored by the existing
+  check-changelog gate; now also honored on the release side.
+- **Bot-commit loop guard.** If HEAD's author is
+  `github-actions[bot]` AND subject matches `^chore: promote
+  Unreleased to v`, the auto-promote exits immediately. Second line
+  of defense: chore-only classification ensures the bot's commit
+  alone since `LAST_TAG` produces no release.
+- **Checkout now uses `GH_PAT`** so the auto-promote bot can push past
+  the org "Protect Main" ruleset. Default `GITHUB_TOKEN` cannot
+  bypass; existing `Create Tag` and `deploy` jobs already needed
+  PAT-equivalent privileges. No change to the input/secret surface
+  exposed to callers — auto-promote is internal to the reusable.
+
 ### Fixed (hotfix — paper-trader CrashLoopBackOff after phase-11c)
 
 - **`go-paper-trader` chart bumped to `0.3.13`** with `appVersion`

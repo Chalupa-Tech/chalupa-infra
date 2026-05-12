@@ -29,29 +29,173 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     outputs:
-      new_release: ${{ steps.check_tag.outputs.exists == 'false' }}
-      version: ${{ steps.changelog_version.outputs.version }}
+      new_release: ${{ steps.detect_version.outputs.skip == 'false' && steps.check_tag.outputs.exists == 'false' }}
+      version: ${{ steps.detect_version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # PAT lets the auto-promote bot commit push past the org
+          # "Protect Main" ruleset; default GITHUB_TOKEN cannot bypass.
+          token: ${{ secrets.GH_PAT }}
 
-      - name: Get Version from Changelog
-        id: changelog_version
+      - name: Auto-promote and detect version
+        id: detect_version
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          # Match both "## [0.2.0]" and "## v0.2.0" formats
-          VERSION=$(grep -oP '##\s+(\[|v)\K[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | head -1)
-          if [[ -z "$VERSION" ]]; then
-            echo "::error::No version found in CHANGELOG.md. Expected '## [x.y.z]' or '## vx.y.z' format."
+          set -euo pipefail
+
+          # ---------------------------------------------------------------
+          # Bot-commit loop guard. If the workflow is re-firing on the
+          # auto-promote bot's own push, exit before scanning anything.
+          # The chore-only classification below is a second line of defense
+          # in case the bot's commit is one of several since LAST_TAG.
+          # ---------------------------------------------------------------
+          HEAD_SUBJECT=$(git log -1 --format='%s')
+          HEAD_AUTHOR_EMAIL=$(git log -1 --format='%ae')
+          if [[ "$HEAD_AUTHOR_EMAIL" == "github-actions[bot]@users.noreply.github.com" ]] \
+              && [[ "$HEAD_SUBJECT" =~ ^chore:\ promote\ Unreleased\ to\ v ]]; then
+            echo "HEAD is the auto-promote bot commit ('$HEAD_SUBJECT'); skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # ---------------------------------------------------------------
+          # Tier detection. Read the first '## [<token>]' header.
+          # ---------------------------------------------------------------
+          FIRST_HEADER=$(grep -m1 -oE '^##[[:space:]]+\[[^]]+\]' CHANGELOG.md || true)
+          if [[ -z "$FIRST_HEADER" ]]; then
+            echo "::error::CHANGELOG.md has no '## [<version>]' or '## [Unreleased]' header."
             exit 1
           fi
-          echo "Detected version: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          FIRST_TOKEN=$(echo "$FIRST_HEADER" | sed -E 's/^##[[:space:]]+\[(.+)\]$/\1/')
+          echo "First changelog section: [$FIRST_TOKEN]"
+
+          if [[ "$FIRST_TOKEN" != "Unreleased" ]]; then
+            # Tier 1: explicit version. Use as-is.
+            if [[ ! "$FIRST_TOKEN" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::First section '[$FIRST_TOKEN]' is not 'Unreleased' or X.Y.Z."
+              exit 1
+            fi
+            echo "Tier 1: explicit version $FIRST_TOKEN."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "version=$FIRST_TOKEN" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # ---------------------------------------------------------------
+          # Tier 2: auto-promote. Derive bump from conventional-commit
+          # prefixes on each commit since LAST_TAG.
+          # ---------------------------------------------------------------
+          echo "Tier 2: deriving version from conventional commits."
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [[ -z "$LAST_TAG" ]]; then
+            LAST_VERSION="0.0.0"
+            RANGE="HEAD"
+            echo "No prior tags. Scanning full history."
+          else
+            LAST_VERSION="${LAST_TAG#v}"
+            RANGE="${LAST_TAG}..HEAD"
+            echo "Last tag: $LAST_TAG → $LAST_VERSION. Range: $RANGE"
+          fi
+
+          COMMITS=$(git log --reverse --format='%H' $RANGE)
+          if [[ -z "$COMMITS" ]]; then
+            echo "No commits since $LAST_TAG. Skipping release."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          ALL_DEFERRED=true
+          BUMP="none"   # none | patch | minor | major
+
+          # Conventional-commits subject regex. Bodies are noisy (squash
+          # merges embed pre-squash commit subjects), so type prefix is
+          # subject-only. BREAKING CHANGE in body still wins.
+          RE_BREAK='^[a-z]+(\([^)]+\))?!:[[:space:]]'
+          RE_FEAT='^feat(\([^)]+\))?:[[:space:]]'
+          RE_FIX='^fix(\([^)]+\))?:[[:space:]]'
+
+          while IFS= read -r SHA; do
+            SUBJECT=$(git log -1 --format='%s' "$SHA")
+            BODY=$(git log -1 --format='%b' "$SHA")
+            echo "  $SHA: $SUBJECT"
+
+            # release-deferred label check. Best-effort: missing PR or
+            # API error counts as 'not deferred' (fail-open so we don't
+            # accidentally suppress a real release).
+            LABELS=$(gh pr list --search "sha:$SHA" --state merged --json labels --jq '.[0].labels[].name' 2>/dev/null || true)
+            if ! grep -qx 'release-deferred' <<< "$LABELS"; then
+              ALL_DEFERRED=false
+            fi
+
+            if echo "$BODY" | grep -qE '^BREAKING CHANGE:'; then
+              BUMP="major"
+            elif [[ "$SUBJECT" =~ $RE_BREAK ]]; then
+              BUMP="major"
+            elif [[ "$SUBJECT" =~ $RE_FEAT ]]; then
+              [[ "$BUMP" != "major" ]] && BUMP="minor"
+            elif [[ "$SUBJECT" =~ $RE_FIX ]]; then
+              [[ "$BUMP" == "none" ]] && BUMP="patch"
+            fi
+          done <<< "$COMMITS"
+
+          if [[ "$ALL_DEFERRED" == "true" ]]; then
+            echo "All commits since $LAST_TAG are on release-deferred-labeled PRs. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$BUMP" == "none" ]]; then
+            echo "No releasable commits (feat/fix/breaking) since $LAST_TAG. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          IFS='.' read -r MAJ MIN PAT <<< "$LAST_VERSION"
+          case "$BUMP" in
+            major) MAJ=$((MAJ + 1)); MIN=0; PAT=0 ;;
+            minor) MIN=$((MIN + 1)); PAT=0 ;;
+            patch) PAT=$((PAT + 1)) ;;
+          esac
+          NEW_VERSION="${MAJ}.${MIN}.${PAT}"
+          TODAY=$(date -u +%Y-%m-%d)
+          echo "Bump: $BUMP → $NEW_VERSION (date $TODAY)"
+
+          # Rewrite CHANGELOG.md: '## [Unreleased]' → '## [Unreleased]\n\n## [X.Y.Z] - DATE'.
+          # Preserves all body content; only inserts a new header above.
+          NEW_VERSION="$NEW_VERSION" TODAY="$TODAY" python3 - <<'PY'
+          import os, re
+          new_version = os.environ['NEW_VERSION']
+          today = os.environ['TODAY']
+          with open('CHANGELOG.md', 'r') as f:
+              content = f.read()
+          new_content, n = re.subn(
+              r'^## \[Unreleased\][^\n]*$',
+              f'## [Unreleased]\n\n## [{new_version}] - {today}',
+              content, count=1, flags=re.MULTILINE,
+          )
+          if n != 1:
+              raise SystemExit("could not find '## [Unreleased]' header to rewrite")
+          with open('CHANGELOG.md', 'w') as f:
+              f.write(new_content)
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "chore: promote Unreleased to v$NEW_VERSION"
+          git push origin HEAD:main
+
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Check if Tag Exists
         id: check_tag
+        if: steps.detect_version.outputs.skip == 'false'
         run: |
-          VERSION="${{ steps.changelog_version.outputs.version }}"
+          VERSION="${{ steps.detect_version.outputs.version }}"
           if [[ -z "$VERSION" ]]; then
             echo "::error::Version is empty — cannot check tag."
             exit 1
@@ -65,19 +209,19 @@ jobs:
           fi
 
       - name: Create Tag
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.detect_version.outputs.skip == 'false' && steps.check_tag.outputs.exists == 'false'
         run: |
-          VERSION="${{ steps.changelog_version.outputs.version }}"
+          VERSION="${{ steps.detect_version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v$VERSION" -m "Release v$VERSION"
           git push origin "v$VERSION"
 
       - name: Create Release
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.detect_version.outputs.skip == 'false' && steps.check_tag.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.changelog_version.outputs.version }}
+          tag_name: v${{ steps.detect_version.outputs.version }}
           generate_release_notes: true
 
   build-push:
