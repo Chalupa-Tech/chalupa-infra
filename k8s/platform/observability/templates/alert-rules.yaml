@@ -230,6 +230,26 @@ spec:
         # startup blip. Covers both Deployments and Rollouts (which
         # `kube_deployment_status_observed_generation` misses — see
         # reference_argo_rollout_not_deployment).
+        # Paper-trader adapter-events drop rate. Per the channel-policy
+        # decision in
+        # workstreams/paper-trading-realism/briefs/2026-05-12-adapter-channel-backpressure-policy.md,
+        # SimAdapter.Events() does drop-with-measurement: a slow
+        # in-process subscriber increments paper_adapter_events_dropped_total
+        # rather than blocking PlaceOrder. Steady-state observed rate is
+        # 0.05-0.23/s per active book — harmless, since the durable
+        # lifecycle history is in paper_order_events. Sustained >1.0/s
+        # is catastrophic and indicates either a degraded subscriber
+        # (dashboard / decision loop) or a quote-burst the channel
+        # can't fan out fast enough, both of which need a human.
+        - alert: PaperTraderAdapterEventsDroppingHigh
+          expr: sum by (book_id)(rate(paper_adapter_events_dropped_total[5m])) > 1.0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "paper-trader dropping AdapterEvents on book {{ "{{" }} $labels.book_id {{ "}}" }} at >1/s"
+            description: "Drop rate is {{ "{{" }} $value | printf \"%.2f\" {{ "}}" }}/s sustained for 10m on the SimAdapter.Events() channel for book {{ "{{" }} $labels.book_id {{ "}}" }}. Durable lifecycle is preserved in paper_order_events, but in-process subscribers (dashboards, decision loops) are missing transitions. Inspect the Simulator health row on https://grafana.chalupatech.com/d/paper-trading and check go-paper-trader logs for slow consumers. Policy rationale: https://github.com/Chalupa-Tech/chalupa-brain/blob/main/workstreams/paper-trading-realism/briefs/2026-05-12-adapter-channel-backpressure-policy.md"
+
         - alert: ServiceUnhealthyPostDeploy
           expr: |
             up{job=~"go-.*"} == 0
