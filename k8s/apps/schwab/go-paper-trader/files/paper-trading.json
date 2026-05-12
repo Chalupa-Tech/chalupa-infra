@@ -2540,6 +2540,60 @@
           "title": "Fill persist p99 latency",
           "transparent": false,
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
+          },
+          "description": "5-minute rate of AdapterEvent drops on the SimAdapter.Events() channel per book. The channel is bounded (cap 256) and the producer does a non-blocking send: on overflow it increments `paper_adapter_events_dropped_total` rather than blocking PlaceOrder. Events here are order-lifecycle transitions (Submitted/Acknowledged/Filled/Rejected/Canceled/Replaced) — the strategy or dashboard subscriber never saw them. The durable record is in `paper_order_events`; this panel measures in-process subscriber drift, not data loss. Policy rationale: see workstreams/paper-trading-realism/briefs/2026-05-12-adapter-channel-backpressure-policy.md",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 0.1
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 148
+          },
+          "id": 904,
+          "repeatDirection": "h",
+          "targets": [
+            {
+              "expr": "sum by (book_id) (rate(paper_adapter_events_dropped_total[5m])) or vector(0)",
+              "legendFormat": "{{book_id}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Adapter events dropped (rate/5m)",
+          "transparent": false,
+          "type": "timeseries"
         }
       ],
       "title": "Simulator health",
@@ -2551,7 +2605,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 148
+        "y": 156
       },
       "id": 920,
       "panels": [],
@@ -2591,7 +2645,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 149
+        "y": 157
       },
       "id": 921,
       "options": {
@@ -2652,7 +2706,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 149
+        "y": 157
       },
       "id": 922,
       "options": {
@@ -2719,7 +2773,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 149
+        "y": 157
       },
       "id": 923,
       "repeatDirection": "h",
@@ -2740,7 +2794,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 157
+        "y": 165
       },
       "id": 1000,
       "panels": [],
@@ -2766,7 +2820,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 158
+        "y": 166
       },
       "id": 1001,
       "repeatDirection": "h",
@@ -2802,7 +2856,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 158
+        "y": 166
       },
       "id": 1002,
       "options": {
@@ -2865,7 +2919,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 158
+        "y": 166
       },
       "id": 1003,
       "repeatDirection": "h",
@@ -2896,7 +2950,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 166
+        "y": 174
       },
       "id": 1100,
       "panels": [
@@ -2934,7 +2988,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 167
+            "y": 175
           },
           "id": 1101,
           "repeatDirection": "h",
@@ -2975,7 +3029,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 167
+            "y": 175
           },
           "id": 1102,
           "options": {
@@ -3040,7 +3094,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 175
+            "y": 183
           },
           "id": 1103,
           "options": {
@@ -3095,7 +3149,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 183
+        "y": 191
       },
       "id": 1200,
       "panels": [],
@@ -3131,7 +3185,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 184
+        "y": 192
       },
       "id": 1201,
       "options": {
@@ -3198,7 +3252,7 @@
         "h": 7,
         "w": 16,
         "x": 8,
-        "y": 184
+        "y": 192
       },
       "id": 1202,
       "repeatDirection": "h",

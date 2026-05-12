@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-11f — adapter channel backpressure)
+
+- **`Simulator health` row gains an "Adapter events dropped (rate/5m)"
+  panel (id 904) on the paper-trading dashboard.**
+  Surfaces `sum by (book_id) (rate(paper_adapter_events_dropped_total[5m]))`
+  per book; amber 0.1/s (current steady state during quote bursts),
+  red 1.0/s (catastrophic). Description text points operators at the
+  policy brief in chalupa-brain. The row is still collapsed by
+  default; expanded height bumped 9 → 17 to fit the new panel below
+  the existing three. Source: `scripts/dashboards/internal/papertrading/rows/simulator_health.go`.
+- **`PaperTraderAdapterEventsDroppingHigh` vmalert rule.**
+  Fires `warning` when any book sustains drop rate > 1.0/s for 10m
+  on the `SimAdapter.Events()` channel. Description links to the
+  policy brief so on-call doesn't need to re-derive the rationale.
+  Lives in `k8s/platform/observability/templates/alert-rules.yaml`
+  under the `warning` group.
+
 ### Added (platform phase-7a — chart-bump verification gate)
 
 - **`verify-chart-bumps.yml` cron workflow.**
