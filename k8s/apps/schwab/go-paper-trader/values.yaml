@@ -91,6 +91,17 @@ paperTrader:
       fillModel:
         extraSlippageBps: 0
         latencyMs: 100
+      # paper-trading-realism phase-11j-prereq: enable pre-trade buying-
+      # power gate. Phase-9 shipped the code (pkg/execution/risk) but
+      # the chart template never wired the risk: block through; this
+      # hotfix wires the template and turns the cash gate on for every
+      # book. SELLs are unaffected (gate is BUY-only); BUYs whose
+      # notional exceeds the book's current cash are rejected with
+      # reject_reason="risk_buying_power". Catches both restart-state
+      # bugs (e.g. phase-11j's buy_and_hold re-allocation) and any
+      # future strategy that miscomputes available cash.
+      risk:
+        requireSufficientBuyingPower: true
       symbols:
         - AMD
         - AMZN
@@ -129,6 +140,10 @@ paperTrader:
       fillModel:
         extraSlippageBps: 0
         latencyMs: 100
+      # See ddowell-alt-30s for rationale. Both alt books must carry
+      # the gate for the 30s-vs-60s comparison to remain apples-to-apples.
+      risk:
+        requireSufficientBuyingPower: true
       symbols:
         - AMD
         - AMZN
@@ -175,6 +190,12 @@ paperTrader:
       fillModel:
         extraSlippageBps: 0
         latencyMs: 100
+      # sma-5x20 is currently at negative cash (-$1470) from pre-gate
+      # over-spending; with the gate on, new BUYs will be rejected until
+      # SELLs bring cash back positive. The strategy is self-healing
+      # under that constraint.
+      risk:
+        requireSufficientBuyingPower: true
       symbols:
         - AMD
         - AMZN
@@ -224,6 +245,8 @@ paperTrader:
       fillModel:
         extraSlippageBps: 0
         latencyMs: 100
+      risk:
+        requireSufficientBuyingPower: true
       symbols:
         - AMD
     # paper-trading-realism phase-11c: passive benchmark book.
@@ -246,6 +269,14 @@ paperTrader:
       fillModel:
         extraSlippageBps: 0
         latencyMs: 100
+      # buy-and-hold is currently at negative cash (-$4548) from the
+      # restart-double-allocation bug (phase-11j item 1). With the gate
+      # on, the strategy's restart re-allocation attempts will be
+      # rejected with reject_reason="risk_buying_power" — visible
+      # signal, no further data corruption. Phase-11j fixes the
+      # underlying strategy so the rejects stop happening.
+      risk:
+        requireSufficientBuyingPower: true
       symbols:
         - AMD
         - AMZN
