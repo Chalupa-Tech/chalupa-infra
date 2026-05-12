@@ -219,6 +219,29 @@ spec:
             summary: "Schwab refresh token {{ "{{" }} $labels.registration {{ "}}" }} expires in <24h"
             description: "Refresh token for {{ "{{" }} $labels.registration {{ "}}" }} expires in {{ "{{" }} $value | printf \"%.0f\" {{ "}}" }}s. Human re-auth at https://go-schwab-auth.tailbecff0.ts.net/auth/start?registration={{ "{{" }} $labels.registration {{ "}}" }} is required before expiry. Runbook: https://github.com/Chalupa-Tech/chalupa-brain/blob/main/docs/runbooks/auth-pod-incident.md"
 
+        # Correlates a failed scrape with a recent pod creation so the
+        # alert specifically catches "deploy went out, new pod came up
+        # unhealthy" — the silent-failure mode CI verification can't
+        # see (image landed, ArgoCD synced, but app never became
+        # ready). Correlation is on `pod` because `kube_pod_created`
+        # has no `job` label and our up-series carries pod. The 10m
+        # window matches typical ArgoCD sync + readiness latency;
+        # `for: 5m` requires the failure to be sustained, not a
+        # startup blip. Covers both Deployments and Rollouts (which
+        # `kube_deployment_status_observed_generation` misses — see
+        # reference_argo_rollout_not_deployment).
+        - alert: ServiceUnhealthyPostDeploy
+          expr: |
+            up{job=~"go-.*"} == 0
+            and on(pod)
+              (time() - kube_pod_created < 600)
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ "{{" }} $labels.job {{ "}}" }} unhealthy within 10m of a deploy"
+            description: "Scrape job {{ "{{" }} $labels.job {{ "}}" }} (pod {{ "{{" }} $labels.pod {{ "}}" }} in {{ "{{" }} $labels.namespace {{ "}}" }}) has up==0 and its pod was created less than 10 minutes ago. Likely a botched deploy — inspect recent chalupa-infra merges and ArgoCD sync history."
+
 
     # ── Info ─────────────────────────────────────────────────────────
     - name: info
