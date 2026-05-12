@@ -50,6 +50,21 @@ data:
 {{- if hasKey . "maxDailyLossUSD" }}
         maxDailyLossUSD: {{ .maxDailyLossUSD }}
 {{- end }}
+{{- if .risk }}
+        risk:
+{{- if hasKey .risk "maxOrderQty" }}
+          maxOrderQty: {{ .risk.maxOrderQty }}
+{{- end }}
+{{- if hasKey .risk "maxNotionalPerOrderUSD" }}
+          maxNotionalPerOrderUSD: {{ .risk.maxNotionalPerOrderUSD }}
+{{- end }}
+{{- if hasKey .risk "maxPositionQtyPerSymbol" }}
+          maxPositionQtyPerSymbol: {{ .risk.maxPositionQtyPerSymbol }}
+{{- end }}
+{{- if hasKey .risk "requireSufficientBuyingPower" }}
+          requireSufficientBuyingPower: {{ .risk.requireSufficientBuyingPower }}
+{{- end }}
+{{- end }}
         symbols:
 {{- range .symbols }}
           - {{ . | quote }}
