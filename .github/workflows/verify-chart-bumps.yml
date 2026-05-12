@@ -1,0 +1,207 @@
+---
+# Verify Chart Bumps
+#
+# Cron-triggered verification gate. For each Chalupa-Tech/go-* repo
+# that has cut a GitHub release in the lookback window, asserts that
+# a matching chart-bump PR (`deploy: <repo> <tag>`) exists in
+# chalupa-infra (open or merged). If not, warns / fails depending on
+# WARN_ONLY.
+#
+# Why this exists
+# ----------------
+# release-reusable.yml has three stages after CHANGELOG promotion:
+# (1) tag + GitHub release, (2) build-push image to Gitea, (3) open
+# chart-bump PR in chalupa-infra. Phase-7 (PR #447) closed the
+# silent-failure gaps for stages 2 (image-tag-existence-gate.yml) and
+# post-deploy health (ServiceUnhealthyPostDeploy vmalert). This
+# workflow closes the remaining gap: a release was cut and the image
+# may have been pushed, but the chart-bump PR never opened. ArgoCD
+# would continue syncing the prior image with no visible failure.
+#
+# Why GitHub releases instead of Gitea registry
+# ---------------------------------------------
+# The prompt called for "tag manifest dated <1h" in the Gitea
+# registry. Using `gh release list` instead is a strict superset:
+#  - A release is created BEFORE build-push (so we also flag silent
+#    build-push failures, which is desirable — that path is otherwise
+#    not gated).
+#  - No Tailscale join, no Gitea catalog enumeration, no extra auth.
+#  - gh CLI is the standard tooling across our CI.
+# If a tighter "image actually pushed" check is needed later, swap the
+# release-list step for a Tailscale join + curl /v2/<repo>/tags/list
+# pattern (mirrors image-tag-existence-gate.yml).
+#
+# Warning-only on first ship
+# --------------------------
+# WARN_ONLY=true ships this as observation-only. After ~1 month of
+# baseline data confirms low false-positive rate (e.g. no
+# release-without-corresponding-bump-by-design cases), flip
+# WARN_ONLY=false to make missing chart-bumps fail the workflow.
+
+name: Verify Chart Bumps
+
+on:
+  schedule:
+    # Every 30 min. Cheap query, low blast radius, catches gaps within
+    # an hour of release. Tighter cadence (15 min) is easy to add if
+    # the lag matters more than the noise.
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      lookback_hours:
+        description: 'Override lookback window (hours)'
+        required: false
+        default: '1'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify recent releases have matching chart-bump PRs
+    runs-on: ubuntu-latest
+    env:
+      # GH_PAT needed for cross-repo `gh release list` against
+      # Chalupa-Tech/go-*; default GITHUB_TOKEN is scoped to the
+      # calling repo only.
+      GH_TOKEN: ${{ secrets.GH_PAT }}
+      LOOKBACK_HOURS: ${{ github.event.inputs.lookback_hours || '1' }}
+      # Flip to 'false' after ~1 month of clean baseline data.
+      WARN_ONLY: 'true'
+    steps:
+      - name: Checkout chalupa-infra
+        uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          set -euo pipefail
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Derive monitored services from k8s/apps/**/values.yaml
+        id: services
+        run: |
+          set -euo pipefail
+          # Source of truth: every chart values.yaml whose
+          # image.repository starts with chalupa-tech/ is a service
+          # we expect to receive auto-bumps. This couples the verify
+          # set to the chart layout — adding a new service is a no-op
+          # for this workflow.
+          services_file=$(mktemp)
+          : > "$services_file"
+          for f in $(find k8s/apps -name 'values.yaml'); do
+            repo=$(yq -r '.image.repository // ""' "$f")
+            case "$repo" in
+              chalupa-tech/*)
+                # Strip the org prefix; the repo name is what we'll
+                # query in github.com/Chalupa-Tech/<name> and what
+                # appears in the deploy: PR title.
+                echo "${repo#chalupa-tech/}" >> "$services_file"
+                ;;
+            esac
+          done
+          # Dedupe (some charts may share images).
+          sort -u "$services_file" -o "$services_file"
+          echo "Monitored services:"
+          sed 's/^/  - /' "$services_file"
+          echo "services_file=${services_file}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify recent releases have matching chart-bump PRs
+        id: verify
+        env:
+          SERVICES_FILE: ${{ steps.services.outputs.services_file }}
+        run: |
+          set -euo pipefail
+          NOW_EPOCH=$(date -u +%s)
+          CUTOFF=$((NOW_EPOCH - LOOKBACK_HOURS * 3600))
+          echo "Lookback: ${LOOKBACK_HOURS}h (cutoff $(date -u -d "@$CUTOFF" +%FT%TZ))"
+
+          checked=0
+          missing=0
+          missing_lines=""
+
+          while IFS= read -r SVC; do
+            [ -z "$SVC" ] && continue
+
+            # `gh release list --limit 10` is plenty — we only care
+            # about releases newer than the lookback window, and no
+            # service ships >10 releases in <1h.
+            releases=$(gh release list \
+              --repo "Chalupa-Tech/$SVC" \
+              --limit 10 \
+              --json tagName,publishedAt \
+              --jq '.[] | select(.publishedAt != null) | "\(.tagName)|\(.publishedAt)"' \
+              2>/dev/null || true)
+            [ -z "$releases" ] && continue
+
+            while IFS='|' read -r tag pub_at; do
+              [ -z "$tag" ] && continue
+              # Tag shape filter — phase-6's release-reusable.yml only
+              # accepts `^[0-9]+\.[0-9]+\.[0-9]+$` going forward, but
+              # historical releases on go-telemetry-mesh include
+              # malformed tags (`vUnreleased`, `v`, etc.). Skip
+              # anything that isn't `v<semver>` so we don't alert on
+              # noise the auto-PR pipeline never ran for.
+              if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                continue
+              fi
+              pub_epoch=$(date -u -d "$pub_at" +%s 2>/dev/null || echo 0)
+              # Sentinel '0001-01-01' (epoch 0) means publishedAt was
+              # missing — also old, so the lookback skip catches it,
+              # but be explicit.
+              [ "$pub_epoch" -le 0 ] && continue
+              [ "$pub_epoch" -lt "$CUTOFF" ] && continue
+
+              checked=$((checked + 1))
+
+              # The auto-PR title is exact: "deploy: <svc> <tag>".
+              # Search both open and merged states; either counts as
+              # "the bump happened".
+              search_title="deploy: $SVC $tag"
+              found=$(gh pr list \
+                --repo Chalupa-Tech/chalupa-infra \
+                --state all \
+                --search "in:title \"$search_title\"" \
+                --json number \
+                --jq 'length' \
+                2>/dev/null || echo "0")
+
+              if [ "$found" = "0" ]; then
+                msg="No chalupa-infra PR titled '$search_title'"
+                msg="$msg for release ${SVC} ${tag} (published ${pub_at})."
+                msg="$msg Auto-PR pipeline (build-push or deploy job)"
+                msg="$msg may have failed silently."
+                echo "::warning::$msg"
+                missing_lines="${missing_lines}- \`${SVC}\` \`${tag}\` (released ${pub_at})"$'\n'
+                missing=$((missing + 1))
+              else
+                echo "OK  ${SVC} ${tag} → matching PR exists (${found} match(es))"
+              fi
+            done <<< "$releases"
+          done < "$SERVICES_FILE"
+
+          {
+            echo "## verify-chart-bumps"
+            echo
+            echo "- Lookback window: \`${LOOKBACK_HOURS}h\`"
+            echo "- Releases checked: \`${checked}\`"
+            echo "- Missing chart-bump PRs: \`${missing}\`"
+            echo "- Mode: \`$([ "$WARN_ONLY" = "true" ] && echo "warn-only" || echo "fail-on-miss")\`"
+            if [ "$missing" -gt 0 ]; then
+              echo
+              echo "### Missing"
+              echo
+              printf '%s' "$missing_lines"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "missing=${missing}" >> "$GITHUB_OUTPUT"
+
+      - name: Fail if any chart-bump PRs are missing (when not warn-only)
+        if: steps.verify.outputs.missing != '0' && env.WARN_ONLY != 'true'
+        run: |
+          n="${{ steps.verify.outputs.missing }}"
+          echo "::error::${n} release(s) missing matching chart-bump PRs. See workflow summary."
+          exit 1

@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (platform phase-7a — chart-bump verification gate)
+
+- **`verify-chart-bumps.yml` cron workflow.**
+  Runs every 30 minutes against `Chalupa-Tech/go-*` repos derived
+  from `k8s/apps/**/values.yaml` (`image.repository: chalupa-tech/*`).
+  For each release published in the last hour, asserts a matching
+  `deploy: <image_name> <tag>` PR exists in this repo (open or
+  merged).
+  Closes stage-4 of the three "silent drop" gaps the phase-6 brief
+  identified — phase-7 (PR #447) shipped the image-existence gate
+  and `ServiceUnhealthyPostDeploy` vmalert; this closes the auto-PR
+  silence gap.
+- **Warning-only on first ship.** `WARN_ONLY=true` env var emits
+  `::warning::` annotations + workflow summary without failing the
+  workflow. After ~1 month of clean baseline data, flip to `false`
+  to convert misses into hard failures.
+- **Tag-shape filter.** Only `v<semver>` tags are checked.
+  Historical malformed releases on `go-telemetry-mesh`
+  (`vUnreleased`, `v`, etc.) are skipped — phase-6's strict
+  `^[0-9]+\.[0-9]+\.[0-9]+$` regex prevents recurrence going
+  forward.
+- **GitHub-release signal vs Gitea-tag signal.** A GitHub release is
+  cut BEFORE `build-push`; using `gh release list` as the trigger
+  catches strict superset of failures (deploy-job silence AND
+  build-push silence), which is desirable since neither was
+  otherwise gated. If a tighter "image actually pushed" check is
+  needed later, swap to a Tailscale-joined `curl /v2/<repo>/tags/list`
+  pattern (mirrors `image-tag-existence-gate.yml`).
+
 ### Changed (repo-hygiene phase-6 — auto-release-promotion)
 
 - **`release-reusable.yml` learns tier-2 auto-promote.**
