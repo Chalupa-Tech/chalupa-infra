@@ -125,3 +125,25 @@ jobs:
             GITHUB_PAT=${{ secrets.GH_PAT }}
             ${{ inputs.build_args }}
           tags: ${{ steps.tags.outputs.tags }}
+
+      # Verify the version tag actually landed in Gitea. Catches the
+      # bug class that bit sessions 68 (v0.3.0) and 100 (v0.6.0) where
+      # a tag-path-filter mismatch silently dropped the push and
+      # surfaced only as ImagePullBackOff alerts ~15 minutes later.
+      # `crane manifest` checks the manifest without pulling layers.
+      # Tailscale + /etc/hosts entries set up earlier in the job make
+      # gitea.tailbecff0.ts.net reachable here.
+      - name: Verify version tag landed in Gitea
+        if: ${{ steps.meta.outputs.has_version == 'true' }}
+        run: |
+          set -euo pipefail
+          IMAGE="gitea.tailbecff0.ts.net/chalupa-tech/${{ inputs.image_name }}:v${{ steps.meta.outputs.version }}"
+          echo "Verifying $IMAGE is reachable..."
+          go install github.com/google/go-containerregistry/cmd/crane@latest
+          if ! "$HOME/go/bin/crane" manifest "$IMAGE" > /dev/null; then
+            echo "::error::Image $IMAGE was NOT found in Gitea after push."
+            echo "::error::This is the bug class that bit sessions 68 + 100."
+            echo "::error::Manual recovery: re-run this workflow_call from the caller, or push the tag locally."
+            exit 1
+          fi
+          echo "OK: $IMAGE is reachable in Gitea."
