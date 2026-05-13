@@ -278,10 +278,15 @@ spec:
         # bounded memory shape. Vector match is on pod + namespace +
         # container — kube_pod_container_resource_limits carries all
         # three. 85% threshold gives the operator ~15% headroom before
-        # the next reconcile-sweep spike OOMKills the pod.
+        # the next reconcile-sweep spike OOMKills the pod. LHS is wrapped
+        # in `max by(...)` because kubelet exposes the cadvisor metric on
+        # both /metrics/cadvisor and /metrics/resource, which otherwise
+        # produces duplicate series and a 422 on every vmalert eval.
         - alert: PaperTraderMemoryPressure
           expr: |
-            container_memory_working_set_bytes{namespace="schwab-ddowell",container="go-paper-trader"}
+            max by (pod, namespace, container) (
+              container_memory_working_set_bytes{namespace="schwab-ddowell",container="go-paper-trader"}
+            )
               / on(pod, namespace, container)
             kube_pod_container_resource_limits{namespace="schwab-ddowell",container="go-paper-trader",resource="memory"}
             > 0.85
