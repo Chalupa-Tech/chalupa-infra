@@ -2,7 +2,7 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-paper-trader
-  tag: "v0.11.0"
+  tag: "v0.12.0"
   pullPolicy: IfNotPresent
 
 nats:
