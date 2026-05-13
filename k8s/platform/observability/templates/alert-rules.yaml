@@ -250,6 +250,48 @@ spec:
             summary: "paper-trader dropping AdapterEvents on book {{ "{{" }} $labels.book_id {{ "}}" }} at >1/s"
             description: "Drop rate is {{ "{{" }} $value | printf \"%.2f\" {{ "}}" }}/s sustained for 10m on the SimAdapter.Events() channel for book {{ "{{" }} $labels.book_id {{ "}}" }}. Durable lifecycle is preserved in paper_order_events, but in-process subscribers (dashboards, decision loops) are missing transitions. Inspect the Simulator health row on https://grafana.chalupatech.com/d/paper-trading and check go-paper-trader logs for slow consumers. Policy rationale: https://github.com/Chalupa-Tech/chalupa-brain/blob/main/workstreams/paper-trading-realism/briefs/2026-05-12-adapter-channel-backpressure-policy.md"
 
+        # Reconciler liveness. Steady-state for the SimAdapter is zero
+        # divergences — write-through consistency guarantees both sides
+        # come from the same event log. Zero healthy sweeps in 15m means
+        # every sweep reported a divergence (or the goroutine is stalled).
+        # `on(book_id) (paper_reconcile_last_run_timestamp_seconds > 0)`
+        # gates the alert until the reconciler has emitted at least one
+        # run for each book, defusing the deploy-window false fire when
+        # a new book is just coming up.
+        # Sized against the 2026-05-11 latent-failure mode where alt-30s
+        # / alt-60s / sma-5x20 had paper_reconcile_healthy_sweeps_total
+        # flat at zero since deploy and the dashboard row was a permanent
+        # red zero with no alert behind it.
+        - alert: PaperTraderReconcilerStalled
+          expr: |
+            increase(paper_reconcile_healthy_sweeps_total[15m]) == 0
+            and on(book_id) (paper_reconcile_last_run_timestamp_seconds > 0)
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "paper-trader book {{ "{{" }} $labels.book_id {{ "}}" }} has had no healthy reconciler sweeps in 15m"
+            description: "Every reconciler sweep in the last 15m on book {{ "{{" }} $labels.book_id {{ "}}" }} has reported a divergence (or the goroutine is stalled). Drill into panel 923 (Divergence rate by kind) on https://grafana.chalupatech.com/d/paper-trading and check go-paper-trader logs for reconcile-loop errors."
+
+        # Memory pressure. Working set vs container memory limit, sized
+        # against the post-PR-#445 256 Mi limit and the post-phase-11e
+        # bounded memory shape. Vector match is on pod + namespace +
+        # container — kube_pod_container_resource_limits carries all
+        # three. 85% threshold gives the operator ~15% headroom before
+        # the next reconcile-sweep spike OOMKills the pod.
+        - alert: PaperTraderMemoryPressure
+          expr: |
+            container_memory_working_set_bytes{namespace="schwab-ddowell",container="go-paper-trader"}
+              / on(pod, namespace, container)
+            kube_pod_container_resource_limits{namespace="schwab-ddowell",container="go-paper-trader",resource="memory"}
+            > 0.85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "paper-trader pod {{ "{{" }} $labels.pod {{ "}}" }} memory >85% of limit"
+            description: "Working set has stayed above 85% of the container memory limit for 5 minutes on pod {{ "{{" }} $labels.pod {{ "}}" }}. OOMKill is likely on the next reconcile-sweep spike. Either bump the limit on k8s/apps/schwab/go-paper-trader/values.yaml or investigate whether phase-11e's terminal-order prune covers the growth surface (candidate: appliedClientOrderIDs map, deferred by phase-11e)."
+
         - alert: ServiceUnhealthyPostDeploy
           expr: |
             up{job=~"go-.*"} == 0
