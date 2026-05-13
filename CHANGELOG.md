@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-11g — post-11e cluster stabilization)
+
+- **`PaperTraderReconcilerStalled` vmalert rule.**
+  Fires `warning` when `increase(paper_reconcile_healthy_sweeps_total[15m]) == 0`
+  per book for 5m, gated on `paper_reconcile_last_run_timestamp_seconds > 0`
+  so a freshly-deployed book that hasn't reported a sweep yet doesn't
+  trip the alert. Sized against the 2026-05-11 latent-failure mode
+  where alt-30s / alt-60s / sma-5x20 had the counter flat at zero
+  since deploy and the dashboard row was a permanent red zero with
+  no alert behind it.
+  Lives in `k8s/platform/observability/templates/alert-rules.yaml`
+  under the `warning` group, adjacent to `PaperTraderAdapterEventsDroppingHigh`.
+- **`PaperTraderMemoryPressure` vmalert rule.**
+  Fires `warning` when `container_memory_working_set_bytes` for the
+  go-paper-trader container in `schwab-ddowell` exceeds 85% of its
+  `kube_pod_container_resource_limits` for 5m. Vector match on
+  `(pod, namespace, container)`. Sized against the post-PR-#445
+  256 Mi limit and post-phase-11e bounded memory shape — gives
+  ~15% headroom before a reconcile-sweep spike OOMKills the pod.
+  The 2026-05-11 audit found the pre-phase-11e working-set ran at
+  99 MB / 96 Mi (≈103%) for an unknown duration before three
+  OOMKills made the failure visible; this alert would have warned
+  days earlier.
+
 ### Added (paper-trading-realism phase-11f — adapter channel backpressure)
 
 - **`Simulator health` row gains an "Adapter events dropped (rate/5m)"
