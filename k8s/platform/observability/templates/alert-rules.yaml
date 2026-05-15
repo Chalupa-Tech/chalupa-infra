@@ -217,7 +217,7 @@ spec:
             severity: warning
           annotations:
             summary: "Schwab refresh token {{ "{{" }} $labels.registration {{ "}}" }} expires in <24h"
-            description: "Refresh token for {{ "{{" }} $labels.registration {{ "}}" }} expires in {{ "{{" }} $value | printf \"%.0f\" {{ "}}" }}s. Human re-auth at https://go-schwab-auth.tailbecff0.ts.net/auth/start?registration={{ "{{" }} $labels.registration {{ "}}" }} is required before expiry. Runbook: https://github.com/Chalupa-Tech/chalupa-brain/blob/main/docs/runbooks/auth-pod-incident.md"
+            description: "Refresh token for {{ "{{" }} $labels.registration {{ "}}" }} expires in {{ "{{" }} $value | printf \"%.0f\" {{ "}}" }}s. Human re-auth at https://schwab-auth.chalupatech.com/auth/start?registration={{ "{{" }} $labels.registration {{ "}}" }} is required before expiry. Runbook: https://github.com/Chalupa-Tech/chalupa-brain/blob/main/docs/runbooks/auth-pod-incident.md"
 
         # Correlates a failed scrape with a recent pod creation so the
         # alert specifically catches "deploy went out, new pod came up
@@ -307,11 +307,26 @@ spec:
         # terminal rejects). Alert directly on the symptom — rejects
         # without fills — rather than on the downstream channel-drop
         # noise floor, so a regression is visible at the right layer.
+        #
+        # Market-closed rejects are subtracted out: every book that
+        # attempts orders off-hours collects them and they are normal,
+        # not a stuck strategy. The fills side uses `unless` rather than
+        # `and ... == 0` so a book that has never filled — and therefore
+        # has no paper_fills_total series — is still evaluated; an
+        # `and on(book_id) ... == 0` join silently drops such a book,
+        # which is exactly the failure mode this alert must catch.
         - alert: PaperTraderStrategyStuck
           expr: |
-            sum by (book_id) (rate(paper_order_rejects_total[15m])) > 0
-            and on(book_id)
-            sum by (book_id) (rate(paper_fills_total[15m])) == 0
+            (
+              sum by (book_id) (rate(paper_order_rejects_total[15m]))
+              - (
+                  sum by (book_id) (rate(paper_market_closed_rejects_total[15m]))
+                  or
+                  sum by (book_id) (rate(paper_order_rejects_total[15m])) * 0
+                )
+            ) > 0
+            unless on(book_id)
+            (sum by (book_id) (rate(paper_fills_total[15m])) > 0)
           for: 30m
           labels:
             severity: warning

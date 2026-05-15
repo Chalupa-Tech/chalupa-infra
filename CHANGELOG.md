@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`PaperTraderStrategyStuck` vmalert rule — false positives and a
+  silent false negative.** The original expr
+  `rate(paper_order_rejects_total[15m]) > 0 AND on(book_id)
+  rate(paper_fills_total[15m]) == 0` was wrong in both directions:
+  - *False positive:* every order reject off-hours is a market-closed
+    reject, so any book that had filled earlier (and thus carries a
+    `paper_fills_total` series sitting at rate 0 while the market is
+    shut) tripped the alert overnight. Observed firing on the three
+    healthy books `alt-30s`, `alt-60s`, `limit-example`.
+  - *False negative:* a book that has never filled has no
+    `paper_fills_total` series at all, so the `and on(book_id) ... == 0`
+    join silently dropped it. `ddowell-buy-and-hold` (49,140
+    non-market-closed rejects / 24h, 0 fills) and `ddowell-sma-5x20`
+    (27,629 / 24h, 0 fills) — the exact reject-loop the alert exists to
+    catch — escaped it entirely.
+  Fix subtracts `paper_market_closed_rejects_total` from the reject
+  rate and switches the fills clause to `unless on(book_id)`, which
+  retains LHS series that have no match on the RHS.
+- **`SchwabRefreshTokenExpiringSoon` re-auth URL.** The annotation
+  pointed at `go-schwab-auth.tailbecff0.ts.net`, a hostname with no
+  IngressRoute — the link was not navigable. Corrected to
+  `schwab-auth.chalupatech.com`, the host served by
+  `k8s/apps/schwab/go-schwab-auth/templates/ingressroute.yaml`.
+
 ### Added (paper-trading-realism phase-11l — strategy reject-loop)
 
 - **`PaperTraderStrategyStuck` vmalert rule.**
