@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-11l — strategy reject-loop)
+
+- **`PaperTraderStrategyStuck` vmalert rule.**
+  Fires `warning` when
+  `rate(paper_order_rejects_total[15m]) > 0 AND rate(paper_fills_total[15m]) == 0`
+  per book for 30m. Catches the failure mode the 2026-05-14 audit
+  found — a book whose adapter is rejecting every order attempt while
+  no fills land. Complements the existing
+  `PaperTraderAdapterEventsDroppingHigh` alert by detecting the same
+  class of bug at the strategy-behavior layer rather than at the
+  downstream channel-drop noise floor.
+- **`paper-trader-risk-gate-lint.yml` workflow.**
+  Asserts every `paperTrader.books[].risk.requireSufficientBuyingPower`
+  in `k8s/apps/schwab/go-paper-trader/values.yaml` is `true`. Pre-gate
+  over-spending was the primary cause of the negative-cash residue
+  caught in the 2026-05-14 audit (-$4548.80 on `ddowell-buy-and-hold`,
+  -$142.78 on `ddowell-sma-5x20`); CI enforces the invariant on every
+  paper-trader PR going forward.
+
 ### Added (paper-trading-realism phase-11g — post-11e cluster stabilization)
 
 - **`PaperTraderReconcilerStalled` vmalert rule.**
