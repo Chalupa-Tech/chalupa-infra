@@ -297,6 +297,28 @@ spec:
             summary: "paper-trader pod {{ "{{" }} $labels.pod {{ "}}" }} memory >85% of limit"
             description: "Working set has stayed above 85% of the container memory limit for 5 minutes on pod {{ "{{" }} $labels.pod {{ "}}" }}. OOMKill is likely on the next reconcile-sweep spike. Either bump the limit on k8s/apps/schwab/go-paper-trader/values.yaml or investigate whether phase-11e's terminal-order prune covers the growth surface (candidate: appliedClientOrderIDs map, deferred by phase-11e)."
 
+        # Phase-11l: strategy reject loop watchdog. Catches the failure
+        # mode the 2026-05-14 audit found — a book whose adapter is
+        # rejecting every order attempt while no fills land. Pre-phase-11l
+        # this fired as the AdapterEventsDroppingHigh alert because the
+        # reject pair (Submitted → Rejected) spammed the events channel;
+        # phase-11l §2 stopped the strategy-side retry storm but the same
+        # pattern can recur (any future strategy that doesn't honor
+        # terminal rejects). Alert directly on the symptom — rejects
+        # without fills — rather than on the downstream channel-drop
+        # noise floor, so a regression is visible at the right layer.
+        - alert: PaperTraderStrategyStuck
+          expr: |
+            sum by (book_id) (rate(paper_order_rejects_total[15m])) > 0
+            and on(book_id)
+            sum by (book_id) (rate(paper_fills_total[15m])) == 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "paper-trader book {{ "{{" }} $labels.book_id {{ "}}" }} rejecting but not filling for 30m"
+            description: "All order attempts for book {{ "{{" }} $labels.book_id {{ "}}" }} are rejecting; no fills in 30m. Likely a strategy-side reject loop (see phase-11l) or a cash-exhausted state the strategy is not honoring. Drill into reject reasons on https://grafana.chalupatech.com/d/paper-trading."
+
         - alert: ServiceUnhealthyPostDeploy
           expr: |
             up{job=~"go-.*"} == 0

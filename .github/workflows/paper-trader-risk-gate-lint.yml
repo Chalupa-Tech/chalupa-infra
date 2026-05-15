@@ -1,0 +1,61 @@
+---
+# Phase-11l §3a: every paper-trader book MUST opt into the buying-power
+# risk gate. The flag defaults false in pkg/execution/risk/risk.go for
+# back-compat with pre-phase-9 books that hadn't yet sized starting
+# cash realistically — but every shipping book past phase-9b sets it
+# true. A book that ships without the gate enabled can debit cash
+# past zero (the 2026-05-14 audit caught ddowell-buy-and-hold at
+# -$4548.80 and ddowell-sma-5x20 at -$142.78, both pre-gate residue).
+#
+# This lint enforces the per-book invariant on every paper-trader PR.
+# See chalupa-brain workstreams/paper-trading-realism/prompts/phase-11l-*.md
+# §3a for the full audit notes.
+name: Paper Trader Risk Gate Lint
+
+on:
+  pull_request:
+    paths:
+      - 'k8s/apps/schwab/go-paper-trader/values.yaml'
+      - '.github/workflows/paper-trader-risk-gate-lint.yml'
+
+jobs:
+  risk-gate:
+    name: Assert every book has requireSufficientBuyingPower=true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          set -euo pipefail
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Validate per-book risk gate
+        run: |
+          set -euo pipefail
+          TRADER=k8s/apps/schwab/go-paper-trader/values.yaml
+
+          book_count=$(yq -r '.paperTrader.books | length' "$TRADER")
+          if [ "$book_count" = "0" ] || [ "$book_count" = "null" ]; then
+            echo "::error file=$TRADER::paperTrader.books is empty"
+            exit 1
+          fi
+
+          fail=0
+          for i in $(seq 0 $((book_count - 1))); do
+            bid=$(yq -r ".paperTrader.books[$i].bookID" "$TRADER")
+            flag=$(yq -r ".paperTrader.books[$i].risk.requireSufficientBuyingPower // \"MISSING\"" "$TRADER")
+            if [ "$flag" != "true" ]; then
+              echo "::error file=$TRADER::book '$bid' must set risk.requireSufficientBuyingPower: true (got: $flag)"
+              fail=1
+            fi
+          done
+
+          if [ $fail -eq 0 ]; then
+            echo "OK: all $book_count paper-trader books have requireSufficientBuyingPower=true"
+          else
+            exit 1
+          fi
