@@ -4,6 +4,9 @@ image:
   repository: chalupa-tech/go-market-store
   tag: v0.6.0
 
+metrics:
+  port: 9090
+
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
 

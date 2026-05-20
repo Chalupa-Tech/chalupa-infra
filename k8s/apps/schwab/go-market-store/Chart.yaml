@@ -3,5 +3,5 @@ apiVersion: v2
 name: go-market-store
 description: NATS JetStream consumer — writes Schwab market data to TimescaleDB
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "0.1.0"

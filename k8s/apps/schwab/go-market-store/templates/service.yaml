@@ -1,0 +1,18 @@
+---
+# ClusterIP service targeting the /metrics endpoint. VMServiceScrape
+# selects this service by the `app: go-market-store` label.
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-market-store
+  labels:
+    app: go-market-store
+spec:
+  type: ClusterIP
+  selector:
+    app: go-market-store
+  ports:
+    - name: metrics
+      port: {{ .Values.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
