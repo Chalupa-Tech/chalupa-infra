@@ -102,31 +102,14 @@ paperTrader:
       # future strategy that miscomputes available cash.
       risk:
         requireSufficientBuyingPower: true
-      symbols:
-        - AMD
-        - AMZN
-        - BNTX
-        - BRK.B
-        - DDOG
-        - GE
-        - GEHC
-        - GEV
-        - GMED
-        - GOOG
-        - GRMN
-        - GTBIF
-        - MDB
-        - NU
-        - NVDA
-        - PANW
-        - RNMBY
-        - TEVA
-        - TEX
-        - U
-        - UNH
-        - UPS
-        - V
-        - WING
+      # paper-trading-realism phase-11j §6: alternator is single-symbol
+      # by construction. Pre-phase-11j the YAML carried all 24
+      # watchlist symbols here and the trader subscribed to every one
+      # but only acted on Symbols[0], dropping ~23 quotes per tick onto
+      # paper_adapter_events_dropped_total. The trader now refuses
+      # both `symbol:` and `symbols:` on the same alternator book; use
+      # the singular shape going forward.
+      symbol: AMD
     - bookID: ddowell-alt-60s
       strategy: alternator
       quantity: 1
@@ -144,31 +127,7 @@ paperTrader:
       # the gate for the 30s-vs-60s comparison to remain apples-to-apples.
       risk:
         requireSufficientBuyingPower: true
-      symbols:
-        - AMD
-        - AMZN
-        - BNTX
-        - BRK.B
-        - DDOG
-        - GE
-        - GEHC
-        - GEV
-        - GMED
-        - GOOG
-        - GRMN
-        - GTBIF
-        - MDB
-        - NU
-        - NVDA
-        - PANW
-        - RNMBY
-        - TEVA
-        - TEX
-        - U
-        - UNH
-        - UPS
-        - V
-        - WING
+      symbol: AMD
     # paper-trading-realism phase-5: SMA-crossover book — the first
     # non-alternator strategy deployed. Gives the dashboard's
     # $strategy dropdown a second value and makes cross-strategy
@@ -247,8 +206,10 @@ paperTrader:
         latencyMs: 100
       risk:
         requireSufficientBuyingPower: true
-      symbols:
-        - AMD
+      # paper-trading-realism phase-11j §6: limit_example is single-
+      # symbol by construction (matches alt books). Use the singular
+      # `symbol:` shape.
+      symbol: AMD
     # paper-trading-realism phase-11c: passive benchmark book.
     # buy_and_hold is a one-shot equal-dollar allocator: on the first
     # observed quote per symbol, it places a single MARKET BUY for

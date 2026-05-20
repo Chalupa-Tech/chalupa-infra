@@ -65,8 +65,16 @@ data:
           requireSufficientBuyingPower: {{ .risk.requireSufficientBuyingPower }}
 {{- end }}
 {{- end }}
+{{- /* phase-11j §6: single-symbol strategies (alternator,
+       limit_example) carry the singular `symbol:` key; multi-symbol
+       strategies (sma, buy_and_hold, mean_reversion) carry `symbols:`.
+       Render exactly one — the trader's validator refuses both. */ -}}
+{{- if .symbol }}
+        symbol: {{ .symbol | quote }}
+{{- else if .symbols }}
         symbols:
 {{- range .symbols }}
           - {{ . | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
