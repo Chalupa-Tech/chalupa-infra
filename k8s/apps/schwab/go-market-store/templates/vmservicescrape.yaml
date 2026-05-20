@@ -1,0 +1,15 @@
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: go-market-store
+  labels:
+    app: go-market-store
+spec:
+  selector:
+    matchLabels:
+      app: go-market-store
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
