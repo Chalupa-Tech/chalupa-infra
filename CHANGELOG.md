@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Requires go-schwab-feed v0.9.0 or later; an older image ignores the argument and would start a second poller.
 - **`SPY` and `QQQ` added to the `ddowell-individual` watchlist** (catalog and `feed.watchlist`) as research benchmarks.
 
+### Changed
+
+- **`candles` hypertable chunk interval is now one year** (was the 7-day default) in the TimescaleDB init SQL.
+  Daily bars now go back decades, and 7-day chunks would cut that into thousands of near-empty chunks.
+  Applied to the live database by hand on 2026-11-12 (`set_chunk_time_interval`); existing 2026 chunks keep their 7-day size.
+
 ### Removed
 
 - **`cleanup_old_candles` retention job** from the TimescaleDB init SQL.

@@ -18,7 +18,11 @@ data:
         volume    BIGINT,
         source    TEXT DEFAULT 'schwab'
     );
-    SELECT create_hypertable('candles', 'time', if_not_exists => TRUE);
+    -- One-year chunks: daily bars go back decades (go-schwab-feed backfill),
+    -- and the 7-day default would cut that history into thousands of
+    -- near-empty chunks. The live database was switched on 2026-11-12 with
+    -- set_chunk_time_interval; its 2026 chunks created before then stay 7-day.
+    SELECT create_hypertable('candles', 'time', chunk_time_interval => INTERVAL '1 year', if_not_exists => TRUE);
     DROP INDEX IF EXISTS idx_candles_unique_3col;
     CREATE UNIQUE INDEX IF NOT EXISTS idx_candles_unique ON candles (time, symbol, frequency, source);
     CREATE INDEX IF NOT EXISTS idx_candles_symbol_freq_time ON candles (symbol, frequency, time DESC);
