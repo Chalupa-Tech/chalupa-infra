@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **go-schwab-feed daily history backfill CronJob** (`go-schwab-feed-backfill`, 21:30 ET on weekdays).
+  Runs the feed image in its one-shot `backfill` mode to request the maximum `1d`, `30m` and `5m` history Schwab serves for the watchlist and publish it through the normal history path.
+  Requires go-schwab-feed v0.9.0 or later; an older image ignores the argument and would start a second poller.
+- **`SPY` and `QQQ` added to the `ddowell-individual` watchlist** (catalog and `feed.watchlist`) as research benchmarks.
+
+### Removed
+
+- **`cleanup_old_candles` retention job** from the TimescaleDB init SQL.
+  It deleted `5m` candles older than 90 days and `1h` candles older than a year, which is why no `5m` history survived from before June.
+  Schwab only serves intraday bars for about 8.5 months, so deleted rows cannot be re-fetched.
+  The job was removed from the live database by hand on 2026-11-12 (`delete_job` + `DROP FUNCTION`); init SQL only runs at first bootstrap.
+
 ### Fixed
 
 - **`PaperTraderStrategyStuck` vmalert rule — false positives and a
