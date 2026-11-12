@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (CI — Tailscale join broken on current runners)
+
+- **`tailscale/github-action` bumped from v2 to v4** in `build-push-reusable.yml`, `release-reusable.yml`, `image-tag-existence-gate.yml` and `deploy-infra.yml`.
+  v2 is a shell wrapper that calls `sudo -E tailscale up`; the current `ubuntu-latest` image's sudo ignores `-E` ("preserving the entire environment is not supported"), and the join step exits 1 in under a second.
+  Every image build and deploy that needs the tailnet has failed since at least 2026-11-12 (the previous successful build was 2026-05-22).
+  v4 is the maintained Node-based action and takes the same `oauth-client-id`, `oauth-secret`, `tags` and `args` inputs.
+
 ### Fixed
 
 - **`PaperTraderStrategyStuck` vmalert rule — false positives and a
