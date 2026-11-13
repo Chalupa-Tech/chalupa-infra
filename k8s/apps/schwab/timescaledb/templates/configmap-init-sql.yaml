@@ -18,7 +18,11 @@ data:
         volume    BIGINT,
         source    TEXT DEFAULT 'schwab'
     );
-    SELECT create_hypertable('candles', 'time', if_not_exists => TRUE);
+    -- One-year chunks: daily bars go back decades (go-schwab-feed backfill),
+    -- and the 7-day default would cut that history into thousands of
+    -- near-empty chunks. The live database was switched on 2026-11-12 with
+    -- set_chunk_time_interval; its 2026 chunks created before then stay 7-day.
+    SELECT create_hypertable('candles', 'time', chunk_time_interval => INTERVAL '1 year', if_not_exists => TRUE);
     DROP INDEX IF EXISTS idx_candles_unique_3col;
     CREATE UNIQUE INDEX IF NOT EXISTS idx_candles_unique ON candles (time, symbol, frequency, source);
     CREATE INDEX IF NOT EXISTS idx_candles_symbol_freq_time ON candles (symbol, frequency, time DESC);
@@ -83,18 +87,12 @@ data:
     );
     SELECT add_compression_policy('quotes', INTERVAL '7 days', if_not_exists => true);
 
-    -- Frequency-based retention (daily candles kept forever)
-    DROP FUNCTION IF EXISTS cleanup_old_candles(jsonb);
-    CREATE OR REPLACE FUNCTION cleanup_old_candles(job_id INT, config JSONB) RETURNS void AS $$
-    BEGIN
-        DELETE FROM candles WHERE frequency = '5m' AND time < now() - INTERVAL '90 days';
-        DELETE FROM candles WHERE frequency = '1h' AND time < now() - INTERVAL '1 year';
-    END;
-    $$ LANGUAGE plpgsql;
-    DO $$ BEGIN
-      PERFORM add_job('cleanup_old_candles', INTERVAL '1 day');
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
+    -- No retention on candles: every frequency is kept forever.
+    -- Intraday bars are research history that Schwab only serves for a
+    -- limited lookback, so deleted rows cannot be re-fetched
+    -- (strategy-research phase 2). The former cleanup_old_candles job
+    -- (5m > 90 days, 1h > 1 year) was removed from the live database
+    -- with delete_job + DROP FUNCTION; do not reintroduce it.
 
     -- Continuous aggregate: derive 5-minute candles from quote snapshots
     CREATE MATERIALIZED VIEW IF NOT EXISTS candles_from_quotes
