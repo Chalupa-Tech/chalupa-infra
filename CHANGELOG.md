@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed (strategy-research phase 3b — warm `sma` on paper)
 
-- **`ddowell-sma-5x20` runs on 5-minute bars** (`barFrequency: 5m`), with go-paper-trader bumped to v0.14.0 (chart 0.3.15).
+- **`ddowell-sma-5x20` runs on 5-minute bars** (`barFrequency: 5m`), on go-paper-trader v0.14.0 (chart 0.3.15, appVersion aligned).
   This changes how the book trades, not just how it starts: averages are taken over 5-minute bar closes instead of every quote, it decides once per bar, and it reads its position from the adapter instead of memory.
   It is warmed from the recorded `quotes` table at start-up, so it is ready on the first bar after a restart.
 - **The books ConfigMap template renders `barFrequency`.**
