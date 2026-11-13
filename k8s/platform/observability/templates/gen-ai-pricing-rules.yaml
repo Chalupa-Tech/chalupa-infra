@@ -13,8 +13,8 @@
 #
 # Pricing source of truth: chalupa-brain/docs/gen-ai-pricing-table.yaml.
 # Rates encoded below as `vector()` expressions — keep in sync with the
-# YAML manually (drift is caught by the GeminiPricingTableStale alert
-# in gen-ai-alert-rules.yaml after `staleness_warning_days` = 180).
+# YAML manually (nothing alerts on drift; the staleness alert was removed
+# when Gemini reviews were retired).
 #
 # Phase-44 will likely replace this hand-kept block with either:
 #   - a Helm --values render from the brain YAML at chart-render time, or
