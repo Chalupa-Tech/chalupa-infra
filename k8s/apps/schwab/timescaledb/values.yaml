@@ -25,3 +25,25 @@ monitoring:
 vault:
   secretPath: "secret/data/schwab-ddowell/timescaledb"
   papertraderSecretPath: "secret/data/schwab-ddowell/timescaledb/papertrader"
+
+# Database backups: CloudNativePG base backups + continuous WAL archiving to
+# MinIO on fw1, in its own bucket.
+#
+# In-tree barmanObjectStore, not the Barman Cloud plugin: the plugin's current
+# release needs operator >= 1.30 and we run 1.29.0. In-tree is deprecated and
+# is due to be removed in operator 1.31 — migrate to the plugin as part of
+# that operator upgrade, not before.
+#
+# AVAILABILITY COUPLING: while fw1 is unreachable, WAL cannot be archived and
+# accumulates in pg_wal on the 10Gi data volume until the disk fills and
+# Postgres stops. If fw1 will be down for more than a few hours, set
+# backup.enabled=false (see docs/runbooks/cluster-cold-recovery.md in the brain).
+backup:
+  enabled: true
+  destinationPath: s3://cnpg-backups/
+  endpointURL: http://192.168.2.51:9000
+  retentionPolicy: "14d"
+  # CloudNativePG cron has a leading seconds field: 04:00:00 UTC daily.
+  schedule: "0 0 4 * * *"
+  # OpenBao KV path holding access_key / secret_key for the bucket.
+  secretPath: "secret/data/schwab-ddowell/timescaledb/backup"

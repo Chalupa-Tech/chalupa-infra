@@ -345,6 +345,26 @@ spec:
           annotations:
             summary: "{{ "{{" }} $labels.job {{ "}}" }} unhealthy within 10m of a deploy"
             description: "Scrape job {{ "{{" }} $labels.job {{ "}}" }} (pod {{ "{{" }} $labels.pod {{ "}}" }} in {{ "{{" }} $labels.namespace {{ "}}" }}) has up==0 and its pod was created less than 10 minutes ago. Likely a botched deploy — inspect recent chalupa-infra merges and ArgoCD sync history."
+        # The one database-backup alert (platform phase-93). Velero failed
+        # silently for 3.5 months in 2026 because fw1 (MinIO) was powered off.
+        # Three ways to be unhealthy, one rule:
+        #   1. no successful base backup in 48h (the metric is 0 until the
+        #      first backup, so this also covers "never backed up");
+        #   2. the metric is missing, so backup age cannot be known;
+        #   3. more than 64 WAL segments (~1 GiB) are waiting to be archived.
+        #      WAL that cannot reach MinIO piles up on the 10Gi data volume
+        #      and stops Postgres when it fills, well inside 48h.
+        - alert: TimescaleDBBackupUnhealthy
+          expr: |
+            (time() - max(cnpg_collector_last_available_backup_timestamp{namespace="schwab-ddowell"}) > 48 * 3600)
+            or absent(cnpg_collector_last_available_backup_timestamp{namespace="schwab-ddowell"})
+            or (max(cnpg_collector_pg_wal_archive_status{namespace="schwab-ddowell",value="ready"}) > 64)
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "TimescaleDB backups are unhealthy"
+            description: "No successful database backup in 48h, or WAL is not reaching MinIO on fw1 (http://192.168.2.51:9000). Check that fw1 is powered on, then `kubectl -n schwab-ddowell get backups.postgresql.cnpg.io` and the ContinuousArchiving condition on cluster/timescaledb. If fw1 will stay down, disable archiving before the data volume fills — see docs/runbooks/cluster-cold-recovery.md in chalupa-brain."
 
 
     # ── Info ─────────────────────────────────────────────────────────

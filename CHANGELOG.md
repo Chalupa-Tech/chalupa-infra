@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (platform phase-93 — database backups)
+
+- **The `market` database is backed up to MinIO on fw1** (timescaledb chart 0.3.0).
+  CloudNativePG takes a base backup daily at 04:00 UTC and archives WAL continuously to the `cnpg-backups` bucket, keeping 14 days.
+  Until now nothing backed up the database's contents: Velero only ever captured Kubernetes definitions.
+- **It uses the operator's in-tree `barmanObjectStore`**, because the Barman Cloud plugin's current release needs operator 1.30 and the cluster runs 1.29.0.
+  In-tree support is deprecated and is due to be removed in operator 1.31; move to the plugin as part of that upgrade.
+- **Credentials come from OpenBao** at `secret/schwab-ddowell/timescaledb/backup` (`access_key`, `secret_key`) through the new `timescaledb-backup-s3` ExternalSecret.
+  Ansible seeds that path from the MinIO key in Ansible Vault (`managed_apps` in `vars.yml`).
+- **New alert `TimescaleDBBackupUnhealthy`**: no successful backup in 48 hours, the backup metric missing, or more than 64 WAL segments waiting to be archived.
+- **New dependency:** while fw1 is unreachable, WAL accumulates on the 10Gi data volume and Postgres stops when it fills.
+  Set `backup.enabled: false` if fw1 will be down for more than a few hours.
+
+### Removed (platform phase-93 — Velero)
+
+- **Velero is removed** (`k8s/platform/velero`, its ApplicationSet entry, and its `managed_apps` entry).
+  It never captured volume data: no `VolumeSnapshotClass` exists and file-system backup never ran, so its backups held only Kubernetes definitions, which git already holds.
+  It also failed silently from about 2026-07-28 to 2026-11-13 while fw1 was powered off.
+- The `velero` namespace, the `velero-backups` bucket in MinIO and the OpenBao entries `secret/velero/minio` and `velero-role` are left in place and can be deleted by hand.
+
 ### Removed (`GeminiPricingTableStale` alert)
 
 - Dropped the alert that fires when the AI-review pricing table is more than 180 days old.

@@ -1,0 +1,20 @@
+{{- if .Values.backup.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: timescaledb-daily
+  labels:
+    app.kubernetes.io/name: timescaledb
+    app.kubernetes.io/component: database
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  # Take one base backup as soon as this is created, so WAL archived from
+  # day one is usable for recovery.
+  immediate: true
+  backupOwnerReference: self
+  method: barmanObjectStore
+  cluster:
+    name: timescaledb
+{{- end }}

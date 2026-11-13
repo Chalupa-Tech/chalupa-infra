@@ -73,6 +73,25 @@ spec:
             spec:
               type: ClusterIP
 
+  {{- if .Values.backup.enabled }}
+  backup:
+    retentionPolicy: {{ .Values.backup.retentionPolicy | quote }}
+    barmanObjectStore:
+      destinationPath: {{ .Values.backup.destinationPath }}
+      endpointURL: {{ .Values.backup.endpointURL }}
+      s3Credentials:
+        accessKeyId:
+          name: timescaledb-backup-s3
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: timescaledb-backup-s3
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+  {{- end }}
+
   resources:
     requests:
       cpu: {{ .Values.resources.requests.cpu }}
