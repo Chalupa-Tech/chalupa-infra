@@ -70,11 +70,22 @@ jobs:
             echo "$missing_from_feed" | sed 's/^/  - /'
           fi
 
-          # Check 3: each paperTrader.books[].symbols ⊆ feed.watchlist
+          # Check 3: each paperTrader.books[].symbols ⊆ feed.watchlist.
+          # phase-11j §6: single-symbol strategies (alternator,
+          # limit_example) declare via the singular `symbol:` key. Read
+          # both shapes — `symbols[]` for multi-symbol strategies and
+          # `[symbol]` for single-symbol strategies — and lint the union.
           book_count=$(yq -r '.paperTrader.books | length' "$TRADER")
           for i in $(seq 0 $((book_count - 1))); do
             bid=$(yq -r ".paperTrader.books[$i].bookID" "$TRADER")
-            book_symbols=$(yq -r ".paperTrader.books[$i].symbols[]" "$TRADER" | sort -u)
+            singular=$(yq -r ".paperTrader.books[$i].symbol // \"\"" "$TRADER")
+            multi=$(yq -r ".paperTrader.books[$i].symbols[]? // \"\"" "$TRADER")
+            book_symbols=$(printf '%s\n%s\n' "$singular" "$multi" | grep -v '^$' | sort -u)
+            if [ -z "$book_symbols" ]; then
+              echo "::error file=$TRADER::book '$bid' declares neither \`symbol:\` nor \`symbols:\`"
+              fail=1
+              continue
+            fi
             missing=$(comm -23 <(echo "$book_symbols") <(echo "$feed_symbols") || true)
             if [ -n "$missing" ]; then
               echo "::error file=$TRADER::book '$bid' references symbols not in feed.watchlist (would silently starve):"

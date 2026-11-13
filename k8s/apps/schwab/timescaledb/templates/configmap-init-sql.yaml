@@ -87,6 +87,13 @@ data:
     );
     SELECT add_compression_policy('quotes', INTERVAL '7 days', if_not_exists => true);
 
+    -- papertrader reads recorded quotes and stored candles to warm bar
+    -- strategies at start-up (strategy-research phase 3b). SELECT on these
+    -- two tables only: no pg_read_all_data, no views, no write.
+    -- A grant on a hypertable covers its existing and future chunks.
+    -- The role exists here because timescaledb-init-roles runs first.
+    GRANT SELECT ON quotes, candles TO {{ .Values.database.papertraderUser }};
+
     -- No retention on candles: every frequency is kept forever.
     -- Intraday bars are research history that Schwab only serves for a
     -- limited lookback, so deleted rows cannot be re-fetched
