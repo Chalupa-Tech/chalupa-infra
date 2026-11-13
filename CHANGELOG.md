@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Paper Trading dashboard no longer exhausts TimescaleDB memory)
+
+- **Seven panels on the Paper Trading dashboard read only the time range they show** (go-paper-trader chart 0.3.16).
+  Their equity query aggregated every row of `paper_positions` (11.4M rows) on each refresh, which OOM-killed `timescaledb-1` twice on 2026-11-13.
+  Each panel now samples one snapshot per chart point from `paper_cash` and looks up positions for those snapshots only.
+- **Snapshots whose positions have no mark price are skipped.**
+  Outside market hours the trader records `mark_price = 0`, which made equity fall to the cash balance every evening and distorted drawdown, Sharpe and Sortino.
+- **Live positions shows each book's latest snapshot only**, so a closed position no longer lingers.
+- **Dashboard refresh is 5 minutes**, down from every 30 seconds.
+
 ### Changed (strategy-research phase 3b — warm `sma` on paper)
 
 - **`ddowell-sma-5x20` runs on 5-minute bars** (`barFrequency: 5m`), on go-paper-trader v0.14.0 (chart 0.3.15, appVersion aligned).
