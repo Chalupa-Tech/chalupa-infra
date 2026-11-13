@@ -130,18 +130,32 @@ jobs:
       # bug class that bit sessions 68 (v0.3.0) and 100 (v0.6.0) where
       # a tag-path-filter mismatch silently dropped the push and
       # surfaced only as ImagePullBackOff alerts ~15 minutes later.
-      # `crane manifest` checks the manifest without pulling layers.
+      # The check is a manifest GET against the registry's /v2/ API with
+      # basic auth, the same call image-tag-existence-gate.yml makes.
+      # (`crane manifest` was used here before; crane rejects the
+      # http:// token realm Gitea advertises and failed every release
+      # with a false "NOT found".)
       # Tailscale + /etc/hosts entries set up earlier in the job make
       # gitea.tailbecff0.ts.net reachable here.
       - name: Verify version tag landed in Gitea
         if: ${{ steps.meta.outputs.has_version == 'true' }}
+        env:
+          GITEA_USER: ${{ secrets.GITEA_REGISTRY_USER }}
+          GITEA_PASS: ${{ secrets.GITEA_REGISTRY_PASSWORD }}
         run: |
           set -euo pipefail
-          IMAGE="gitea.tailbecff0.ts.net/chalupa-tech/${{ inputs.image_name }}:v${{ steps.meta.outputs.version }}"
+          TAG="v${{ steps.meta.outputs.version }}"
+          IMAGE="gitea.tailbecff0.ts.net/chalupa-tech/${{ inputs.image_name }}:${TAG}"
           echo "Verifying $IMAGE is reachable..."
-          go install github.com/google/go-containerregistry/cmd/crane@latest
-          if ! "$HOME/go/bin/crane" manifest "$IMAGE" > /dev/null; then
-            echo "::error::Image $IMAGE was NOT found in Gitea after push."
+          status=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -u "${GITEA_USER}:${GITEA_PASS}" \
+            -H 'Accept: application/vnd.oci.image.index.v1+json' \
+            -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
+            -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+            -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+            "https://gitea.tailbecff0.ts.net/v2/chalupa-tech/${{ inputs.image_name }}/manifests/${TAG}" || echo "000")
+          if [ "$status" != "200" ]; then
+            echo "::error::Image $IMAGE was NOT found in Gitea after push (HTTP $status)."
             echo "::error::This is the bug class that bit sessions 68 + 100."
             echo "::error::Manual recovery: re-run this workflow_call from the caller, or push the tag locally."
             exit 1

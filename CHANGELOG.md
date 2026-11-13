@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (CI — false "image NOT found" after every release build)
+
+- **`build-push-reusable.yml` verify step now uses a `/v2/` manifest GET with basic auth** instead of `crane manifest`.
+  crane refuses the `http://` token realm that Gitea advertises, so the step failed after a successful push and the deploy job that bumps `image.tag` was skipped (sessions 68, 100, 167, 174).
+  This is the same check `image-tag-existence-gate.yml` already makes.
+
 ### Fixed (CI — Tailscale join broken on current runners)
 
 - **`tailscale/github-action` bumped from v2 to v4** in `build-push-reusable.yml`, `release-reusable.yml`, `image-tag-existence-gate.yml` and `deploy-infra.yml`.
