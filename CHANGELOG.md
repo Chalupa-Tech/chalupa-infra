@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Snapshots whose positions have no mark price are skipped.**
   Outside market hours the trader records `mark_price = 0`, which made equity fall to the cash balance every evening and distorted drawdown, Sharpe and Sortino.
 - **Live positions shows each book's latest snapshot only**, so a closed position no longer lingers.
+- **"Max drawdown (session)" is now "Max drawdown (visible range)".**
+  It measures drawdown inside the dashboard's time range; the all-history version was one of the unbounded scans.
+- **The `symbol` dropdown lists symbols held in the last 7 days**, not every symbol ever held.
+- The change is made in the generator source (`scripts/dashboards/internal/common/cte`, new `cte.Equity` helper) and the JSON is regenerated.
 - **Dashboard refresh is 5 minutes**, down from every 30 seconds.
 
 ### Changed (strategy-research phase 3b — warm `sma` on paper)

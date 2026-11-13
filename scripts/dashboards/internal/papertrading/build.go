@@ -50,7 +50,7 @@ func compose() (dashboard.Dashboard, error) {
 		Uid(dashboardUID).
 		Editable().
 		Tags([]string{"paper-trading"}).
-		Refresh("30s").
+		Refresh("5m").
 		Time("now-6h", "now").
 		WithVariable(bookIDVar()).
 		WithVariable(symbolVar()).

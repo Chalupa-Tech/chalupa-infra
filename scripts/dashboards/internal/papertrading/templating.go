@@ -13,7 +13,10 @@ const bookIDQuery = "SELECT DISTINCT book_id FROM (" +
 	"SELECT book_id FROM paper_cash WHERE time > NOW() - INTERVAL '7 days'" +
 	") sub ORDER BY book_id"
 
-const symbolQuery = "SELECT DISTINCT symbol FROM paper_positions ORDER BY symbol"
+// Bounded to recent snapshots: an unbounded DISTINCT scans the whole
+// paper_positions table on every dashboard load.
+const symbolQuery = "SELECT DISTINCT symbol FROM paper_positions " +
+	"WHERE time > NOW() - INTERVAL '7 days' ORDER BY symbol"
 
 const strategyQuery = "SELECT DISTINCT strategy FROM paper_fills ORDER BY strategy"
 

@@ -38,13 +38,8 @@ func Account(db *dashboard.DashboardBuilder, yBase int) int {
 }
 
 func equityCurveByBook(y int) *timeseries.PanelBuilder {
-	rawSQL := "SELECT pc.time AS \"time\", pc.book_id AS metric, pc.cash + COALESCE(pos.equity, 0) AS equity" +
-		" FROM paper_cash pc" +
-		" LEFT JOIN (SELECT time, book_id, SUM(quantity * mark_price) AS equity" +
-		" FROM paper_positions GROUP BY time, book_id) pos" +
-		" ON pc.time = pos.time AND pc.book_id = pos.book_id" +
-		" WHERE $__timeFilter(pc.time) AND pc.book_id IN ($book_id)" +
-		" ORDER BY pc.time"
+	rawSQL := "WITH " + cte.Equity(cte.InRange, cte.PanelBucket, true) +
+		" SELECT bucket AS \"time\", book_id AS metric, equity FROM equity_ts ORDER BY bucket"
 	return timeseries.NewPanelBuilder().
 		Id(601).
 		Title("Equity curve (cash + mark) by book").
