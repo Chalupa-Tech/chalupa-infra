@@ -3,7 +3,6 @@
 #
 # Depends on recording rules in gen-ai-pricing-rules.yaml:
 #   - gen_ai_review_cost_usd:monthly
-#   - gen_ai_pricing_table_as_of_timestamp (age computed inline below)
 #
 # Severity routing: uses the cluster's existing Discord receivers
 # (discord-info / discord-warning / discord-critical) — see
@@ -56,16 +55,3 @@ spec:
           annotations:
             summary: "Gemini review spend > $50/mo for {{ "{{" }} $labels.github_repository {{ "}}" }} — HARD CAP"
             description: "Gemini-review monthly rolling spend for {{ "{{" }} $labels.github_repository {{ "}}" }} on model {{ "{{" }} $labels.gen_ai_request_model {{ "}}" }} is ${{ "{{" }} $value | printf \"%.2f\" {{ "}}" }} — past the $50 hard cap. Flip GEMINI_DISPATCH_ENABLED=false per docs/runbooks/gemini-review-spend-cap.md. Investigate runaway cost before re-enabling."
-
-    - name: gen-ai-pricing-table
-      interval: 1h
-      rules:
-        - alert: GeminiPricingTableStale
-          expr: (time() - gen_ai_pricing_table_as_of_timestamp) / 86400 > 180
-          for: 6h
-          labels:
-            severity: warning
-            component: gen-ai-review
-          annotations:
-            summary: "Gemini pricing table is >180d stale (age={{ "{{" }} $value | printf \"%.0f\" {{ "}}" }}d)"
-            description: "chalupa-brain/docs/gen-ai-pricing-table.yaml hasn't been refreshed in more than 180 days. Cost metrics may drift from vendor reality. Refresh the YAML's `as_of:` date and update the corresponding gen_ai_pricing_table_as_of_timestamp rule in gen-ai-pricing-rules.yaml, then also verify per-model rates."

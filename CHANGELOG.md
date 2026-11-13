@@ -27,6 +27,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   It also failed silently from about 2026-07-28 to 2026-11-13 while fw1 was powered off.
 - The `velero` namespace, the `velero-backups` bucket in MinIO and the OpenBao entries `secret/velero/minio` and `velero-role` are left in place and can be deleted by hand.
 
+### Removed (`GeminiPricingTableStale` alert)
+
+- Dropped the alert that fires when the AI-review pricing table is more than 180 days old.
+  Gemini PR reviews are being retired, so nobody refreshes that table and the alert was permanently silenced.
+  The spend-cap alerts and the pricing recording rules are unchanged.
+
+### Changed (OpenBao root token rotated in Ansible Vault)
+
+- The root token stored in `ansible/inventory/group_vars/all/vault.yml` had been revoked; replaced with one generated on 2026-11-13 using the unseal key.
+  The unseal key is unchanged.
+
 ### Fixed (Paper Trading dashboard no longer exhausts TimescaleDB memory)
 
 - **Seven panels on the Paper Trading dashboard read only the time range they show** (go-paper-trader chart 0.3.16).
