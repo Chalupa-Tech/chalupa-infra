@@ -21,13 +21,14 @@ managed_apps:
   - name: schwab-ddowell
     auth_service: true
     auth_sa: go-schwab-auth
-  - name: observability
-  - name: velero
     secrets:
-      - path: velero/minio
+      # MinIO key for CloudNativePG database backups (timescaledb chart,
+      # ExternalSecret timescaledb-backup-s3).
+      - path: schwab-ddowell/timescaledb/backup
         data:
           access_key: "{{ minio_access_key }}"
           secret_key: "{{ minio_secret_key }}"
+  - name: observability
 
 # Secrets (Now managed via Ansible Vault: vault.yml)
 gitea_ci_read_password: "{{ vault_gitea_ci_read_password }}"

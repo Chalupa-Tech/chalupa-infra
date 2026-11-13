@@ -257,7 +257,7 @@ not migrate unless trivial. Use as shape reference:
 
 | Service | Path | ExternalSecret | Consumer shape |
 |---|---|---|---|
-| Velero (S3 creds) | `secret/data/velero/minio` | `velero-s3-credentials` | Helm `existingSecret` + mounted file |
+| Database backups (MinIO key) | `secret/data/schwab-<user>/timescaledb/backup` | `timescaledb-backup-s3` | CNPG `s3Credentials` secret refs; seeded by Ansible `managed_apps[].secrets` |
 | Schwab tenants | `secret/data/schwab-<user>/*` | `schwab-secrets`, `timescaledb-*` | env vars; CNPG auto-reload via `cnpg.io/reload` label |
 | Alertmanager Discord | `secret/data/observability/discord` | `alertmanager-discord-config` | ConfigMap injection |
 | Grafana OIDC client | `secret/data/observability/grafana-oidc` | `grafana-oidc-secret` | `envFromSecret` into Grafana pod |
