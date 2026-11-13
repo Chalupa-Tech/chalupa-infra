@@ -12,6 +12,7 @@ import (
 	"github.com/grafana/grafana-foundation-sdk/go/stat"
 	"github.com/grafana/grafana-foundation-sdk/go/timeseries"
 
+	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/cte"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/datasources"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/layout"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/sql"
@@ -33,23 +34,16 @@ func StrategyComparison(db *dashboard.DashboardBuilder, yBase int) int {
 }
 
 func equityByStrategy(y int) *timeseries.PanelBuilder {
-	rawSQL := "WITH equity_ts AS (" +
-		"  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity" +
-		"  FROM paper_cash pc" +
-		"  LEFT JOIN (" +
-		"    SELECT time, book_id, SUM(quantity * mark_price) AS equity" +
-		"    FROM paper_positions GROUP BY time, book_id" +
-		"  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id" +
-		"  WHERE $__timeFilter(pc.time)" +
-		"), book_strategy AS (" +
+	rawSQL := "WITH " + cte.Equity(cte.InRange, cte.PanelBucket, false) +
+		", book_strategy AS (" +
 		"  SELECT DISTINCT ON (book_id) book_id, strategy" +
 		"  FROM paper_fills ORDER BY book_id, time DESC" +
 		")" +
-		" SELECT eq.time AS time, bs.strategy AS metric, SUM(eq.equity) AS equity" +
+		" SELECT eq.bucket AS time, bs.strategy AS metric, SUM(eq.equity) AS equity" +
 		" FROM equity_ts eq JOIN book_strategy bs ON eq.book_id = bs.book_id" +
 		" WHERE bs.strategy IN ($strategy)" +
-		" GROUP BY eq.time, bs.strategy" +
-		" ORDER BY eq.time"
+		" GROUP BY eq.bucket, bs.strategy" +
+		" ORDER BY eq.bucket"
 	return timeseries.NewPanelBuilder().
 		Id(501).
 		Title("Equity by strategy").

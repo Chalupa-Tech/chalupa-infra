@@ -9,6 +9,7 @@ import (
 	"github.com/grafana/grafana-foundation-sdk/go/prometheus"
 	"github.com/grafana/grafana-foundation-sdk/go/stat"
 
+	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/cte"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/datasources"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/layout"
 	"github.com/Chalupa-Tech/chalupa-infra/scripts/dashboards/internal/common/sql"
@@ -88,15 +89,8 @@ func todayPnLPerBook(y int) *stat.PanelBuilder {
 }
 
 func maxDrawdownSession(y int) *stat.PanelBuilder {
-	rawSQL := "WITH equity_ts AS (" +
-		"  SELECT pc.time, pc.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity" +
-		"  FROM paper_cash pc" +
-		"  LEFT JOIN (" +
-		"    SELECT time, book_id, SUM(quantity * mark_price) AS equity" +
-		"    FROM paper_positions GROUP BY time, book_id" +
-		"  ) pos ON pc.time = pos.time AND pc.book_id = pos.book_id" +
-		"  WHERE pc.book_id IN ($book_id)" +
-		"), with_peak AS (" +
+	rawSQL := "WITH " + cte.Equity(cte.InRange, cte.PanelBucket, true) +
+		", with_peak AS (" +
 		"  SELECT book_id, time, equity," +
 		"         MAX(equity) OVER (PARTITION BY book_id ORDER BY time" +
 		"                           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS peak" +
@@ -104,11 +98,13 @@ func maxDrawdownSession(y int) *stat.PanelBuilder {
 		") SELECT book_id, MIN((equity - peak) / NULLIF(peak, 0)) AS max_dd FROM with_peak GROUP BY book_id"
 	return stat.NewPanelBuilder().
 		Id(203).
-		Title("Max drawdown (session)").
+		Title("Max drawdown (visible range)").
 		Description(
 			"paper-trading-realism phase-7b: maximum peak-to-trough drawdown " +
-				"observed for each book since first cash snapshot (whole session, " +
-				"not just visible range). Computed in TimescaleDB so the value " +
+				"observed for each book within the dashboard's time range, sampled " +
+				"at the panel's resolution (widen the range to see further back; " +
+				"an all-history scan exhausted the database's memory). Computed " +
+				"in TimescaleDB so the value " +
 				"survives Prom retention; matches the promotion-threshold " +
 				"convention (≤ 3%) from sandbox-live-separation brief — amber at " +
 				"−1% (worth watching), red at −3% (gates promotion).").

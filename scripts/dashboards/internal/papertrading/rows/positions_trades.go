@@ -27,20 +27,24 @@ func PositionsTrades(db *dashboard.DashboardBuilder, yBase int) int {
 }
 
 func livePositions(y int) *table.PanelBuilder {
-	rawSQL := "SELECT DISTINCT ON (book_id, symbol) " +
-		"book_id, symbol, quantity, avg_price, mark_price, unrealized_pl " +
-		"FROM paper_positions " +
-		"WHERE symbol IN ($symbol) AND book_id IN ($book_id) AND quantity != 0 " +
-		"ORDER BY book_id, symbol, time DESC"
+	rawSQL := "SELECT pp.book_id, pp.symbol, pp.quantity, pp.avg_price, pp.mark_price, pp.unrealized_pl " +
+		"FROM paper_positions pp " +
+		"JOIN (" +
+		"  SELECT DISTINCT ON (book_id) book_id, time FROM paper_cash " +
+		"  WHERE book_id IN ($book_id) AND time > NOW() - INTERVAL '7 days' " +
+		"  ORDER BY book_id, time DESC" +
+		") latest ON pp.book_id = latest.book_id AND pp.time = latest.time " +
+		"WHERE pp.symbol IN ($symbol) AND pp.quantity != 0 " +
+		"ORDER BY pp.book_id, pp.symbol"
 	usd := []dashboard.DynamicConfigValue{{Id: "unit", Value: "currencyUSD"}}
 	return table.NewPanelBuilder().
 		Id(701).
 		Title("Live positions").
 		Description(
-			"Current open positions for the selected books and symbols, " +
-				"with avg cost, mark, and unrealized P&L. Pulls the latest " +
-				"row per (book, symbol) from paper_positions where " +
-				"quantity != 0 — closed positions disappear deterministically " +
+			"Current open positions for the selected books and symbols, "+
+				"with avg cost, mark, and unrealized P&L. Reads each book's "+
+				"latest snapshot (last 7 days) from paper_positions where "+
+				"quantity != 0 — closed positions disappear deterministically "+
 				"once SimAdapter prunes the gauge series.").
 		GridPos(layout.Pos(0, y, 12, 7)).
 		Datasource(datasources.Timescale()).
@@ -70,9 +74,9 @@ func tradeLog(y int) *table.PanelBuilder {
 		Id(702).
 		Title("Trade log (last 50 fills)").
 		Description(
-			"Most recent 50 fills across the selected books / symbols / " +
-				"strategies, oldest at bottom. realized_pl is non-NULL on " +
-				"SELLs only — BUYs render blank in that column; that's the " +
+			"Most recent 50 fills across the selected books / symbols / "+
+				"strategies, oldest at bottom. realized_pl is non-NULL on "+
+				"SELLs only — BUYs render blank in that column; that's the "+
 				"phase-4b invariant, not missing data.").
 		GridPos(layout.Pos(12, y, 12, 7)).
 		Datasource(datasources.Timescale()).
