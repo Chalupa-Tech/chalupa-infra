@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (CI — false "image NOT found" after every release build)
+
+- **`build-push-reusable.yml` verify step now uses a `/v2/` manifest GET with basic auth** instead of `crane manifest`.
+  crane refuses the `http://` token realm that Gitea advertises, so the step failed after a successful push and the deploy job that bumps `image.tag` was skipped (sessions 68, 100, 167, 174).
+  This is the same check `image-tag-existence-gate.yml` already makes.
+
+### Fixed (CI — Tailscale join broken on current runners)
+
+- **`tailscale/github-action` bumped from v2 to v4** in `build-push-reusable.yml`, `release-reusable.yml`, `image-tag-existence-gate.yml` and `deploy-infra.yml`.
+  v2 is a shell wrapper that calls `sudo -E tailscale up`; the current `ubuntu-latest` image's sudo ignores `-E` ("preserving the entire environment is not supported"), and the join step exits 1 in under a second.
+  Every image build and deploy that needs the tailnet has failed since at least 2026-11-12 (the previous successful build was 2026-05-22).
+  v4 is the maintained Node-based action and takes the same `oauth-client-id`, `oauth-secret`, `tags` and `args` inputs.
+
 ### Added
 
 - **go-schwab-feed daily history backfill CronJob** (`go-schwab-feed-backfill`, 21:30 ET on weekdays).
