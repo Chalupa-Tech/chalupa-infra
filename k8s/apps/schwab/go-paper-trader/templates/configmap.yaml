@@ -29,6 +29,9 @@ data:
 {{- if .smaSlow }}
         smaSlow: {{ .smaSlow | quote }}
 {{- end }}
+{{- if .barFrequency }}
+        barFrequency: {{ .barFrequency | quote }}
+{{- end }}
 {{- if .offsetBps }}
         offsetBps: {{ .offsetBps }}
 {{- end }}

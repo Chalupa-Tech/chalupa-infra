@@ -176,15 +176,22 @@ paperTrader:
     #
     # SMA implementation at pkg/strategy/sma/sma.go: long-only,
     # single-position-per-symbol, edge-triggered on sign change of
-    # (fast - slow). 5m / 20m windows on 10s market-hours quote
-    # cadence = 30 samples fast, 120 samples slow — long enough to
-    # smooth noise, short enough that crossovers fire on intraday
-    # swings.
+    # (fast - slow).
+    #
+    # strategy-research phase 3b: barFrequency moves it onto 5-minute
+    # bar closes. The averages are 1 bar (fast) and 4 bars (slow), it
+    # decides once per bar instead of on every quote, and it reads its
+    # position from the adapter instead of memory. At start-up it is
+    # warmed from the recorded quotes table, so it is ready on the
+    # first bar after a restart instead of 20 minutes later.
+    # Needs image >= v0.14.0 and papertrader's SELECT on quotes and
+    # candles (timescaledb chart, schema.sql).
     - bookID: ddowell-sma-5x20
       strategy: sma
       quantity: 1
       smaFast: 5m
       smaSlow: 20m
+      barFrequency: 5m
       startingCash: 10000
       session: regular
       fillModel:
