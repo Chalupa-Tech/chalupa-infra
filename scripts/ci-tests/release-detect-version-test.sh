@@ -348,5 +348,52 @@ check "exit 1" rc_is 1
 check "error shown" has log "Resource not accessible"
 check "no direct merge" lacks gh "--delete-branch"
 
+# stale_deploy_branch: leave a diverged ci/go-notify-v0.7.0 on origin, as a
+# failed earlier run does (it pushed the branch, then died before the merge).
+stale_deploy_branch() {
+  git push -q origin main
+  git switch -q -c ci/go-notify-v0.7.0
+  echo "  tag: v0.7.0 # stale attempt" > values.yaml
+  git add -A; git commit -qm "deploy: go-notify v0.7.0 (earlier attempt)"
+  git push -q origin ci/go-notify-v0.7.0
+  git switch -q main
+  # A rerun is a fresh checkout: the branch exists on origin only.
+  git branch -q -D ci/go-notify-v0.7.0
+}
+
+# 15. Rerun after a failed run: the branch is already on origin.
+new_case deploy-existing-branch
+echo "  tag: v0.6.0" > values.yaml
+git add -A; git commit -qm base
+stale_deploy_branch
+echo "  tag: v0.7.0" > values.yaml
+run_deploy
+check "exit 0" rc_is 0
+check "branch on origin holds this run's tag" bash -c \
+  "git --git-dir='$CASE_DIR/origin.git' show ci/go-notify-v0.7.0:values.yaml | grep -qx '  tag: v0.7.0'"
+check "auto merge" has gh "gh pr merge https://github.com/o/r/pull/42 --squash --auto"
+
+# 16. Rerun after a failed run: the PR for the branch is still open.
+new_case deploy-existing-pr
+echo "  tag: v0.6.0" > values.yaml
+git add -A; git commit -qm base
+echo "  tag: v0.7.0" > values.yaml
+GH_EXISTING_PR=https://github.com/o/r/pull/7 run_deploy
+check "exit 0" rc_is 0
+check "looks for the branch's open PR" has gh "gh pr list --head ci/go-notify-v0.7.0 --state open"
+check "no second PR" lacks gh "gh pr create"
+check "merges the existing PR" has gh "gh pr merge https://github.com/o/r/pull/7 --squash --auto"
+
+# 17. Both at once, and the existing PR is already clean.
+new_case deploy-rerun-clean
+echo "  tag: v0.6.0" > values.yaml
+git add -A; git commit -qm base
+stale_deploy_branch
+echo "  tag: v0.7.0" > values.yaml
+GH_EXISTING_PR=https://github.com/o/r/pull/7 GH_AUTO_ERR="$CLEAN_ERR" run_deploy
+check "exit 0" rc_is 0
+check "no second PR" lacks gh "gh pr create"
+check "direct merge of the existing PR" has gh "gh pr merge https://github.com/o/r/pull/7 --squash --delete-branch"
+
 echo "release-detect-version: $PASS passed, $FAIL failed"
 [[ "$FAIL" == 0 ]]

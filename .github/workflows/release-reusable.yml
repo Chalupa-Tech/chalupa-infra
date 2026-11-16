@@ -414,14 +414,19 @@ jobs:
           git checkout -b "$BRANCH"
           git add -A
           git commit -m "deploy: ${{ inputs.image_name }} ${VERSION}"
-          git push origin "$BRANCH"
+          # Force: a rerun after a failed earlier attempt finds the branch.
+          git push --force origin "HEAD:refs/heads/$BRANCH"
 
-          PR_URL=$(gh pr create \
-            --title "deploy: ${{ inputs.image_name }} ${VERSION}" \
-            --body "Automated image tag bump from [${{ inputs.image_name }} ${VERSION}](https://github.com/Chalupa-Tech/${{ inputs.image_name }}/releases/tag/${VERSION})." \
-            --head "$BRANCH" \
-            --base main)
-          echo "Created PR: $PR_URL"
+          # Likewise reuse the PR an earlier attempt left open.
+          PR_URL=$(gh pr list --head "$BRANCH" --state open --json url --jq '.[0].url // empty')
+          if [[ -z "$PR_URL" ]]; then
+            PR_URL=$(gh pr create \
+              --title "deploy: ${{ inputs.image_name }} ${VERSION}" \
+              --body "Automated image tag bump from [${{ inputs.image_name }} ${VERSION}](https://github.com/Chalupa-Tech/${{ inputs.image_name }}/releases/tag/${VERSION})." \
+              --head "$BRANCH" \
+              --base main)
+          fi
+          echo "Deploy PR: $PR_URL"
 
           # GitHub refuses --auto when nothing is pending (the PR is already
           # clean). Merge directly then; any other refusal fails the job.
