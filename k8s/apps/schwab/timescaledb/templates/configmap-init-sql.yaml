@@ -335,10 +335,11 @@ data:
       AND q.frequency = '5m'
       AND h.time IS NULL
       AND q.time < now() - INTERVAL '4 hours'
-      -- A flat quote candle (high = low) is how the quote side fills an interval
+      -- A quote candle with zero volume is how the quote side fills an interval
       -- with no trades; the historical source omits such intervals, so only a
-      -- candle with price movement can be a missing historical row.
-      AND q.high <> q.low
+      -- candle with volume can be a missing historical row. (Not high <> low:
+      -- trades at a single price also give a flat candle.)
+      AND COALESCE(q.volume, 0) > 0
       -- Only report gaps on trading days: some historical 5m row (any symbol)
       -- must exist on the same America/Chicago day. Weekends, holidays and days
       -- the historical backfill has not reached yet are not gaps.
@@ -396,6 +397,8 @@ data:
     FROM candles q
     WHERE q.source = 'quote'
       AND q.frequency = '1d'
+      -- Give the daily historical backfill two days before judging a day.
+      AND q.time < now() - INTERVAL '2 days'
       AND EXISTS (
         SELECT 1 FROM candles hd
         WHERE hd.frequency = '1d'
