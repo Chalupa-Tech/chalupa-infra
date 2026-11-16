@@ -1,6 +1,7 @@
 // orders.go — order lifecycle state machine: pending counts, reject
-// rate by reason, transition rate by (from, to). Phase-8.
-// Row 850, panels 851-853.
+// rate by reason, transition rate by (from, to). Phase-8; reject share
+// added in phase-13b.
+// Row 850, panels 851-854.
 package rows
 
 import (
@@ -17,7 +18,7 @@ import (
 const (
 	ordersRowID    = 850
 	ordersRowTitle = "Orders"
-	ordersHeight   = 9 // 1 (row header) + 8 (panel h)
+	ordersHeight   = 17 // 1 (row header) + 8 (first line) + 8 (reject share)
 )
 
 // Orders renders the phase-8 order-lifecycle row: how many orders
@@ -31,7 +32,52 @@ func Orders(db *dashboard.DashboardBuilder, yBase int) int {
 	db.WithPanel(pendingOrders(yBase + 1))
 	db.WithPanel(rejectionRateByReason(yBase + 1))
 	db.WithPanel(stateTransitionRate(yBase + 1))
+	db.WithPanel(rejectShare(yBase + 9))
 	return ordersHeight
+}
+
+// rejectShare is the reject count over the submitted count, per book
+// (paper-trading-realism phase-13b). The `> 0` filter drops a book with no
+// submissions in the window: both rates are 0 there and 0/0 is NaN, which
+// `or` would keep. The `or` arm keeps a book that has submitted orders but
+// never rejected one at 0: the reject counter only gains a series on its
+// first reject, so without it that book would drop off the panel instead
+// of reading 0%.
+func rejectShare(y int) *timeseries.PanelBuilder {
+	const (
+		rejects   = `sum by (book_id) (rate(paper_order_rejects_total{book_id=~"$book_id"}[$__rate_interval]))`
+		submitted = `sum by (book_id) (rate(paper_order_state_transitions_total{to_state="submitted",book_id=~"$book_id"}[$__rate_interval]))`
+	)
+	return timeseries.NewPanelBuilder().
+		Id(854).
+		Title("Reject share of submitted orders by book").
+		Description(
+			"paper-trading-realism phase-13b: rate(paper_order_rejects_total) " +
+				"over rate(paper_order_state_transitions_total{to_state=\"submitted\"}), " +
+				"per book. 0% = every submitted order was accepted; 100% = every " +
+				"order was rejected (e.g. market_closed off-hours — read it with " +
+				"the `Rejection rate by reason` panel to see why). A book with " +
+				"no submitted orders in the window has no series, so it is absent " +
+				"rather than 0%. Caveat: the reject counter gains a series only " +
+				"on a book's first reject of each reason, and rate() cannot see " +
+				"that first increment, so the first reject after a pod restart " +
+				"reads as 0%.").
+		GridPos(layout.Pos(0, y, 24, 8)).
+		Datasource(datasources.Victoria()).
+		WithTarget(prometheus.NewDataqueryBuilder().
+			RefId("A").
+			Expr(`(` + rejects + ` / (` + submitted + ` > 0)) or (0 * (` + submitted + ` > 0))`).
+			LegendFormat("{{book_id}}")).
+		Unit("percentunit").
+		Min(0).
+		ColorScheme(dashboard.NewFieldColorBuilder().Mode(dashboard.FieldColorModeIdPaletteClassic)).
+		DrawStyle(common.GraphDrawStyleLine).
+		LineWidth(2).
+		FillOpacity(10).
+		Legend(common.NewVizLegendOptionsBuilder().
+			DisplayMode(common.LegendDisplayModeList).
+			Placement(common.LegendPlacementBottom).
+			ShowLegend(true))
 }
 
 func pendingOrders(y int) *stat.PanelBuilder {

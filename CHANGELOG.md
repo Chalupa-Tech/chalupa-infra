@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (paper-trading-realism phase-13b — fill-quality panels)
+
+- **Three panels on the paper-trading dashboard** (generated from `scripts/dashboards/`, JSON regenerated):
+  `Reject share of submitted orders by book` (id 854, Orders row), `Fill vs mid P50 / P95 by book` (id 1004) and `Order-to-fill P50 / P95 by book and stage` (id 1005), both in Execution quality.
+  The last two read `paper_fill_vs_mid_bps` and `paper_order_to_fill_duration_seconds`, which go-schwab-accounts-and-trading v0.16.0 introduces, so they stay empty until that image rolls and a fill is persisted.
+- **The Orders and Execution quality rows are 8 units taller**, so the rows below each move down by 8 units per row grown.
+- **The fill spread heatmap and quantile panels and the slippage-vs-decision heatmap now say they cover every fill path.**
+  Before v0.16.0 they covered immediate MARKET fills only and also counted orders refused after pricing, so data from before the rollout is not comparable.
+
 ### Added (platform phase-93 — database backups)
 
 - **The `market` database is backed up to MinIO on fw1** (timescaledb chart 0.3.0).
