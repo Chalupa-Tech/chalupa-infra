@@ -11,7 +11,7 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-WF="$ROOT/.github/workflows/release-reusable.yml"
+WF="${WF:-$ROOT/.github/workflows/release-reusable.yml}"
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/release-test.XXXXXX")
 trap 'rm -rf "$WORK"' EXIT
 
@@ -24,6 +24,17 @@ if len(steps) != 1:
 print(steps[0]["run"])
 PY
 
+python3 - "$WF" > "$WORK/deploy.sh" <<'PY'
+import sys, yaml
+wf = yaml.safe_load(open(sys.argv[1]))
+steps = [s for s in wf["jobs"]["deploy"]["steps"] if s.get("name") == "Create PR and merge"]
+if len(steps) != 1:
+    sys.exit("expected exactly one deploy step named 'Create PR and merge'")
+print(steps[0]["run"]
+      .replace("${{ needs.release.outputs.version }}", "0.7.0")
+      .replace("${{ inputs.image_name }}", "go-notify"))
+PY
+
 mkdir -p "$WORK/bin"
 cat > "$WORK/bin/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -32,6 +43,11 @@ case "$1 $2" in
   "pr list")
     if [[ "$*" == *"--head"* ]]; then echo "${GH_EXISTING_PR:-}"; fi ;;
   "pr create") echo "https://github.com/o/r/pull/42" ;;
+  "pr merge")
+    # GH_AUTO_ERR: what `--auto` is refused with; a direct merge succeeds.
+    if [[ "$*" == *"--auto"* && -n "${GH_AUTO_ERR:-}" ]]; then
+      echo "$GH_AUTO_ERR" >&2; exit 1
+    fi ;;
 esac
 exit 0
 EOF
@@ -71,6 +87,16 @@ run_step() {
   GITHUB_OUTPUT="$CASE_DIR/out" GITHUB_STEP_SUMMARY="$CASE_DIR/sum" \
     GH_LOG="$CASE_DIR/gh" REPO=o/r PATH="$WORK/bin:$PATH" \
     bash -e "$WORK/step.sh" > "$CASE_DIR/log" 2>&1
+  RC=$?
+  set -e
+}
+
+# run_deploy: run the deploy job's "Create PR and merge" step in the current repo.
+run_deploy() {
+  : > "$CASE_DIR/gh"
+  set +e
+  GH_LOG="$CASE_DIR/gh" PATH="$WORK/bin:$PATH" \
+    bash -e "$WORK/deploy.sh" > "$CASE_DIR/log" 2>&1
   RC=$?
   set -e
 }
@@ -271,6 +297,56 @@ git branch v0.14.0
 commit "release: v0.14.0 — thing (#17)"
 run_step
 check "release despite same-named branch" has out "version=0.14.0"
+
+# 10. Promotion PR already clean: --auto refused, merge directly.
+CLEAN_ERR="GraphQL: Pull request Pull request is in clean status (enablePullRequestAutoMerge)"
+new_case promote-clean
+changelog "### Added
+- thing" "## [0.13.0] - 2026-05-18"
+commit "feat(book): thing (#91)"
+GH_AUTO_ERR="$CLEAN_ERR" run_step
+check "exit 0" rc_is 0
+check "direct merge" has gh "gh pr merge https://github.com/o/r/pull/42 -R o/r --squash --delete-branch"
+
+# 11. Promotion PR: any other --auto refusal fails the step.
+new_case promote-other-err
+changelog "### Added
+- thing" "## [0.13.0] - 2026-05-18"
+commit "feat(book): thing (#91)"
+GH_AUTO_ERR="GraphQL: auto merge is not allowed for this repository" run_step
+check "exit 1" rc_is 1
+check "error shown" has log "auto merge is not allowed"
+check "no direct merge" lacks gh "--squash --delete-branch"
+check "only the --auto attempt" bash -c "[[ \$(grep -c 'gh pr merge' '$CASE_DIR/gh') == 1 ]]"
+
+# 12. Deploy PR already clean: --auto refused, merge directly.
+new_case deploy-clean
+echo "  tag: v0.6.0" > values.yaml
+git add -A; git commit -qm base
+echo "  tag: v0.7.0" > values.yaml
+GH_AUTO_ERR="$CLEAN_ERR" run_deploy
+check "exit 0" rc_is 0
+check "direct merge" has gh "gh pr merge https://github.com/o/r/pull/42 --squash --delete-branch"
+
+# 13. Deploy PR: --auto accepted, no direct merge.
+new_case deploy-auto
+echo "  tag: v0.6.0" > values.yaml
+git add -A; git commit -qm base
+echo "  tag: v0.7.0" > values.yaml
+run_deploy
+check "exit 0" rc_is 0
+check "auto merge" has gh "gh pr merge https://github.com/o/r/pull/42 --squash --auto"
+check "no direct merge" lacks gh "--delete-branch"
+
+# 14. Deploy PR: any other --auto refusal fails the step.
+new_case deploy-other-err
+echo "  tag: v0.6.0" > values.yaml
+git add -A; git commit -qm base
+echo "  tag: v0.7.0" > values.yaml
+GH_AUTO_ERR="GraphQL: Resource not accessible by personal access token" run_deploy
+check "exit 1" rc_is 1
+check "error shown" has log "Resource not accessible"
+check "no direct merge" lacks gh "--delete-branch"
 
 echo "release-detect-version: $PASS passed, $FAIL failed"
 [[ "$FAIL" == 0 ]]

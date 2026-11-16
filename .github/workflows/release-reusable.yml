@@ -281,7 +281,18 @@ jobs:
               --base main)
           fi
           echo "Promotion PR: $PR_URL"
-          gh pr merge "$PR_URL" -R "$REPO" --squash --auto --delete-branch
+          # --auto is refused when the PR is already clean; merge directly then.
+          if ! MERGE_OUT=$(gh pr merge "$PR_URL" -R "$REPO" --squash --auto --delete-branch 2>&1); then
+            if [[ "$MERGE_OUT" == *"clean status"* ]]; then
+              echo "Promotion PR is already clean; merging directly."
+              gh pr merge "$PR_URL" -R "$REPO" --squash --delete-branch
+            else
+              echo "$MERGE_OUT" >&2
+              exit 1
+            fi
+          else
+            echo "$MERGE_OUT"
+          fi
 
           summary "### Promoting to v$NEW_VERSION"
           summary ""
@@ -412,4 +423,16 @@ jobs:
             --base main)
           echo "Created PR: $PR_URL"
 
-          gh pr merge "$PR_URL" --squash --auto
+          # GitHub refuses --auto when nothing is pending (the PR is already
+          # clean). Merge directly then; any other refusal fails the job.
+          if ! MERGE_OUT=$(gh pr merge "$PR_URL" --squash --auto 2>&1); then
+            if [[ "$MERGE_OUT" == *"clean status"* ]]; then
+              echo "PR is already clean; merging directly."
+              gh pr merge "$PR_URL" --squash --delete-branch
+            else
+              echo "$MERGE_OUT" >&2
+              exit 1
+            fi
+          else
+            echo "$MERGE_OUT"
+          fi
