@@ -380,7 +380,7 @@ git add -A; git commit -qm base
 echo "  tag: v0.7.0" > values.yaml
 GH_EXISTING_PR=https://github.com/o/r/pull/7 run_deploy
 check "exit 0" rc_is 0
-check "looks for the branch's open PR" has gh "gh pr list --head ci/go-notify-v0.7.0 --state open"
+check "looks for the branch's open PR into main only" has gh "gh pr list --head ci/go-notify-v0.7.0 --base main --state open"
 check "no second PR" lacks gh "gh pr create"
 check "merges the existing PR" has gh "gh pr merge https://github.com/o/r/pull/7 --squash --auto"
 
