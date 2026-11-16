@@ -167,7 +167,27 @@ run_step
 check "exit 0" rc_is 0
 check "skip" has out "skip=true"
 check "no PR" lacks gh "gh pr create"
-check "says already promoted" has sum "v0.14.0 is already promoted"
+check "says already promoted" has sum "v0.14.0 is promoted in CHANGELOG.md and waits for its tag"
+
+# 7b. A stronger bump after a pending promotion: a feat after a promoted
+# (untagged) fix must not open a second promotion for v0.14.0.
+new_case stronger-after-promotion
+changelog "" "## [0.13.1] - 2026-11-16
+- fix
+
+## [0.13.0] - 2026-05-18"
+commit "fix: thing (#91)"
+commit "chore: promote Unreleased to v0.13.1 (#42)"
+changelog "- new" "## [0.13.1] - 2026-11-16
+- fix
+
+## [0.13.0] - 2026-05-18"
+commit "feat: new (#94)"
+run_step
+check "exit 0" rc_is 0
+check "skip" has out "skip=true"
+check "no PR" lacks gh "gh pr create"
+check "names the pending version" has sum "v0.13.1 is promoted in CHANGELOG.md and waits for its tag"
 
 # 8. No commits since the tag: notice only.
 new_case nothing

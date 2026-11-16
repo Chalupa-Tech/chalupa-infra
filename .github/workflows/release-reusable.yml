@@ -203,11 +203,14 @@ jobs:
           TODAY=$(date -u +%Y-%m-%d)
           echo "Bump: $BUMP → $NEW_VERSION (date $TODAY)"
 
-          # A merge that lands after the promotion commit but before its
-          # run has tagged it scans the same range and lands here again.
-          # Do not promote twice; this change ships with the next release.
-          if grep -qE "^##[[:space:]]+\[${NEW_VERSION//./\\.}\]" CHANGELOG.md; then
-            skip_release "v$NEW_VERSION is already promoted in CHANGELOG.md and waits for its tag; commits after the promotion ship with the next release." warning
+          # A merge that lands after a promotion commit but before its run
+          # has tagged it scans from the same LAST_TAG. Whatever bump it
+          # computes (a feat after a promoted fix gives a different
+          # version), do not promote again while a promoted version is
+          # untagged; these commits ship with the next release.
+          PENDING=$(grep -oE '^##[[:space:]]+\[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | head -1 | sed -E 's/.*\[(.+)\]/\1/' || true)
+          if [[ -n "$PENDING" && "$PENDING" != "$LAST_VERSION" ]] && ! git rev-parse -q --verify "refs/tags/v$PENDING" >/dev/null; then
+            skip_release "v$PENDING is promoted in CHANGELOG.md and waits for its tag; commits after the promotion ship with the next release." warning
           fi
 
           # Rewrite CHANGELOG.md: '## [Unreleased]' → '## [Unreleased]\n\n## [X.Y.Z] - DATE'.
