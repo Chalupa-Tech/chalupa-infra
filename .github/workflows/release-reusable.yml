@@ -28,6 +28,15 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    # One release evaluation per repo at a time, queued, never cancelled.
+    # A push that lands while the promotion commit's run is tagging waits
+    # for it, then sees the new tag and releases its own commits; two
+    # Tier-2 runs cannot push the same ci/promote-* branch at once.
+    # (GitHub keeps one pending run per group; a newer push replaces the
+    # pending one, and the newer HEAD contains its commits.)
+    concurrency:
+      group: release-${{ github.repository }}
+      cancel-in-progress: false
     outputs:
       new_release: ${{ steps.detect_version.outputs.skip == 'false' && steps.check_tag.outputs.exists == 'false' }}
       version: ${{ steps.detect_version.outputs.version }}
