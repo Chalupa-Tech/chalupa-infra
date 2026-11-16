@@ -2208,7 +2208,7 @@
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "description": "paper-trading-realism phase-13b: rate(paper_order_rejects_total) over rate(paper_order_state_transitions_total{to_state=\"submitted\"}), per book. 0% = every submitted order was accepted; 100% = every order was rejected (e.g. market_closed off-hours — read it with the `Rejection rate by reason` panel to see why). A book with no submitted orders in the window has no series, so it is absent rather than 0%. Caveat: the reject counter gains a series only on a book's first reject of each reason, and rate() cannot see that first increment, so the first reject after a pod restart reads as 0%.",
+      "description": "paper-trading-realism phase-13b: rate(paper_order_rejects_total) over rate(paper_order_state_transitions_total{to_state=\"submitted\"}), per book. 0% = every submitted order was accepted; 100% = every order was rejected (e.g. market_closed off-hours — read it with the `Rejection rate by reason` panel to see why). A book with no submitted orders in the window has no series, so it is absent rather than 0%.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3040,7 +3040,7 @@
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "description": "paper-trading-realism phase-13: paper_order_to_fill_duration_seconds on the adapter's clock. stage=decision runs from the PlaceOrder call to the fill; stage=submit from the broker accepting the order to the fill. The sim accepts at the PlaceOrder instant, so the two stages match; a live adapter separates network time from time resting. fillModel.latencyMs picks an older pricing quote and does not move the fill time, so it does not show here; a resting limit order records how long it rested. The first readings on v0.16.0 (2026-11-16) put the MARKET books at about 0.06-0.5 s at P50 and P95, not the 0 the trader's metric comment predicts. Quantiles are interpolated within histogram buckets, so values below 1 ms are not resolved.",
+      "description": "paper-trading-realism phase-13: paper_order_to_fill_duration_seconds on the adapter's clock. stage=decision runs from the PlaceOrder call to the fill; stage=submit from the broker accepting the order to the fill. The sim accepts at the PlaceOrder instant, so the two stages match; a live adapter separates network time from time resting. fillModel.latencyMs picks an older pricing quote and does not move the fill time, so it does not show here; a resting limit order records how long it rested. An immediate MARKET fill is not 0: the interval runs from the order entering the sim to the fill being stamped, and the sim writes the Submitted and Acknowledged order events through to the database in between (the fill's own persist comes after the fill time is read and is not in it). The first readings on v0.16.0 (2026-11-16) put the MARKET books at about 0.06-0.5 s at P50 and P95; that is database write time. Quantiles are interpolated within histogram buckets, so values below 1 ms are not resolved.",
       "fieldConfig": {
         "defaults": {
           "color": {

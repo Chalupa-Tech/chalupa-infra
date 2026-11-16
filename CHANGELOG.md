@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (paper-trading-realism phase-13c — panel descriptions)
+
+- **`Reject share of submitted orders by book` (id 854) drops its first-reject caveat.**
+  go-schwab-accounts-and-trading now registers every `paper_order_rejects_total` series at zero when a book starts, so `rate()` sees the first reject of a reason after a restart; until a pod runs that image, the caveat still applies to it.
+  The query is unchanged, and its `or` arm now only matters for a pod on an older image.
+- **`Order-to-fill P50 / P95 by book and stage` (id 1005) explains the readings.**
+  An immediate MARKET fill is not 0: the interval includes the sim's write-through of the Submitted and Acknowledged order events (about 0.06-0.5 s on the cluster database), and does not include the fill's own persist.
+  Only the description changed; the JSON is regenerated.
+
 ### Added (paper-trading-realism phase-13b — fill-quality panels)
 
 - **Three panels on the paper-trading dashboard** (generated from `scripts/dashboards/`, JSON regenerated):
