@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (strategy-research phase-6 — equity summary table)
+
+- **The `grafana` database role's `statement_timeout = 30s` is now in the timescaledb chart** (`values.database.grafanaStatementTimeout`, applied in `timescaledb-init-roles`), so a rebuilt cluster has it.
+  It was set by hand on the live database on 2026-11-13; init SQL only runs at bootstrap, so this changes nothing on the running cluster.
+- **The dashboard is not switched to `paper_equity` in this change.**
+  The `paper_equity` table, compression and retention arrive with go-schwab-accounts-and-trading's next release, and the dashboard can read the table only after that image has rolled and `backfill-equity` has run.
+  The replacement for `cte.Equity` is recorded in the brain's phase-6 follow-up prompt.
+
 ### Added (paper-trading-realism phase-13b — fill-quality panels)
 
 - **Three panels on the paper-trading dashboard** (generated from `scripts/dashboards/`, JSON regenerated):
