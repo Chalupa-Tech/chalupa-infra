@@ -152,12 +152,13 @@ func orderToFillQuantilesByBookStage(y int) *timeseries.PanelBuilder {
 				"call to the fill; stage=submit from the broker accepting the " +
 				"order to the fill. The sim accepts at the PlaceOrder instant, so " +
 				"the two stages match; a live adapter separates network time " +
-				"from time resting. An immediate MARKET fill records 0 s " +
-				"(fillModel.latencyMs picks an older pricing quote and does not " +
-				"move the fill time), so a flat line near the first bucket is " +
-				"normal for books that trade MARKET; a resting limit order " +
-				"records how long it rested. Quantiles are interpolated within " +
-				"histogram buckets, so values below 1 ms are not resolved.").
+				"from time resting. fillModel.latencyMs picks an older pricing quote " +
+				"and does not move the fill time, so it does not show here; a " +
+				"resting limit order records how long it rested. The first " +
+				"readings on v0.16.0 (2026-11-16) put the MARKET books at about " +
+				"0.06-0.5 s at P50 and P95, not the 0 the trader's metric comment " +
+				"predicts. Quantiles are interpolated within histogram buckets, " +
+				"so values below 1 ms are not resolved.").
 		GridPos(layout.Pos(12, y, 12, 8)).
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().
