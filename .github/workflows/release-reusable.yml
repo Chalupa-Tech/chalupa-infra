@@ -208,8 +208,11 @@ jobs:
           # computes (a feat after a promoted fix gives a different
           # version), do not promote again while a promoted version is
           # untagged; these commits ship with the next release.
-          PENDING=$(grep -oE '^##[[:space:]]+\[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | head -1 | sed -E 's/.*\[(.+)\]/\1/' || true)
-          if [[ -n "$PENDING" && "$PENDING" != "$LAST_VERSION" ]] && ! git rev-parse -q --verify "refs/tags/v$PENDING" >/dev/null; then
+          # Pending = a promotion commit since LAST_TAG whose tag does not
+          # exist yet; the changelog alone is not evidence (a repo with
+          # numbered sections but no tags would never release).
+          PENDING=$(git log --format='%s' $RANGE | sed -nE 's/^chore: promote Unreleased to v([0-9]+\.[0-9]+\.[0-9]+)( \(#[0-9]+\))?$/\1/p' | head -1)
+          if [[ -n "$PENDING" ]] && ! git rev-parse -q --verify "refs/tags/v$PENDING" >/dev/null; then
             skip_release "v$PENDING is promoted in CHANGELOG.md and waits for its tag; commits after the promotion ship with the next release." warning
           fi
 

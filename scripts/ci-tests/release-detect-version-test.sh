@@ -189,6 +189,21 @@ check "skip" has out "skip=true"
 check "no PR" lacks gh "gh pr create"
 check "names the pending version" has sum "v0.13.1 is promoted in CHANGELOG.md and waits for its tag"
 
+# 7c. No tags yet, CHANGELOG already has numbered sections, no promotion
+# commit: the first Tier-2 release must still be promoted.
+CASE_DIR="$WORK/tagless"; mkdir -p "$CASE_DIR"
+git init -q --bare "$CASE_DIR/origin.git"
+git init -q -b main "$CASE_DIR/repo"; cd "$CASE_DIR/repo"
+git config user.email t@example.com; git config user.name test
+git remote add origin "$CASE_DIR/origin.git"
+changelog "- new" "## [0.1.0] - 2026-01-01
+- old"
+commit "feat: first (#1)"
+run_step
+check "exit 0" rc_is 0
+check "promotion PR opened" has gh "gh pr create"
+check "no deferral" lacks sum "waits for its tag"
+
 # 8. No commits since the tag: notice only.
 new_case nothing
 run_step
