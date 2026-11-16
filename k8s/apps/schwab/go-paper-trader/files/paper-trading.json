@@ -2208,7 +2208,7 @@
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "description": "paper-trading-realism phase-13b: rate(paper_order_rejects_total) over rate(paper_order_state_transitions_total{to_state=\"submitted\"}), per book. 0% = every submitted order was accepted; 100% = every order was rejected (e.g. market_closed off-hours — read it with the `Rejection rate by reason` panel to see why). A book with no submitted orders in the window has no series, so it is absent rather than 0%.",
+      "description": "paper-trading-realism phase-13b: rate(paper_order_rejects_total) over rate(paper_order_state_transitions_total{to_state=\"submitted\"}), per book. 0% = every submitted order was accepted; 100% = every order was rejected (e.g. market_closed off-hours — read it with the `Rejection rate by reason` panel to see why). A book with no submitted orders in the window has no series, so it is absent rather than 0%. A reject within the first scrape interval after a pod restart is still not seen: the series is registered at zero, but rate() needs that zero scraped before the reject.",
       "fieldConfig": {
         "defaults": {
           "color": {

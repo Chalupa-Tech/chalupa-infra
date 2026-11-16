@@ -42,7 +42,8 @@ func Orders(db *dashboard.DashboardBuilder, yBase int) int {
 // `or` would keep. The `or` arm keeps a book that has submitted orders but
 // has no reject series at 0 instead of dropping it off the panel. The trader
 // registers every (book, reject_reason) series at zero at start (phase-13c),
-// so the arm only matters for a pod on an older image.
+// so the arm only matters for a pod on an older image; a reject before the
+// first scrape of that zero is still invisible to rate().
 func rejectShare(y int) *timeseries.PanelBuilder {
 	const (
 		rejects   = `sum by (book_id) (rate(paper_order_rejects_total{book_id=~"$book_id"}[$__rate_interval]))`
@@ -58,7 +59,9 @@ func rejectShare(y int) *timeseries.PanelBuilder {
 				"order was rejected (e.g. market_closed off-hours — read it with " +
 				"the `Rejection rate by reason` panel to see why). A book with " +
 				"no submitted orders in the window has no series, so it is absent " +
-				"rather than 0%.").
+				"rather than 0%. A reject within the first scrape interval after " +
+				"a pod restart is still not seen: the series is registered at " +
+				"zero, but rate() needs that zero scraped before the reject.").
 		GridPos(layout.Pos(0, y, 24, 8)).
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().
