@@ -116,9 +116,10 @@ func slippageVsDecisionMid(y int) *heatmap.PanelBuilder {
 				"latency drift + half-spread + slippage cushion in one number — " +
 				"distinct from the existing `Fill-price advantage lost` heatmap " +
 				"(which compares pricing models). Heatmap with cumulative-le " +
-				"buckets. Populates only after the next paper-trader image " +
-				"rolls (the metric is new in this phase; pre-rollout the panel " +
-				"will be empty).").
+				"buckets. Since phase-13 (v0.16.0) it covers every fill path " +
+				"and counts only persisted new fills; before, it covered " +
+				"immediate MARKET fills only, observed before the risk gate, " +
+				"so it also counted orders refused after pricing.").
 		GridPos(layout.Pos(0, y, 24, 8)).
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().
