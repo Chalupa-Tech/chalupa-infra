@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (chalupa-brain phase-104 — release workflow)
+
+- **`release-reusable.yml` Tier-2 auto-promote goes through a PR.**
+  The `chore: promote Unreleased to vX.Y.Z` commit was pushed straight to `main`, which the org "Protect Main" ruleset rejects, so Tier 2 never cut a release.
+  It now goes on `ci/promote-vX.Y.Z` with an auto-merged PR; the Release run on the squash-merged promotion commit tags, builds and deploys that version.
+  That recognition replaces the old bot-author loop guard, which a squash merge (PAT author, ` (#N)` suffix) would not have matched.
+  A merge landing after the promotion but before its tag does not promote the same version twice.
+- **A Release run that cuts nothing says why.**
+  Each skip writes the reason, the last tag and its age, and the line count under `[Unreleased]` to the job summary, and warns when that section has entries; an already-tagged version gets a notice.
+  The v0.13.0 to v0.14.0 gap went six months behind green runs.
+
+### Added (chalupa-brain phase-104)
+
+- `scripts/ci-tests/release-detect-version-test.sh` runs the version-detect step against throwaway repos with a stub `gh`; `validate-infra.yml` runs it when the workflow or the test changes.
+
 ### Changed (paper-trading-realism phase-13c — panel descriptions)
 
 - **`Reject share of submitted orders by book` (id 854) narrows its first-reject caveat.**

@@ -24,6 +24,7 @@ jobs:
       yaml: ${{ steps.filter.outputs.yaml }}
       shell: ${{ steps.filter.outputs.shell }}
       ansible: ${{ steps.filter.outputs.ansible }}
+      release: ${{ steps.filter.outputs.release }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -37,6 +38,24 @@ jobs:
               - '**.sh'
             ansible:
               - 'ansible/**'
+            release:
+              - '.github/workflows/release-reusable.yml'
+              - 'scripts/ci-tests/release-detect-version-test.sh'
+
+  release-workflow-test:
+    name: Release Workflow Test
+    needs: changes
+    if: needs.changes.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test the version-detect step of release-reusable.yml
+        run: |
+          python3 -c 'import yaml' || pip install pyyaml
+          git config --global init.defaultBranch main
+          scripts/ci-tests/release-detect-version-test.sh
 
   yaml-lint:
     name: YAML Lint
