@@ -37,10 +37,12 @@ func Orders(db *dashboard.DashboardBuilder, yBase int) int {
 }
 
 // rejectShare is the reject count over the submitted count, per book
-// (paper-trading-realism phase-13b). The `or` arm keeps a book that has
-// submitted orders but never rejected one at 0: the reject counter only
-// gains a series on its first reject, so without it that book would
-// drop off the panel instead of reading 0%.
+// (paper-trading-realism phase-13b). The `> 0` filter drops a book with no
+// submissions in the window: both rates are 0 there and 0/0 is NaN, which
+// `or` would keep. The `or` arm keeps a book that has submitted orders but
+// never rejected one at 0: the reject counter only gains a series on its
+// first reject, so without it that book would drop off the panel instead
+// of reading 0%.
 func rejectShare(y int) *timeseries.PanelBuilder {
 	const (
 		rejects   = `sum by (book_id) (rate(paper_order_rejects_total{book_id=~"$book_id"}[$__rate_interval]))`
@@ -61,7 +63,7 @@ func rejectShare(y int) *timeseries.PanelBuilder {
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().
 			RefId("A").
-			Expr(`(` + rejects + ` / ` + submitted + `) or (0 * ` + submitted + `)`).
+			Expr(`(` + rejects + ` / (` + submitted + ` > 0)) or (0 * (` + submitted + ` > 0))`).
 			LegendFormat("{{book_id}}")).
 		Unit("percentunit").
 		Min(0).

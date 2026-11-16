@@ -2246,7 +2246,7 @@
       "repeatDirection": "h",
       "targets": [
         {
-          "expr": "(sum by (book_id) (rate(paper_order_rejects_total{book_id=~\"$book_id\"}[$__rate_interval])) / sum by (book_id) (rate(paper_order_state_transitions_total{to_state=\"submitted\",book_id=~\"$book_id\"}[$__rate_interval]))) or (0 * sum by (book_id) (rate(paper_order_state_transitions_total{to_state=\"submitted\",book_id=~\"$book_id\"}[$__rate_interval])))",
+          "expr": "(sum by (book_id) (rate(paper_order_rejects_total{book_id=~\"$book_id\"}[$__rate_interval])) / (sum by (book_id) (rate(paper_order_state_transitions_total{to_state=\"submitted\",book_id=~\"$book_id\"}[$__rate_interval])) \u003e 0)) or (0 * (sum by (book_id) (rate(paper_order_state_transitions_total{to_state=\"submitted\",book_id=~\"$book_id\"}[$__rate_interval])) \u003e 0))",
           "legendFormat": "{{book_id}}",
           "refId": "A"
         }
