@@ -211,5 +211,66 @@ check "exit 0" rc_is 0
 check "skip" has out "skip=true"
 check "notice, not warning" has log "::notice title=No release::No commits since v0.13.0."
 
+# 9. Empty [Unreleased] above an untagged version, untyped subject.
+new_case orphan-untyped
+changelog "" "## [0.14.0] - 2026-11-16
+- thing
+
+## [0.13.0] - 2026-05-18"
+commit "release: v0.14.0 — thing (#17)"
+run_step
+check "exit 0" rc_is 0
+check "release" has out "skip=false"
+check "version" has out "version=0.14.0"
+check "summary says header was empty" has sum "empty"
+
+# 9b. Same changelog, feat subject (go-market-store #19): no promotion PR.
+new_case orphan-feat
+changelog "" "## [0.14.0] - 2026-11-16
+- thing
+
+## [0.13.0] - 2026-05-18"
+commit "feat: thing (0.14.0) (#19)"
+run_step
+check "exit 0" rc_is 0
+check "release" has out "skip=false"
+check "version" has out "version=0.14.0"
+check "no PR" lacks gh "gh pr create"
+
+# 9c. Empty [Unreleased] above a TAGGED version stays "no release"
+# (go-schwab-auth today), even with a later commit.
+new_case empty-above-tagged
+commit "docs: later (#5)"
+run_step
+check "exit 0" rc_is 0
+check "skip" has out "skip=true"
+check "no PR" lacks gh "gh pr create"
+
+# 9d. A commit without a changelog entry lands after a promotion commit,
+# before its tag: the promoted version is released from the newer HEAD.
+new_case unstick
+changelog "" "## [0.14.0] - 2026-11-16
+- thing
+
+## [0.13.0] - 2026-05-18"
+commit "chore: promote Unreleased to v0.14.0 (#42)"
+commit "docs: later (#95)"
+run_step
+check "exit 0" rc_is 0
+check "release" has out "skip=false"
+check "version" has out "version=0.14.0"
+check "no PR" lacks gh "gh pr create"
+
+# 9e. A branch named like the version does not count as its tag.
+new_case branch-not-tag
+changelog "" "## [0.14.0] - 2026-11-16
+- thing
+
+## [0.13.0] - 2026-05-18"
+git branch v0.14.0
+commit "release: v0.14.0 — thing (#17)"
+run_step
+check "release despite same-named branch" has out "version=0.14.0"
+
 echo "release-detect-version: $PASS passed, $FAIL failed"
 [[ "$FAIL" == 0 ]]
