@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A Release run that cuts nothing says why.**
   Each skip writes the reason, the last tag and its age, and the line count under `[Unreleased]` to the job summary, and warns when that section has entries; an already-tagged version gets a notice.
   The v0.13.0 to v0.14.0 gap went six months behind green runs.
+- **The deploy job's `Create PR and merge` step is safe to rerun.**
+  A rerun after a failed attempt found the old `ci/<image>-vX.Y.Z` branch and open PR, and failed on the plain `git push` before reaching the merge.
+  It now force-pushes the branch and reuses the open PR for it, as the Tier-2 promotion step already did.
 
 ### Added (chalupa-brain phase-104)
 
