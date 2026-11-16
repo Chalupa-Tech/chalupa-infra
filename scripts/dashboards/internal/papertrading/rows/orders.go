@@ -58,7 +58,10 @@ func rejectShare(y int) *timeseries.PanelBuilder {
 				"order was rejected (e.g. market_closed off-hours — read it with " +
 				"the `Rejection rate by reason` panel to see why). A book with " +
 				"no submitted orders in the window has no series, so it is absent " +
-				"rather than 0%.").
+				"rather than 0%. Caveat: the reject counter gains a series only " +
+				"on a book's first reject of each reason, and rate() cannot see " +
+				"that first increment, so the first reject after a pod restart " +
+				"reads as 0%.").
 		GridPos(layout.Pos(0, y, 24, 8)).
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().
