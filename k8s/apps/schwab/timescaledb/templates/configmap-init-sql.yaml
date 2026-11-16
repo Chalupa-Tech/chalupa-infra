@@ -314,9 +314,8 @@ data:
       AND q.source = 'quote';
 
     -- Backfill gap detection: 5m quote candles with no matching historical data
-    -- Scoped to 5m only — ddowell-individual has no 1h data, and 1d uses 05:00 UTC
-    -- bucketing vs quote 00:00 UTC so row-level joins don't work at those frequencies.
-    -- Bucket-aligned 1d/1h reconciliation is a separate problem.
+    -- Scoped to 5m only — ddowell-individual has no 1h data, and 1d buckets differ
+    -- between sources (see candle_backfill_gaps_1d below for the 1d version).
     -- Uses `q.source = 'quote'` only (authoritative). `quote-derived` is excluded
     -- because derived rows can be flawed and would inflate false-positive gap counts.
     CREATE OR REPLACE VIEW candle_backfill_gaps AS
@@ -335,4 +334,78 @@ data:
     WHERE q.source = 'quote'
       AND q.frequency = '5m'
       AND h.time IS NULL
-      AND q.time < now() - INTERVAL '4 hours';
+      AND q.time < now() - INTERVAL '4 hours'
+      -- A flat quote candle (high = low) is how the quote side fills an interval
+      -- with no trades; the historical source omits such intervals, so only a
+      -- candle with price movement can be a missing historical row.
+      AND q.high <> q.low
+      -- Only report gaps on trading days: some historical 5m row (any symbol)
+      -- must exist on the same America/Chicago day. Weekends, holidays and days
+      -- the historical backfill has not reached yet are not gaps.
+      AND EXISTS (
+        SELECT 1 FROM candles hd
+        WHERE hd.frequency = '5m'
+          AND hd.source = 'ddowell-individual'
+          AND hd.time >= date_trunc('day', q.time AT TIME ZONE 'America/Chicago') AT TIME ZONE 'America/Chicago'
+          AND hd.time <  (date_trunc('day', q.time AT TIME ZONE 'America/Chicago') + INTERVAL '1 day') AT TIME ZONE 'America/Chicago'
+      );
+
+    -- Bucket-aligned 1d reconciliation (phase-12).
+    -- Historical 1d candles are anchored at local midnight America/Chicago
+    -- (05:00 UTC in CDT, 06:00 UTC in CST); quote 1d candles at 00:00 UTC.
+    -- No timestamps ever match, so join on the calendar date of each side:
+    -- historical date = Chicago date, quote date = UTC date.
+    -- Do NOT use time_bucket(..., 'America/New_York') on the quote side: 00:00 UTC
+    -- is 19:00/20:00 ET the previous day, which shifts every pair by one day.
+    -- Quote candles on weekends and holidays have no historical counterpart and
+    -- drop out of the inner join, as intended.
+    CREATE OR REPLACE VIEW candle_source_variance_1d AS
+    SELECT
+      h.time,
+      h.symbol,
+      h.frequency,
+      h.close  AS hist_close,
+      q.close  AS quote_close,
+      h.high   AS hist_high,
+      q.high   AS quote_high,
+      h.low    AS hist_low,
+      q.low    AS quote_low,
+      CASE WHEN h.close != 0 THEN ABS(h.close - q.close) / ABS(h.close) ELSE NULL END AS close_variance,
+      CASE WHEN h.high  != 0 THEN ABS(h.high  - q.high)  / ABS(h.high)  ELSE NULL END AS high_variance,
+      CASE WHEN h.low   != 0 THEN ABS(h.low   - q.low)   / ABS(h.low)   ELSE NULL END AS low_variance
+    FROM candles h
+    JOIN candles q
+      ON h.symbol = q.symbol
+      AND h.frequency = q.frequency
+      AND (h.time AT TIME ZONE 'America/Chicago')::date = (q.time AT TIME ZONE 'UTC')::date
+    WHERE h.frequency = '1d'
+      AND h.source = 'ddowell-individual'
+      AND q.source = 'quote';
+
+    -- 1d backfill gaps: a quote 1d candle whose trading day has historical rows
+    -- for other symbols but none for this one. Weekends, holidays and days the
+    -- historical backfill has not reached yet have no historical rows for any
+    -- symbol, so they are not reported as gaps.
+    CREATE OR REPLACE VIEW candle_backfill_gaps_1d AS
+    SELECT
+      q.time,
+      q.symbol,
+      q.frequency,
+      q.close AS quote_close,
+      now() - q.time AS age
+    FROM candles q
+    WHERE q.source = 'quote'
+      AND q.frequency = '1d'
+      AND EXISTS (
+        SELECT 1 FROM candles hd
+        WHERE hd.frequency = '1d'
+          AND hd.source = 'ddowell-individual'
+          AND (hd.time AT TIME ZONE 'America/Chicago')::date = (q.time AT TIME ZONE 'UTC')::date
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM candles h
+        WHERE h.symbol = q.symbol
+          AND h.frequency = '1d'
+          AND h.source = 'ddowell-individual'
+          AND (h.time AT TIME ZONE 'America/Chicago')::date = (q.time AT TIME ZONE 'UTC')::date
+      );
