@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed (paper-trading-realism phase-13c — panel descriptions)
 
 - **`Reject share of submitted orders by book` (id 854) narrows its first-reject caveat.**
-  go-schwab-accounts-and-trading now registers every `paper_order_rejects_total` series at zero when a book starts, so `rate()` sees the first reject of a reason after a restart once the zero has been scraped; a reject within the first scrape interval is still missed, and until a pod runs that image the old caveat applies to it.
+  go-schwab-accounts-and-trading now registers every `paper_order_rejects_total` series at zero when a book starts, so `rate()` sees the first reject of a reason after a restart once the zero has been scraped; a reject before Prometheus first scrapes the restarted pod (about 43 s on v0.17.0) is still missed, and until a pod runs that image the old caveat applies to it.
   The query is unchanged, and its `or` arm now only matters for a pod on an older image.
 - **`Order-to-fill P50 / P95 by book and stage` (id 1005) explains the readings.**
   An immediate MARKET fill is not 0: the interval includes the sim's write-through of the Submitted and Acknowledged order events (about 0.06-0.5 s on the cluster database), and does not include the fill's own persist.

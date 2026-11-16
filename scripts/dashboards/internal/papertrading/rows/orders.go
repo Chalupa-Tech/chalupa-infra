@@ -59,9 +59,12 @@ func rejectShare(y int) *timeseries.PanelBuilder {
 				"order was rejected (e.g. market_closed off-hours — read it with " +
 				"the `Rejection rate by reason` panel to see why). A book with " +
 				"no submitted orders in the window has no series, so it is absent " +
-				"rather than 0%. A reject within the first scrape interval after " +
-				"a pod restart is still not seen: the series is registered at " +
-				"zero, but rate() needs that zero scraped before the reject.").
+				"rather than 0%. A reject before Prometheus first scrapes a " +
+				"restarted pod is still not seen: the series is registered at " +
+				"zero, but rate() needs that zero scraped before the reject. " +
+				"On v0.17.0 the first scrape came about 43 s after pod start, " +
+				"and a book that rejects every ~30 s (ddowell-limit-example) " +
+				"was already at 1.").
 		GridPos(layout.Pos(0, y, 24, 8)).
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().
