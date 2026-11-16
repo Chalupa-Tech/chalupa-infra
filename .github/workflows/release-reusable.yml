@@ -138,6 +138,20 @@ jobs:
             exit 0
           fi
 
+          # An empty '## [Unreleased]' kept above a version section that has no
+          # tag yet is a hand-written release PR that left the header in place.
+          # Treat the version section as Tier 1. A tagged version below it, or
+          # entries under '[Unreleased]', keep the Tier-2 handling.
+          NEXT_TOKEN=$(grep -oE '^##[[:space:]]+\[[^]]+\]' CHANGELOG.md | sed -n 2p | sed -E 's/^##[[:space:]]+\[(.+)\]$/\1/' || true)
+          if [[ "$(unreleased_entries)" -eq 0 && "$NEXT_TOKEN" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+             && ! git rev-parse -q --verify "refs/tags/v$NEXT_TOKEN" >/dev/null; then
+            echo "Tier 1: '[Unreleased]' is empty above untagged version $NEXT_TOKEN."
+            summary "Tier 1: explicit version **$NEXT_TOKEN** from CHANGELOG.md ('[Unreleased]' header was empty, so the next section was taken)."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "version=$NEXT_TOKEN" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           # ---------------------------------------------------------------
           # Tier 2: auto-promote. Derive bump from conventional-commit
           # prefixes on each commit since LAST_TAG.
@@ -286,7 +300,7 @@ jobs:
             echo "::error::Version is empty — cannot check tag."
             exit 1
           fi
-          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null 2>&1; then
             echo "Tag v$VERSION already exists."
             echo "::notice title=No release::v$VERSION is already tagged; nothing to release."
             echo "### No release cut" >> "$GITHUB_STEP_SUMMARY"
@@ -305,7 +319,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v$VERSION" -m "Release v$VERSION"
-          git push origin "v$VERSION"
+          git push origin "refs/tags/v$VERSION:refs/tags/v$VERSION"
 
       - name: Create Release
         if: steps.detect_version.outputs.skip == 'false' && steps.check_tag.outputs.exists == 'false'
