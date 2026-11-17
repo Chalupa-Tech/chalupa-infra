@@ -277,3 +277,29 @@ resources:
     memory: 256Mi
   limits:
     memory: 768Mi
+
+# One-shot database jobs that run the trader image's own tools with the
+# trader's DB credentials (secret papertrader-db-secrets), so nobody
+# copies a password onto a command line. The image is `scratch`: there
+# is no shell, and the binaries read PAPER_TRADER_POSTGRES_URL.
+#
+# equityBackfill runs /backfill-equity (docs/paper-equity.md in
+# go-schwab-accounts-and-trading). It ships suspended: run it by hand
+# with `kubectl create job --from=cronjob/go-paper-trader-equity-backfill`,
+# or set suspend: false for a schedule. The default args repair gaps in
+# paper_equity and are safe to rerun; for --verify or --attach-retention
+# build a Job from the CronJob with the args swapped (see the runbook).
+equityBackfill:
+  enabled: true
+  suspend: true
+  # After the regular session closes (16:00 ET).
+  schedule: "30 22 * * 1-5"
+  timeZone: "America/New_York"
+  args:
+    - "--dry-run=false"
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 256Mi

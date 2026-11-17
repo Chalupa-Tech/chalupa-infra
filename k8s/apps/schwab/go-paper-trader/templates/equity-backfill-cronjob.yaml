@@ -1,0 +1,58 @@
+{{- if .Values.equityBackfill.enabled }}
+# paper_equity backfill / verify / retention tool, run as a Job so it
+# reaches the database with the trader's credentials and no shell.
+#
+# Suspended by default: `kubectl create job --from=cronjob/go-paper-trader-equity-backfill <name>`
+# runs it once with the args below. To run another mode (--verify,
+# --attach-retention), generate the Job with
+# `kubectl create job --from=... --dry-run=client -o json`, swap
+# .spec.template.spec.containers[0].args, and apply it.
+#
+# The tool works one UTC day per transaction because timescaledb-1 has a
+# 1Gi limit, so a run is slow, not large. Safe to rerun, and safe while
+# the trader writes.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: go-paper-trader-equity-backfill
+  labels:
+    app: go-paper-trader-equity-backfill
+spec:
+  suspend: {{ .Values.equityBackfill.suspend }}
+  schedule: {{ .Values.equityBackfill.schedule | quote }}
+  timeZone: {{ .Values.equityBackfill.timeZone | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      # A failed run is not retried on its own: read the log first.
+      backoffLimit: 0
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels:
+            app: go-paper-trader-equity-backfill
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: backfill
+              image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["/backfill-equity"]
+              args:
+                {{- toYaml .Values.equityBackfill.args | nindent 16 }}
+              env:
+                # DB_PASSWORD must come first: Kubernetes expands $(VAR)
+                # only from variables defined earlier in the list.
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: papertrader-db-secrets
+                      key: APP_PASSWORD
+                - name: PAPER_TRADER_POSTGRES_URL
+                  value: "postgresql://{{ .Values.database.user }}:$(DB_PASSWORD)@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}?sslmode=disable"
+              resources:
+                {{- toYaml .Values.equityBackfill.resources | nindent 16 }}
+{{- end }}

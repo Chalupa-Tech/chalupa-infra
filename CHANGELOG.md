@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (strategy-research phase-6b — database jobs)
+
+- **`go-paper-trader-equity-backfill` CronJob** (`k8s/apps/schwab/go-paper-trader/templates/equity-backfill-cronjob.yaml`, values `equityBackfill`).
+  It runs the trader image's `/backfill-equity` with the trader's own DB credentials (`papertrader-db-secrets`, `PAPER_TRADER_POSTGRES_URL`), so the backfill, `--verify` and `--attach-retention` need no password on a command line.
+  The image is `scratch` and the trader pod sets only `DATABASE_URL` (with `$(DB_PASSWORD)` unexpanded under `kubectl exec`), so the runbook's `kubectl exec ... /backfill-equity` could not connect.
+  It ships suspended (`equityBackfill.suspend: true`): run it once with `kubectl create job --from=cronjob/go-paper-trader-equity-backfill <name>`; the default args are the idempotent `--dry-run=false` gap repair.
+
 ### Changed (strategy-research phase-6 — equity summary table)
 
 - **The `grafana` database role's `statement_timeout = 30s` is now in the timescaledb chart** (`values.database.grafanaStatementTimeout`, applied in `timescaledb-init-roles`), so a rebuilt cluster has it.
