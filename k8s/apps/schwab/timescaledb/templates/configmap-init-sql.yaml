@@ -412,3 +412,74 @@ data:
           AND h.source = 'ddowell-individual'
           AND (h.time AT TIME ZONE 'America/Chicago')::date = (q.time AT TIME ZONE 'UTC')::date
       );
+
+    -- Bucket-aligned 1h reconciliation (phase-12).
+    -- ddowell-individual has no 1h candles (Schwab pricehistory offers minute
+    -- frequencies 1, 5, 10, 15 and 30 only), so build the historical hour from
+    -- its two 30m candles and compare it with the quote 1h candle. Both sides
+    -- start on the UTC hour, so they join on time. Hours with only one 30m
+    -- candle are skipped: their high, low and close would cover half an hour.
+    CREATE OR REPLACE VIEW candle_source_variance_1h AS
+    WITH h AS (
+      SELECT
+        symbol,
+        time_bucket('1 hour', time) AS hr,
+        MAX(high) AS high,
+        MIN(low) AS low,
+        (array_agg(close ORDER BY time DESC))[1] AS close
+      FROM candles
+      WHERE frequency = '30m'
+        AND source = 'ddowell-individual'
+      GROUP BY symbol, time_bucket('1 hour', time)
+      HAVING COUNT(*) = 2
+    )
+    SELECT
+      q.time,
+      q.symbol,
+      q.frequency,
+      h.close  AS hist_close,
+      q.close  AS quote_close,
+      h.high   AS hist_high,
+      q.high   AS quote_high,
+      h.low    AS hist_low,
+      q.low    AS quote_low,
+      CASE WHEN h.close != 0 THEN ABS(h.close - q.close) / ABS(h.close) ELSE NULL END AS close_variance,
+      CASE WHEN h.high  != 0 THEN ABS(h.high  - q.high)  / ABS(h.high)  ELSE NULL END AS high_variance,
+      CASE WHEN h.low   != 0 THEN ABS(h.low   - q.low)   / ABS(h.low)   ELSE NULL END AS low_variance
+    FROM h
+    JOIN candles q
+      ON q.symbol = h.symbol
+      AND q.time = h.hr
+    WHERE q.frequency = '1h'
+      AND q.source = 'quote';
+
+    -- 1h backfill gaps: a quote 1h candle with volume, in an hour where other
+    -- symbols have 30m historical candles but this one has none. Zero-volume
+    -- quote candles are the quote side's fill for no trades and are not gaps.
+    CREATE OR REPLACE VIEW candle_backfill_gaps_1h AS
+    SELECT
+      q.time,
+      q.symbol,
+      q.frequency,
+      q.close AS quote_close,
+      now() - q.time AS age
+    FROM candles q
+    WHERE q.source = 'quote'
+      AND q.frequency = '1h'
+      AND COALESCE(q.volume, 0) > 0
+      AND q.time < now() - INTERVAL '4 hours'
+      AND EXISTS (
+        SELECT 1 FROM candles hd
+        WHERE hd.frequency = '30m'
+          AND hd.source = 'ddowell-individual'
+          AND hd.time >= q.time
+          AND hd.time <  q.time + INTERVAL '1 hour'
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM candles h
+        WHERE h.symbol = q.symbol
+          AND h.frequency = '30m'
+          AND h.source = 'ddowell-individual'
+          AND h.time >= q.time
+          AND h.time <  q.time + INTERVAL '1 hour'
+      );

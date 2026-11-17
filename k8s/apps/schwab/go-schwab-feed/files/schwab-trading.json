@@ -50,7 +50,7 @@
         "name": "recon_freq",
         "label": "Reconciliation frequency",
         "type": "custom",
-        "query": "5m,1d",
+        "query": "5m,1h,1d",
         "multi": false,
         "includeAll": false,
         "current": {
@@ -62,6 +62,11 @@
             "text": "5m",
             "value": "5m",
             "selected": true
+          },
+          {
+            "text": "1h",
+            "value": "1h",
+            "selected": false
           },
           {
             "text": "1d",
@@ -443,7 +448,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time, close_variance * 100 AS close_pct, high_variance * 100 AS high_pct, low_variance * 100 AS low_pct FROM candle_source_variance WHERE '$recon_freq' = '5m' AND symbol = '$symbol' AND frequency = '5m' AND $__timeFilter(time) UNION ALL SELECT time, close_variance * 100 AS close_pct, high_variance * 100 AS high_pct, low_variance * 100 AS low_pct FROM candle_source_variance_1d WHERE '$recon_freq' = '1d' AND symbol = '$symbol' AND $__timeFilter(time) ORDER BY time",
+          "rawSql": "SELECT time, close_variance * 100 AS close_pct, high_variance * 100 AS high_pct, low_variance * 100 AS low_pct FROM candle_source_variance WHERE '$recon_freq' = '5m' AND symbol = '$symbol' AND frequency = '5m' AND $__timeFilter(time) UNION ALL SELECT time, close_variance * 100 AS close_pct, high_variance * 100 AS high_pct, low_variance * 100 AS low_pct FROM candle_source_variance_1d WHERE '$recon_freq' = '1d' AND symbol = '$symbol' AND $__timeFilter(time) UNION ALL SELECT time, close_variance * 100 AS close_pct, high_variance * 100 AS high_pct, low_variance * 100 AS low_pct FROM candle_source_variance_1h WHERE '$recon_freq' = '1h' AND symbol = '$symbol' AND $__timeFilter(time) ORDER BY time",
           "format": "table",
           "refId": "A"
         }
@@ -578,7 +583,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT * FROM (SELECT time AS \"Time\", symbol AS \"Symbol\", frequency AS \"Frequency\", quote_close AS \"Quote Close\", age AS \"Age\" FROM candle_backfill_gaps WHERE '$recon_freq' = '5m' AND symbol = '$symbol' AND $__timeFilter(time) UNION ALL SELECT time AS \"Time\", symbol AS \"Symbol\", frequency AS \"Frequency\", quote_close AS \"Quote Close\", age AS \"Age\" FROM candle_backfill_gaps_1d WHERE '$recon_freq' = '1d' AND symbol = '$symbol' AND $__timeFilter(time)) g ORDER BY \"Time\" DESC LIMIT 100",
+          "rawSql": "SELECT * FROM (SELECT time AS \"Time\", symbol AS \"Symbol\", frequency AS \"Frequency\", quote_close AS \"Quote Close\", age AS \"Age\" FROM candle_backfill_gaps WHERE '$recon_freq' = '5m' AND symbol = '$symbol' AND $__timeFilter(time) UNION ALL SELECT time AS \"Time\", symbol AS \"Symbol\", frequency AS \"Frequency\", quote_close AS \"Quote Close\", age AS \"Age\" FROM candle_backfill_gaps_1d WHERE '$recon_freq' = '1d' AND symbol = '$symbol' AND $__timeFilter(time) UNION ALL SELECT time AS \"Time\", symbol AS \"Symbol\", frequency AS \"Frequency\", quote_close AS \"Quote Close\", age AS \"Age\" FROM candle_backfill_gaps_1h WHERE '$recon_freq' = '1h' AND symbol = '$symbol' AND $__timeFilter(time)) g ORDER BY \"Time\" DESC LIMIT 100",
           "format": "table",
           "refId": "A"
         }
