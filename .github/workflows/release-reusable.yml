@@ -28,6 +28,15 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    # One release evaluation per repo at a time, queued, never cancelled.
+    # A push that lands while the promotion commit's run is tagging waits
+    # for it, then sees the new tag and releases its own commits; two
+    # Tier-2 runs cannot push the same ci/promote-* branch at once.
+    # (GitHub keeps one pending run per group; a newer push replaces the
+    # pending one, and the newer HEAD contains its commits.)
+    concurrency:
+      group: release-${{ github.repository }}
+      cancel-in-progress: false
     outputs:
       new_release: ${{ steps.detect_version.outputs.skip == 'false' && steps.check_tag.outputs.exists == 'false' }}
       version: ${{ steps.detect_version.outputs.version }}
@@ -35,29 +44,73 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # PAT lets the auto-promote bot commit push past the org
-          # "Protect Main" ruleset; default GITHUB_TOKEN cannot bypass.
+          # PAT so that the promotion PR's merge (Tier 2) triggers this
+          # workflow again; events caused by GITHUB_TOKEN start no runs.
+          # It does not bypass the org "Protect Main" ruleset: nothing in
+          # this workflow pushes to main.
           token: ${{ secrets.GH_PAT }}
 
       - name: Auto-promote and detect version
         id: detect_version
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
 
+          # Every exit that cuts no release says why in the job summary, and
+          # warns when '## [Unreleased]' holds entries that are not shipping.
+          # A green run that released nothing once hid a six-month gap.
+          summary() { echo "$*" >> "$GITHUB_STEP_SUMMARY"; }
+          unreleased_entries() {
+            # Non-blank lines between '## [Unreleased]' and the next '## ['.
+            awk '/^##[[:space:]]+\[Unreleased\]/{f=1;next} /^##[[:space:]]+\[/{f=0} f && NF' CHANGELOG.md | grep -c . || true
+          }
+          skip_release() {
+            local reason="$1" level="${2:-notice}"
+            local entries; entries=$(unreleased_entries)
+            local since="${LAST_TAG:-$(git describe --tags --abbrev=0 2>/dev/null || echo none)}"
+            local age=""
+            if [[ "$since" != "none" ]]; then
+              age=" ($(( ( $(date -u +%s) - $(git log -1 --format=%ct "$since") ) / 86400 )) days ago)"
+            fi
+            summary "### No release cut"
+            summary ""
+            summary "$reason"
+            summary ""
+            summary "- Last tag: \`$since\`$age"
+            summary "- Lines under \`[Unreleased]\`: $entries"
+            if [[ "$entries" -gt 0 && "$level" == "warning" ]]; then
+              echo "::warning title=Unreleased changes not released::$reason $entries line(s) under [Unreleased] since $since$age. Title the PR feat:/fix: or cut a release with a 'release: vX.Y.Z' PR."
+            else
+              echo "::notice title=No release::$reason"
+            fi
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
           # ---------------------------------------------------------------
-          # Bot-commit loop guard. If the workflow is re-firing on the
-          # auto-promote bot's own push, exit before scanning anything.
-          # The chore-only classification below is a second line of defense
-          # in case the bot's commit is one of several since LAST_TAG.
+          # Promotion commit. Tier 2 below promotes '[Unreleased]' through a
+          # PR, because the org ruleset rejects pushes to main. When that PR
+          # squash-merges, this workflow runs again with HEAD = the promotion
+          # commit ('chore: promote Unreleased to vX.Y.Z (#N)', authored by
+          # the PAT user, not the bot). Release the version it names. This is
+          # also the loop guard: that HEAD never reaches the Tier-2 scan.
+          # A rerun on an older promotion commit stops at 'Check if Tag
+          # Exists'.
           # ---------------------------------------------------------------
           HEAD_SUBJECT=$(git log -1 --format='%s')
-          HEAD_AUTHOR_EMAIL=$(git log -1 --format='%ae')
-          if [[ "$HEAD_AUTHOR_EMAIL" == "github-actions[bot]@users.noreply.github.com" ]] \
-              && [[ "$HEAD_SUBJECT" =~ ^chore:\ promote\ Unreleased\ to\ v ]]; then
-            echo "HEAD is the auto-promote bot commit ('$HEAD_SUBJECT'); skipping."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
+          RE_PROMOTE='^chore: promote Unreleased to v([0-9]+\.[0-9]+\.[0-9]+)( \(#[0-9]+\))?$'
+          if [[ "$HEAD_SUBJECT" =~ $RE_PROMOTE ]]; then
+            PROMOTED="${BASH_REMATCH[1]}"
+            if ! grep -qE "^##[[:space:]]+\[${PROMOTED//./\\.}\]" CHANGELOG.md; then
+              echo "::error::HEAD is '$HEAD_SUBJECT' but CHANGELOG.md has no '## [$PROMOTED]' section."
+              exit 1
+            fi
+            echo "HEAD is the promotion commit for v$PROMOTED; releasing it."
+            summary "Promotion commit for **v$PROMOTED**; releasing it."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "version=$PROMOTED" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -79,8 +132,23 @@ jobs:
               exit 1
             fi
             echo "Tier 1: explicit version $FIRST_TOKEN."
+            summary "Tier 1: explicit version **$FIRST_TOKEN** from CHANGELOG.md."
             echo "skip=false" >> "$GITHUB_OUTPUT"
             echo "version=$FIRST_TOKEN" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # An empty '## [Unreleased]' kept above a version section that has no
+          # tag yet is a hand-written release PR that left the header in place.
+          # Treat the version section as Tier 1. A tagged version below it, or
+          # entries under '[Unreleased]', keep the Tier-2 handling.
+          NEXT_TOKEN=$(grep -oE '^##[[:space:]]+\[[^]]+\]' CHANGELOG.md | sed -n 2p | sed -E 's/^##[[:space:]]+\[(.+)\]$/\1/' || true)
+          if [[ "$(unreleased_entries)" -eq 0 && "$NEXT_TOKEN" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+             && ! git rev-parse -q --verify "refs/tags/v$NEXT_TOKEN" >/dev/null; then
+            echo "Tier 1: '[Unreleased]' is empty above untagged version $NEXT_TOKEN."
+            summary "Tier 1: explicit version **$NEXT_TOKEN** from CHANGELOG.md ('[Unreleased]' header was empty, so the next section was taken)."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "version=$NEXT_TOKEN" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -102,9 +170,7 @@ jobs:
 
           COMMITS=$(git log --reverse --format='%H' $RANGE)
           if [[ -z "$COMMITS" ]]; then
-            echo "No commits since $LAST_TAG. Skipping release."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
+            skip_release "No commits since ${LAST_TAG:-the start of history}." warning
           fi
 
           ALL_DEFERRED=true
@@ -142,15 +208,12 @@ jobs:
           done <<< "$COMMITS"
 
           if [[ "$ALL_DEFERRED" == "true" ]]; then
-            echo "All commits since $LAST_TAG are on release-deferred-labeled PRs. Skipping."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
+            skip_release "All commits since ${LAST_TAG:-the start of history} are on release-deferred PRs."
           fi
 
           if [[ "$BUMP" == "none" ]]; then
-            echo "No releasable commits (feat/fix/breaking) since $LAST_TAG. Skipping."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
+            N_COMMITS=$(grep -c . <<< "$COMMITS")
+            skip_release "None of the $N_COMMITS commit(s) since ${LAST_TAG:-the start of history} has a feat:/fix:/breaking subject." warning
           fi
 
           IFS='.' read -r MAJ MIN PAT <<< "$LAST_VERSION"
@@ -162,6 +225,19 @@ jobs:
           NEW_VERSION="${MAJ}.${MIN}.${PAT}"
           TODAY=$(date -u +%Y-%m-%d)
           echo "Bump: $BUMP → $NEW_VERSION (date $TODAY)"
+
+          # A merge that lands after a promotion commit but before its run
+          # has tagged it scans from the same LAST_TAG. Whatever bump it
+          # computes (a feat after a promoted fix gives a different
+          # version), do not promote again while a promoted version is
+          # untagged; these commits ship with the next release.
+          # Pending = a promotion commit since LAST_TAG whose tag does not
+          # exist yet; the changelog alone is not evidence (a repo with
+          # numbered sections but no tags would never release).
+          PENDING=$(git log --format='%s' $RANGE | sed -nE 's/^chore: promote Unreleased to v([0-9]+\.[0-9]+\.[0-9]+)( \(#[0-9]+\))?$/\1/p' | head -1)
+          if [[ -n "$PENDING" ]] && ! git rev-parse -q --verify "refs/tags/v$PENDING" >/dev/null; then
+            skip_release "v$PENDING is promoted in CHANGELOG.md and waits for its tag; commits after the promotion ship with the next release." warning
+          fi
 
           # Rewrite CHANGELOG.md: '## [Unreleased]' → '## [Unreleased]\n\n## [X.Y.Z] - DATE'.
           # Preserves all body content; only inserts a new header above.
@@ -182,14 +258,49 @@ jobs:
               f.write(new_content)
           PY
 
+          # The org ruleset rejects a push to main, so promote through a PR,
+          # the same create + auto-merge the deploy job uses. This run cuts
+          # nothing: the run on the merged promotion commit (top of this
+          # step) tags, builds and deploys.
+          BRANCH="ci/promote-v$NEW_VERSION"
+          TITLE="chore: promote Unreleased to v$NEW_VERSION"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
           git add CHANGELOG.md
-          git commit -m "chore: promote Unreleased to v$NEW_VERSION"
-          git push origin HEAD:main
+          git commit -m "$TITLE"
+          # Force: a rerun after a failed earlier attempt finds the branch.
+          git push --force origin "HEAD:refs/heads/$BRANCH"
 
-          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-          echo "skip=false" >> "$GITHUB_OUTPUT"
+          PR_URL=$(gh pr list -R "$REPO" --head "$BRANCH" --base main --state open --json url --jq '.[0].url // empty')
+          if [[ -z "$PR_URL" ]]; then
+            PR_URL=$(gh pr create -R "$REPO" \
+              --title "$TITLE" \
+              --body "Automated Tier-2 promotion of \`[Unreleased]\` to v$NEW_VERSION ($BUMP bump since ${LAST_TAG:-the start of history}). The Release run on this PR's merge commit tags v$NEW_VERSION, builds the image and opens the chalupa-infra deploy PR." \
+              --head "$BRANCH" \
+              --base main)
+          fi
+          echo "Promotion PR: $PR_URL"
+          # --auto is refused when the PR is already clean; merge directly then.
+          if ! MERGE_OUT=$(gh pr merge "$PR_URL" -R "$REPO" --squash --auto --delete-branch 2>&1); then
+            if [[ "$MERGE_OUT" == *"clean status"* ]]; then
+              echo "Promotion PR is already clean; merging directly."
+              gh pr merge "$PR_URL" -R "$REPO" --squash --delete-branch
+            else
+              echo "$MERGE_OUT" >&2
+              exit 1
+            fi
+          else
+            echo "$MERGE_OUT"
+          fi
+
+          summary "### Promoting to v$NEW_VERSION"
+          summary ""
+          summary "$BUMP bump since \`${LAST_TAG:-none}\`. Promotion PR: $PR_URL"
+          summary ""
+          summary "The release is cut by the Release run on that PR's merge commit."
+          echo "::notice title=Promotion PR opened::v$NEW_VERSION via $PR_URL"
+          echo "skip=true" >> "$GITHUB_OUTPUT"
 
       - name: Check if Tag Exists
         id: check_tag
@@ -200,8 +311,12 @@ jobs:
             echo "::error::Version is empty — cannot check tag."
             exit 1
           fi
-          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null 2>&1; then
             echo "Tag v$VERSION already exists."
+            echo "::notice title=No release::v$VERSION is already tagged; nothing to release."
+            echo "### No release cut" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "v$VERSION is already tagged." >> "$GITHUB_STEP_SUMMARY"
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "Tag v$VERSION does not exist. Creating release."
@@ -215,7 +330,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v$VERSION" -m "Release v$VERSION"
-          git push origin "v$VERSION"
+          git push origin "refs/tags/v$VERSION:refs/tags/v$VERSION"
 
       - name: Create Release
         if: steps.detect_version.outputs.skip == 'false' && steps.check_tag.outputs.exists == 'false'
@@ -299,13 +414,31 @@ jobs:
           git checkout -b "$BRANCH"
           git add -A
           git commit -m "deploy: ${{ inputs.image_name }} ${VERSION}"
-          git push origin "$BRANCH"
+          # Force: a rerun after a failed earlier attempt finds the branch.
+          git push --force origin "HEAD:refs/heads/$BRANCH"
 
-          PR_URL=$(gh pr create \
-            --title "deploy: ${{ inputs.image_name }} ${VERSION}" \
-            --body "Automated image tag bump from [${{ inputs.image_name }} ${VERSION}](https://github.com/Chalupa-Tech/${{ inputs.image_name }}/releases/tag/${VERSION})." \
-            --head "$BRANCH" \
-            --base main)
-          echo "Created PR: $PR_URL"
+          # Likewise reuse the PR an earlier attempt left open. Only one that
+          # targets main: gh pr merge merges into the PR's own base.
+          PR_URL=$(gh pr list --head "$BRANCH" --base main --state open --json url --jq '.[0].url // empty')
+          if [[ -z "$PR_URL" ]]; then
+            PR_URL=$(gh pr create \
+              --title "deploy: ${{ inputs.image_name }} ${VERSION}" \
+              --body "Automated image tag bump from [${{ inputs.image_name }} ${VERSION}](https://github.com/Chalupa-Tech/${{ inputs.image_name }}/releases/tag/${VERSION})." \
+              --head "$BRANCH" \
+              --base main)
+          fi
+          echo "Deploy PR: $PR_URL"
 
-          gh pr merge "$PR_URL" --squash --auto
+          # GitHub refuses --auto when nothing is pending (the PR is already
+          # clean). Merge directly then; any other refusal fails the job.
+          if ! MERGE_OUT=$(gh pr merge "$PR_URL" --squash --auto 2>&1); then
+            if [[ "$MERGE_OUT" == *"clean status"* ]]; then
+              echo "PR is already clean; merging directly."
+              gh pr merge "$PR_URL" --squash --delete-branch
+            else
+              echo "$MERGE_OUT" >&2
+              exit 1
+            fi
+          else
+            echo "$MERGE_OUT"
+          fi

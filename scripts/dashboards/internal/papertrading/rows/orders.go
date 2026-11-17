@@ -40,9 +40,10 @@ func Orders(db *dashboard.DashboardBuilder, yBase int) int {
 // (paper-trading-realism phase-13b). The `> 0` filter drops a book with no
 // submissions in the window: both rates are 0 there and 0/0 is NaN, which
 // `or` would keep. The `or` arm keeps a book that has submitted orders but
-// never rejected one at 0: the reject counter only gains a series on its
-// first reject, so without it that book would drop off the panel instead
-// of reading 0%.
+// has no reject series at 0 instead of dropping it off the panel. The trader
+// registers every (book, reject_reason) series at zero at start (phase-13c),
+// so the arm only matters for a pod on an older image; a reject before the
+// first scrape of that zero is still invisible to rate().
 func rejectShare(y int) *timeseries.PanelBuilder {
 	const (
 		rejects   = `sum by (book_id) (rate(paper_order_rejects_total{book_id=~"$book_id"}[$__rate_interval]))`
@@ -58,10 +59,12 @@ func rejectShare(y int) *timeseries.PanelBuilder {
 				"order was rejected (e.g. market_closed off-hours — read it with " +
 				"the `Rejection rate by reason` panel to see why). A book with " +
 				"no submitted orders in the window has no series, so it is absent " +
-				"rather than 0%. Caveat: the reject counter gains a series only " +
-				"on a book's first reject of each reason, and rate() cannot see " +
-				"that first increment, so the first reject after a pod restart " +
-				"reads as 0%.").
+				"rather than 0%. A reject before Prometheus first scrapes a " +
+				"restarted pod is still not seen: the series is registered at " +
+				"zero, but rate() needs that zero scraped before the reject. " +
+				"On v0.17.0 the first scrape came about 43 s after pod start, " +
+				"and a book that rejects every ~30 s (ddowell-limit-example) " +
+				"was already at 1.").
 		GridPos(layout.Pos(0, y, 24, 8)).
 		Datasource(datasources.Victoria()).
 		WithTarget(prometheus.NewDataqueryBuilder().

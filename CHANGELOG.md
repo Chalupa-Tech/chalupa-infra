@@ -15,6 +15,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The `paper_equity` table, compression and retention arrive with go-schwab-accounts-and-trading's next release, and the dashboard can read the table only after that image has rolled and `backfill-equity` has run.
   The replacement for `cte.Equity` is recorded in the brain's phase-6 follow-up prompt.
 
+### Changed (chalupa-brain phase-104 — release workflow)
+
+- **`release-reusable.yml` Tier-2 auto-promote goes through a PR.**
+  The `chore: promote Unreleased to vX.Y.Z` commit was pushed straight to `main`, which the org "Protect Main" ruleset rejects, so Tier 2 never cut a release.
+  It now goes on `ci/promote-vX.Y.Z` with an auto-merged PR; the Release run on the squash-merged promotion commit tags, builds and deploys that version.
+  That recognition replaces the old bot-author loop guard, which a squash merge (PAT author, ` (#N)` suffix) would not have matched.
+  A merge landing after the promotion but before its tag does not promote the same version twice.
+- **A Release run that cuts nothing says why.**
+  Each skip writes the reason, the last tag and its age, and the line count under `[Unreleased]` to the job summary, and warns when that section has entries; an already-tagged version gets a notice.
+  The v0.13.0 to v0.14.0 gap went six months behind green runs.
+- **The deploy job's `Create PR and merge` step is safe to rerun.**
+  A rerun after a failed attempt found the old `ci/<image>-vX.Y.Z` branch and open PR, and failed on the plain `git push` before reaching the merge.
+  It now force-pushes the branch and reuses the open PR for it, as the Tier-2 promotion step already did.
+
+### Added (chalupa-brain phase-104)
+
+- `scripts/ci-tests/release-detect-version-test.sh` runs the version-detect step against throwaway repos with a stub `gh`; `validate-infra.yml` runs it when the workflow or the test changes.
+
+### Changed (paper-trading-realism phase-13c — panel descriptions)
+
+- **`Reject share of submitted orders by book` (id 854) narrows its first-reject caveat.**
+  go-schwab-accounts-and-trading now registers every `paper_order_rejects_total` series at zero when a book starts, so `rate()` sees the first reject of a reason after a restart once the zero has been scraped; a reject before Prometheus first scrapes the restarted pod (about 43 s on v0.17.0) is still missed, and until a pod runs that image the old caveat applies to it.
+  The query is unchanged, and its `or` arm now only matters for a pod on an older image.
+- **`Order-to-fill P50 / P95 by book and stage` (id 1005) explains the readings.**
+  An immediate MARKET fill is not 0: the interval includes the sim's write-through of the Submitted and Acknowledged order events plus the sim's own work in between (about 0.06-0.5 s on the cluster; the split is not measured), and does not include the fill's own persist.
+  Only the description changed; the JSON is regenerated.
+
 ### Added (paper-trading-realism phase-13b — fill-quality panels)
 
 - **Three panels on the paper-trading dashboard** (generated from `scripts/dashboards/`, JSON regenerated):
