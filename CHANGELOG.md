@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed (retire the `ddowell-limit-example` paper book)
+
+- **`ddowell-limit-example` is removed from go-paper-trader's books.**
+  The book ran out of buying power and `limit_example` retried the refused BUY on every quote: 360 `risk_buying_power` rejects in one hour on 2026-11-17 and no fills in 30 days, which fired `PaperTraderStrategyStuck` at each market open.
+  It was a test book for the LIMIT order lifecycle; its rows in `paper_orders`, `paper_fills` and `paper_positions` stay as history.
+  The "Working orders" dashboard row has no book feeding it until another LIMIT-using book exists.
+  The strategy's missing terminal-reject handling is fixed separately in go-schwab-accounts-and-trading (brain prompt `strategy-research/phase-8b-limit-example-terminal-reject-latch`).
+
 ### Changed (strategy-research phase-6 — equity summary table)
 
 - **The `grafana` database role's `statement_timeout = 30s` is now in the timescaledb chart** (`values.database.grafanaStatementTimeout`, applied in `timescaledb-init-roles`), so a rebuilt cluster has it.
