@@ -272,7 +272,7 @@ jobs:
           # Force: a rerun after a failed earlier attempt finds the branch.
           git push --force origin "HEAD:refs/heads/$BRANCH"
 
-          PR_URL=$(gh pr list -R "$REPO" --head "$BRANCH" --state open --json url --jq '.[0].url // empty')
+          PR_URL=$(gh pr list -R "$REPO" --head "$BRANCH" --base main --state open --json url --jq '.[0].url // empty')
           if [[ -z "$PR_URL" ]]; then
             PR_URL=$(gh pr create -R "$REPO" \
               --title "$TITLE" \

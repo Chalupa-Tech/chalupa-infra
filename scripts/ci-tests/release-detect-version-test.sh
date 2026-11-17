@@ -41,7 +41,15 @@ cat > "$WORK/bin/gh" <<'EOF'
 echo "gh $*" >> "$GH_LOG"
 case "$1 $2" in
   "pr list")
-    if [[ "$*" == *"--head"* ]]; then echo "${GH_EXISTING_PR:-}"; fi ;;
+    if [[ "$*" == *"--head"* ]]; then
+      # GH_OTHER_BASE_PR: an open PR for the head branch that targets another
+      # base. Only a lookup that does not pass `--base main` can see it.
+      if [[ -n "${GH_OTHER_BASE_PR:-}" && "$*" != *"--base main"* ]]; then
+        echo "$GH_OTHER_BASE_PR"
+      else
+        echo "${GH_EXISTING_PR:-}"
+      fi
+    fi ;;
   "pr create") echo "https://github.com/o/r/pull/42" ;;
   "pr merge")
     # GH_AUTO_ERR: what `--auto` is refused with; a direct merge succeeds.
@@ -394,6 +402,19 @@ GH_EXISTING_PR=https://github.com/o/r/pull/7 GH_AUTO_ERR="$CLEAN_ERR" run_deploy
 check "exit 0" rc_is 0
 check "no second PR" lacks gh "gh pr create"
 check "direct merge of the existing PR" has gh "gh pr merge https://github.com/o/r/pull/7 --squash --delete-branch"
+
+# 18. Promotion lookup: an open PR from the promotion branch that targets
+# another base is not reused or merged; a PR into main is created instead.
+new_case promote-other-base
+changelog "### Added
+- thing" "## [0.13.0] - 2026-05-18"
+commit "feat(book): thing (#91)"
+GH_OTHER_BASE_PR=https://github.com/o/r/pull/9 run_step
+check "exit 0" rc_is 0
+check "looks for the branch's open PR into main only" has gh "gh pr list -R o/r --head ci/promote-v0.14.0 --base main --state open"
+check "creates its own PR" has gh "gh pr create -R o/r --title chore: promote Unreleased to v0.14.0"
+check "never merges the other-base PR" lacks gh "gh pr merge https://github.com/o/r/pull/9"
+check "merges the PR into main" has gh "gh pr merge https://github.com/o/r/pull/42 -R o/r --squash --auto --delete-branch"
 
 echo "release-detect-version: $PASS passed, $FAIL failed"
 [[ "$FAIL" == 0 ]]
