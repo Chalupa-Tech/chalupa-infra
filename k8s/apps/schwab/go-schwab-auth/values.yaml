@@ -29,7 +29,7 @@ resources:
 watcher:
   image:
     repository: chalupa-tech/go-schwab-auth-token-watcher
-    tag: v0.5.0
+    tag: v0.7.0
   schedule: "*/15 * * * *"
   resources:
     requests:
