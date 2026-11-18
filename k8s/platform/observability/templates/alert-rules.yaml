@@ -358,7 +358,10 @@ spec:
         #   3. etcd: no snapshot uploaded to MinIO by any server in 48h
         #      (k3s snapshots every 12h; job="apiserver" counts each server
         #      once). A failed upload alone is not an alert: the next one
-        #      may succeed, and one server's snapshot restores the cluster;
+        #      may succeed, and one server's snapshot restores the cluster.
+        #      The success series exists only after a k3s process's first
+        #      upload, so "never" is absent_over_time over 48h; a plain
+        #      absent() would fire after every k3s restart;
         #   4. OpenBao: the daily openbao-snapshot CronJob has not succeeded
         #      in 48h, or has never succeeded. A failed run also fires
         #      CronJobFailed; this clause catches a job that stops running.
@@ -368,7 +371,7 @@ spec:
             or absent(cnpg_collector_last_available_backup_timestamp{namespace="schwab-ddowell"})
             or (max(cnpg_collector_pg_wal_archive_status{namespace="schwab-ddowell",value="ready"}) > 64)
             or (sum(increase(k3s_etcd_snapshot_save_s3_duration_seconds_count{job="apiserver",status="success"}[48h])) < 1)
-            or absent(k3s_etcd_snapshot_save_s3_duration_seconds_count{job="apiserver",status="success"})
+            or absent_over_time(k3s_etcd_snapshot_save_s3_duration_seconds_count{job="apiserver",status="success"}[48h])
             or (time() - max(kube_cronjob_status_last_successful_time{namespace="openbao",cronjob="openbao-snapshot"}) > 48 * 3600)
             or absent(kube_cronjob_status_last_successful_time{namespace="openbao",cronjob="openbao-snapshot"})
           for: 1h
