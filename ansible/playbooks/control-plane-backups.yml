@@ -12,7 +12,7 @@
 # does not come back ready, or cannot upload a snapshot, stops the run
 # with the other two still serving.
 
-- name: etcd snapshot offload (rolling, one server at a time)
+- name: Offload etcd snapshots to MinIO (rolling, one server at a time)
   hosts: k3s_servers:k3s_ha_servers:k3s_oci_servers
   become: true
   serial: 1
