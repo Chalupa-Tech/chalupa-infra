@@ -56,3 +56,16 @@ openbao:
       enabled: true
     image:
       tag: "2.3.1"
+
+# Daily Raft snapshot to MinIO on fw1 (platform phase-94). The policy,
+# Kubernetes auth role and MinIO key are set by the openbao_setup Ansible
+# role (tasks/snapshot_setup.yml); MinIO expires objects after 14 days.
+snapshot:
+  enabled: true
+  schedule: "30 3 * * *"
+  baoAddr: http://openbao-active.openbao.svc:8200
+  authRole: openbao-snapshot-role
+  minioKeyPath: platform/openbao-snapshot/minio
+  s3Endpoint: http://192.168.2.51:9000
+  bucket: openbao-snapshots
+  curlImage: curlimages/curl:8.11.1

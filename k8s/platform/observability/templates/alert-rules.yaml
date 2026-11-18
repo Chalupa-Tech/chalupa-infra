@@ -345,26 +345,38 @@ spec:
           annotations:
             summary: "{{ "{{" }} $labels.job {{ "}}" }} unhealthy within 10m of a deploy"
             description: "Scrape job {{ "{{" }} $labels.job {{ "}}" }} (pod {{ "{{" }} $labels.pod {{ "}}" }} in {{ "{{" }} $labels.namespace {{ "}}" }}) has up==0 and its pod was created less than 10 minutes ago. Likely a botched deploy — inspect recent chalupa-infra merges and ArgoCD sync history."
-        # The one database-backup alert (platform phase-93). Velero failed
-        # silently for 3.5 months in 2026 because fw1 (MinIO) was powered off.
-        # Three ways to be unhealthy, one rule:
-        #   1. no successful base backup in 48h (the metric is 0 until the
-        #      first backup, so this also covers "never backed up");
-        #   2. the metric is missing, so backup age cannot be known;
-        #   3. more than 64 WAL segments (~1 GiB) are waiting to be archived.
-        #      WAL that cannot reach MinIO piles up on the 10Gi data volume
-        #      and stops Postgres when it fills, well inside 48h.
-        - alert: TimescaleDBBackupUnhealthy
+        # The one backup alert (platform phase-93, extended in phase-94).
+        # Velero failed silently for 3.5 months in 2026 because fw1 (MinIO)
+        # was powered off. Every backup lands on MinIO on fw1, so one rule
+        # covers them all; the description says where to look for each.
+        #   1. TimescaleDB: no successful base backup in 48h (the metric is
+        #      0 until the first backup, so this also covers "never backed
+        #      up"), or the metric is missing;
+        #   2. TimescaleDB: more than 64 WAL segments (~1 GiB) waiting to be
+        #      archived. WAL that cannot reach MinIO piles up on the 10Gi
+        #      data volume and stops Postgres when it fills, well inside 48h;
+        #   3. etcd: no snapshot uploaded to MinIO by any server in 48h
+        #      (k3s snapshots every 12h; job="apiserver" counts each server
+        #      once). A failed upload alone is not an alert: the next one
+        #      may succeed, and one server's snapshot restores the cluster;
+        #   4. OpenBao: the daily openbao-snapshot CronJob has not succeeded
+        #      in 48h, or has never succeeded. A failed run also fires
+        #      CronJobFailed; this clause catches a job that stops running.
+        - alert: BackupsUnhealthy
           expr: |
             (time() - max(cnpg_collector_last_available_backup_timestamp{namespace="schwab-ddowell"}) > 48 * 3600)
             or absent(cnpg_collector_last_available_backup_timestamp{namespace="schwab-ddowell"})
             or (max(cnpg_collector_pg_wal_archive_status{namespace="schwab-ddowell",value="ready"}) > 64)
+            or (sum(increase(k3s_etcd_snapshot_save_s3_duration_seconds_count{job="apiserver",status="success"}[48h])) < 1)
+            or absent(k3s_etcd_snapshot_save_s3_duration_seconds_count{job="apiserver",status="success"})
+            or (time() - max(kube_cronjob_status_last_successful_time{namespace="openbao",cronjob="openbao-snapshot"}) > 48 * 3600)
+            or absent(kube_cronjob_status_last_successful_time{namespace="openbao",cronjob="openbao-snapshot"})
           for: 1h
           labels:
             severity: warning
           annotations:
-            summary: "TimescaleDB backups are unhealthy"
-            description: "No successful database backup in 48h, or WAL is not reaching MinIO on fw1 (http://192.168.2.51:9000). Check that fw1 is powered on, then `kubectl -n schwab-ddowell get backups.postgresql.cnpg.io` and the ContinuousArchiving condition on cluster/timescaledb. If fw1 will stay down, disable archiving before the data volume fills — see docs/runbooks/cluster-cold-recovery.md in chalupa-brain."
+            summary: "A backup to MinIO on fw1 is unhealthy"
+            description: "One of: no TimescaleDB base backup in 48h or WAL not reaching MinIO; no etcd snapshot uploaded in 48h; no successful OpenBao snapshot in 48h. All three write to MinIO on fw1 (http://192.168.2.51:9000), so first check that fw1 is powered on. Then: `kubectl -n schwab-ddowell get backups.postgresql.cnpg.io` and the ContinuousArchiving condition on cluster/timescaledb; `kubectl get etcdsnapshotfiles.k3s.cattle.io` for s3 entries; `kubectl -n openbao get jobs` and the openbao-snapshot job logs. If fw1 will stay down, disable WAL archiving before the database volume fills. See docs/runbooks/cluster-cold-recovery.md in chalupa-brain."
 
 
     # ── Info ─────────────────────────────────────────────────────────

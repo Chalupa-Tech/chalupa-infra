@@ -32,3 +32,16 @@
     name: minio
     state: started
     enabled: true
+
+- name: Restart MinIO now if its environment changed
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for the MinIO API
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ minio_api_port }}"
+    timeout: 60
+
+- name: Configure buckets and scoped users
+  ansible.builtin.include_tasks: access.yml
+  tags: [minio, minio-access]

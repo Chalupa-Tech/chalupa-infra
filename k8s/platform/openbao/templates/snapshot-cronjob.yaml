@@ -1,0 +1,131 @@
+{{- if .Values.snapshot.enabled }}
+# Daily OpenBao Raft snapshot to MinIO (platform phase-94).
+#
+# 1. snapshot (OpenBao image): log in with this pod's ServiceAccount through
+#    Kubernetes auth, save a Raft snapshot, check it is a readable archive,
+#    read the MinIO key, revoke the token.
+# 2. upload (curl image): PUT the file into the openbao-snapshots bucket
+#    with SigV4. The MinIO user can only put objects; MinIO expires them.
+#
+# Failure is caught by CronJobFailed; a job that stops running at all is
+# caught by the staleness clause in BackupsUnhealthy.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: openbao-snapshot
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: openbao-snapshot
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ .Values.snapshot.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 900
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: openbao-snapshot
+        spec:
+          serviceAccountName: openbao-snapshot
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            fsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+            - name: snapshot
+              image: "quay.io/openbao/openbao:{{ .Values.openbao.server.image.tag }}"
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  export BAO_ADDR={{ .Values.snapshot.baoAddr }}
+                  BAO_TOKEN=$(bao write -field=token auth/kubernetes/login \
+                    role={{ .Values.snapshot.authRole }} \
+                    jwt=@/var/run/secrets/kubernetes.io/serviceaccount/token)
+                  export BAO_TOKEN
+                  bao operator raft snapshot save /work/openbao.snap
+                  echo "snapshot: $(wc -c < /work/openbao.snap) bytes"
+                  tar -tzf /work/openbao.snap
+                  bao kv get -mount=secret -field=access_key {{ .Values.snapshot.minioKeyPath }} > /creds/access_key
+                  bao kv get -mount=secret -field=secret_key {{ .Values.snapshot.minioKeyPath }} > /creds/secret_key
+                  bao token revoke -self
+              env:
+                - name: HOME
+                  value: /tmp
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+                - name: creds
+                  mountPath: /creds
+                - name: tmp
+                  mountPath: /tmp
+          containers:
+            - name: upload
+              image: {{ .Values.snapshot.curlImage | quote }}
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  name="openbao-$(date -u +%Y%m%dT%H%M%SZ).snap"
+                  curl --fail-with-body -sS \
+                    --aws-sigv4 "aws:amz:us-east-1:s3" \
+                    --user "$(cat /creds/access_key):$(cat /creds/secret_key)" \
+                    -H "x-amz-content-sha256: UNSIGNED-PAYLOAD" \
+                    -T /work/openbao.snap \
+                    "{{ .Values.snapshot.s3Endpoint }}/{{ .Values.snapshot.bucket }}/${name}"
+                  echo "uploaded ${name}"
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  cpu: 200m
+                  memory: 64Mi
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+                  readOnly: true
+                - name: creds
+                  mountPath: /creds
+                  readOnly: true
+          volumes:
+            - name: work
+              emptyDir:
+                sizeLimit: 256Mi
+            - name: creds
+              emptyDir:
+                medium: Memory
+                sizeLimit: 1Mi
+            - name: tmp
+              emptyDir:
+                sizeLimit: 16Mi
+{{- end }}
