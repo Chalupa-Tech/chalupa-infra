@@ -1,0 +1,42 @@
+---
+# Every etcd member answers healthy on its metrics port and none is a
+# learner. Run before and after each server's k3s restart, so a roll never
+# takes a second member down while one is missing.
+
+- name: List etcd member addresses
+  ansible.builtin.command: >-
+    k3s kubectl get nodes -l node-role.kubernetes.io/etcd=true
+    -o jsonpath='{range .items[*]}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}'
+  register: k3s_hardening_etcd_ips
+  until: k3s_hardening_etcd_ips.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Expect every etcd member to be listed
+  ansible.builtin.assert:
+    that:
+      - k3s_hardening_etcd_ips.stdout_lines | length == k3s_hardening_etcd_member_count
+    fail_msg: >-
+      Found {{ k3s_hardening_etcd_ips.stdout_lines | length }} etcd nodes, expected
+      {{ k3s_hardening_etcd_member_count }}. Not restarting anything.
+
+- name: Wait for each etcd member to report healthy
+  ansible.builtin.uri:
+    url: "http://{{ item }}:2381/health"
+    return_content: true
+  loop: "{{ k3s_hardening_etcd_ips.stdout_lines }}"
+  register: k3s_hardening_etcd_health
+  until: (k3s_hardening_etcd_health.json.health | default('false')) == 'true'
+  retries: 30
+  delay: 10
+
+- name: Wait for each etcd member to be a voter, not a learner
+  ansible.builtin.uri:
+    url: "http://{{ item }}:2381/metrics"
+    return_content: true
+  loop: "{{ k3s_hardening_etcd_ips.stdout_lines }}"
+  register: k3s_hardening_etcd_metrics
+  until: "'\\netcd_server_is_learner 0\\n' in k3s_hardening_etcd_metrics.content"
+  retries: 30
+  delay: 10

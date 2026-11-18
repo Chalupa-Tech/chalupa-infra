@@ -23,6 +23,22 @@
         name: k3s_hardening
         tasks_from: etcd_snapshots
 
+    # The first phase-94 run named its check snapshots verify-s3-*, which
+    # retention (prefix etcd-snapshot) never prunes. Deleting the
+    # ETCDSnapshotFile record does not delete the file, so delete by name.
+    - name: Remove the first run's verify-s3 snapshots
+      ansible.builtin.shell: |
+        set -o pipefail
+        names=$(k3s etcd-snapshot ls 2>/dev/null | awk '$1 ~ /^verify-s3-/ {print $1}' | sort -u)
+        if [ -z "$names" ]; then exit 0; fi
+        echo "$names"
+        k3s etcd-snapshot delete $names
+      args:
+        executable: /bin/bash
+      register: control_plane_backups_cleanup
+      changed_when: control_plane_backups_cleanup.stdout | length > 0
+      failed_when: false
+
 - name: OpenBao snapshot writer
   hosts: k3s_servers
   become: true

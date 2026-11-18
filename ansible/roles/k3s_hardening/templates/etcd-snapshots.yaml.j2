@@ -2,6 +2,7 @@
 # Deployed by k3s_hardening role — do not edit manually
 etcd-snapshot-schedule-cron: "{{ k3s_etcd_snapshot_schedule }}"
 etcd-snapshot-retention: {{ k3s_etcd_snapshot_retention }}
+etcd-s3-retention: {{ k3s_hardening_etcd_s3_retention }}
 etcd-s3: true
 etcd-s3-endpoint: "{{ k3s_etcd_s3_endpoint }}"
 etcd-s3-bucket: "{{ k3s_etcd_s3_bucket }}"

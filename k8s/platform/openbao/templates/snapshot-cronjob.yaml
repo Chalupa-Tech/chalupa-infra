@@ -58,8 +58,12 @@ spec:
                   bao operator raft snapshot save /work/openbao.snap
                   echo "snapshot: $(wc -c < /work/openbao.snap) bytes"
                   tar -tzf /work/openbao.snap
-                  bao kv get -mount=secret -field=access_key {{ .Values.snapshot.minioKeyPath }} > /creds/access_key
-                  bao kv get -mount=secret -field=secret_key {{ .Values.snapshot.minioKeyPath }} > /creds/secret_key
+                  # The key goes into a curl config file (mode 0600, in-memory
+                  # volume), never into a command line.
+                  umask 077
+                  ak=$(bao kv get -mount=secret -field=access_key {{ .Values.snapshot.minioKeyPath }})
+                  sk=$(bao kv get -mount=secret -field=secret_key {{ .Values.snapshot.minioKeyPath }})
+                  printf 'user = "%s:%s"\n' "$ak" "$sk" > /creds/curlrc
               env:
                 - name: HOME
                   value: /tmp
@@ -92,7 +96,7 @@ spec:
                   name="openbao-$(date -u +%Y%m%dT%H%M%SZ).snap"
                   curl --fail-with-body -sS \
                     --aws-sigv4 "aws:amz:us-east-1:s3" \
-                    --user "$(cat /creds/access_key):$(cat /creds/secret_key)" \
+                    -K /creds/curlrc \
                     -H "x-amz-content-sha256: UNSIGNED-PAYLOAD" \
                     -T /work/openbao.snap \
                     "{{ .Values.snapshot.s3Endpoint }}/{{ .Values.snapshot.bucket }}/${name}"

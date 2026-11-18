@@ -2,8 +2,11 @@
 # etcd snapshot offload to MinIO S3 (platform phase-94).
 # Included per server from playbooks/control-plane-backups.yml (serial: 1)
 # and from bootstrap.yml. Each server restarts k3s once if the config
-# changed, waits for its API to be ready, then proves an upload works
-# before the play moves to the next server.
+# changed, waits for every etcd member to be healthy again, then proves an
+# upload works before the play moves to the next server.
+
+- name: Check every etcd member before touching this server
+  ansible.builtin.include_tasks: etcd_health.yml
 
 - name: Ensure K3s config drop-in directory exists
   ansible.builtin.file:
@@ -26,6 +29,9 @@
 - name: Restart k3s now if the snapshot config changed
   ansible.builtin.meta: flush_handlers
 
+- name: Check every etcd member after the restart
+  ansible.builtin.include_tasks: etcd_health.yml
+
 - name: Wait for this server's API to be ready
   ansible.builtin.command: k3s kubectl get --raw=/readyz
   register: k3s_hardening_readyz
@@ -34,9 +40,10 @@
   delay: 10
   changed_when: false
 
+# The name keeps the etcd-snapshot prefix so retention prunes it later.
 - name: Take a snapshot and upload it to MinIO
   ansible.builtin.command: >-
-    k3s etcd-snapshot save --name verify-s3-{{ ansible_facts['date_time']['epoch'] }}
+    k3s etcd-snapshot save --name etcd-snapshot-verify-{{ ansible_facts['date_time']['epoch'] }}
   when: k3s_etcd_snapshot_enabled
   changed_when: true
 
@@ -45,7 +52,7 @@
     set -o pipefail &&
     k3s etcd-snapshot ls 2>/dev/null
     | grep 's3://{{ k3s_etcd_s3_bucket }}/'
-    | grep -c 'verify-s3-{{ ansible_facts['date_time']['epoch'] }}'
+    | grep -c 'etcd-snapshot-verify-{{ ansible_facts['date_time']['epoch'] }}'
   args:
     executable: /bin/bash
   register: k3s_hardening_s3_check
