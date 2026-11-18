@@ -3,11 +3,14 @@
 # Manages: NAS mount (fstab), MinIO environment, service restart.
 # MinIO binary assumed pre-installed.
 
+# Only before the first mount: once the NFS share is mounted here, chmod on
+# it fails with EPERM (root squash), which made the role fail on every re-run.
 - name: Ensure NAS mountpoint exists
   ansible.builtin.file:
     path: "{{ minio_nas_mountpoint }}"
     state: directory
     mode: "0755"
+  when: minio_nas_mountpoint not in (ansible_facts['mounts'] | map(attribute='mount') | list)
 
 - name: Configure NAS mount in fstab
   ansible.posix.mount:
