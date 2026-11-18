@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (strategy-research phase-6b — dashboard reads `paper_equity`)
+
+- **The Paper Trading dashboard's equity queries read `paper_equity`** instead of joining `paper_cash` to `paper_positions` (`cte.Equity` in `scripts/dashboards`; `paper-trading.json` regenerated).
+  Six panels use it (equity curve, equity multiple, returns, Sharpe/Sortino and the like); `Live positions` is unchanged.
+  The trader's v0.19.0 writes one `paper_equity` row per book per minute at the last known mark, and `backfill-equity` filled the history on 2026-11-17 (about 1.46M rows, 50 sampled snapshots per book matched the old join to the cent).
+  Measured against the live table, a 30-day range at 30-minute buckets returns 1,441 points for each of 5 books in under a second with `timescaledb-1` memory unchanged.
+  The equity-curve panel description now says where the number comes from.
+- **90-day retention on `paper_positions` / `paper_cash` is not attached.**
+  `backfill-equity --attach-retention` refused: 90 minutes on 2026-04-19 for `ddowell-alt-30s` and `-alt-60s`, and 244 minutes on 2026-04-18 for `ddowell-alt-v03`, have a snapshot with a zero-mark position and no `paper_equity` row.
+  Compression (attached by v0.19.0) already took `paper_positions` from 2,598 MB to 181 MB and `paper_cash` from 328 MB to 6.9 MB.
+
 ### Added (strategy-research phase-6b — database jobs)
 
 - **`go-paper-trader-equity-backfill` CronJob** (`k8s/apps/schwab/go-paper-trader/templates/equity-backfill-cronjob.yaml`, values `equityBackfill`).
