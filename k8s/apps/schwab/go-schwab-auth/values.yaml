@@ -8,6 +8,10 @@ vault:
 
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
+  # Replica count for the JetStream stream this service declares (NATS_STREAM_REPLICAS).
+  # 3 = one per NATS member, so the stream survives losing one member.
+  # go-schwab-auth and go-notify both declare SCHWAB_TOKENS; keep them equal.
+  streamReplicas: 3
 
 service:
   port: 8080
@@ -25,7 +29,7 @@ resources:
 watcher:
   image:
     repository: chalupa-tech/go-schwab-auth-token-watcher
-    tag: v0.5.0
+    tag: v0.7.0
   schedule: "*/15 * * * *"
   resources:
     requests:
