@@ -3,7 +3,7 @@
 #
 # 1. snapshot (OpenBao image): log in with this pod's ServiceAccount through
 #    Kubernetes auth, save a Raft snapshot, check it is a readable archive,
-#    read the MinIO key, revoke the token.
+#    read the MinIO key. The token expires after 10 minutes.
 # 2. upload (curl image): PUT the file into the openbao-snapshots bucket
 #    with SigV4. The MinIO user can only put objects; MinIO expires them.
 #
@@ -60,7 +60,6 @@ spec:
                   tar -tzf /work/openbao.snap
                   bao kv get -mount=secret -field=access_key {{ .Values.snapshot.minioKeyPath }} > /creds/access_key
                   bao kv get -mount=secret -field=secret_key {{ .Values.snapshot.minioKeyPath }} > /creds/secret_key
-                  bao token revoke -self
               env:
                 - name: HOME
                   value: /tmp
