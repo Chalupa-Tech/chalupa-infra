@@ -1,22 +1,24 @@
 // Package cte holds shared SQL CTEs reused across multiple panels.
 //
 // Conventions:
-//   - Every CTE that joins paper_cash and paper_positions MUST use the
-//     exact join key `pc.time = pos.time AND pc.book_id = pos.book_id` —
-//     no time_bucket on the join. See the paper_cash_positions_join_key
+//   - Performance panels read paper_equity, the per-minute equity summary
+//     the trader writes (one row per book per minute, never retained
+//     away). Do not rebuild equity from paper_cash and paper_positions:
+//     paper_positions grows by tens of thousands of rows a day, and an
+//     unbounded `GROUP BY time, book_id` over it OOM-killed TimescaleDB on
+//     2026-11-13. Use Equity.
+//   - A panel that does need a paper_cash / paper_positions join (Live
+//     positions) MUST use the exact join key
+//     `pc.time = pos.time AND pc.book_id = pos.book_id`, no time_bucket on
+//     the join, and bound it in time. See the paper_cash_positions_join_key
 //     memory.
-//   - Never aggregate paper_positions without a time bound. The table
-//     grows by tens of thousands of rows a day; an unbounded
-//     `GROUP BY time, book_id` over it OOM-killed TimescaleDB on
-//     2026-11-13. Use Equity, which samples one snapshot per bucket from
-//     paper_cash and looks positions up for those snapshots only.
 //   - Variable interpolation uses Grafana's $book_id, $strategy,
 //     $__timeFilter(time) — preserved verbatim in the SQL strings.
 package cte
 
 // PanelBucket is a time_bucket width matched to the panel's resolution
-// (Grafana's $__interval_ms), floored at 60s because snapshots are
-// written about once a minute.
+// (Grafana's $__interval_ms), floored at 60s because paper_equity has
+// one row per book per minute.
 const PanelBucket = "make_interval(secs => GREATEST($__interval_ms, 60000) / 1000.0)"
 
 // InRange restricts a scan to the dashboard's visible time range.
@@ -27,20 +29,17 @@ const InRange = "$__timeFilter(time)"
 const lookback31d = "time >= $__timeFrom()::timestamptz - interval '31 days'" +
 	" AND time <= $__timeTo()::timestamptz"
 
-// Equity returns the CTE pair `sample`, `equity_ts` (no leading WITH).
+// Equity returns the CTE `equity_ts` (no leading WITH).
 // equity_ts columns: bucket, time, book_id, equity.
 //
-// It picks the last paper_cash snapshot in each bucket per book, then
-// reads paper_positions for exactly those (book_id, time) pairs through
-// the (book_id, time, symbol) index, so the cost scales with the number
-// of chart points, not with table size. The join stays on the exact
-// snapshot time.
+// It reads paper_equity and keeps the last row in each bucket per book,
+// so the cost scales with the number of chart points, not with the size
+// of paper_cash or paper_positions. The trader values every position at
+// its last known mark, so a minute with no fresh quote (off-hours) holds
+// its last equity instead of falling to cash, and no zero-mark filter is
+// needed here.
 //
-// Snapshots where a held position has mark_price = 0 are dropped: the
-// trader records a zero mark when it has no fresh quote (outside market
-// hours), and counting those makes equity fall to the cash balance.
-//
-// rangePred is a predicate on paper_cash.time (InRange or a lookback);
+// rangePred is a predicate on paper_equity.time (InRange or a lookback);
 // bucket is a time_bucket width expression; filterBooks adds the
 // $book_id filter.
 func Equity(rangePred, bucket string, filterBooks bool) string {
@@ -48,22 +47,12 @@ func Equity(rangePred, bucket string, filterBooks bool) string {
 	if filterBooks {
 		books = " AND book_id IN ($book_id)"
 	}
-	return "sample AS (" +
-		"  SELECT book_id, time_bucket(" + bucket + ", time) AS bucket, MAX(time) AS time" +
-		"  FROM paper_cash" +
+	return "equity_ts AS (" +
+		"  SELECT time_bucket(" + bucket + ", time) AS bucket," +
+		"         MAX(time) AS time, book_id, LAST(equity, time) AS equity" +
+		"  FROM paper_equity" +
 		"  WHERE " + rangePred + books +
 		"  GROUP BY book_id, bucket" +
-		"), equity_ts AS (" +
-		"  SELECT s.bucket, s.time, s.book_id, pc.cash + COALESCE(pos.equity, 0) AS equity" +
-		"  FROM sample s" +
-		"  JOIN paper_cash pc ON pc.book_id = s.book_id AND pc.time = s.time" +
-		"  LEFT JOIN LATERAL (" +
-		"    SELECT SUM(pp.quantity * pp.mark_price) AS equity," +
-		"           BOOL_OR(pp.quantity != 0 AND pp.mark_price = 0) AS unmarked" +
-		"    FROM paper_positions pp" +
-		"    WHERE pp.book_id = s.book_id AND pp.time = s.time" +
-		"  ) pos ON true" +
-		"  WHERE NOT COALESCE(pos.unmarked, false)" +
 		")"
 }
 

@@ -44,8 +44,9 @@ func equityCurveByBook(y int) *timeseries.PanelBuilder {
 		Id(601).
 		Title("Equity curve (cash + mark) by book").
 		Description(
-			"Total per-book account value over time: cash + sum(qty × " +
-				"mark_price). Compare books using the equity-multiple panel " +
+			"Total per-book account value over time, read from paper_equity " +
+				"(cash + positions at their last known mark, one row per book " +
+				"per minute). Compare books using the equity-multiple panel " +
 				"below — raw USD curves mislead when books start at different " +
 				"wall-clock times (a 14-day-old book and a 1-day-old book on " +
 				"the same axis will show a structural gap unrelated to " +
