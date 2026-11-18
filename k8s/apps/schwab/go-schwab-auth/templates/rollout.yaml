@@ -57,6 +57,8 @@ spec:
               value: "{{ .Release.Namespace }}-auth-role"
             - name: NATS_URL
               value: {{ .Values.nats.url | quote }}
+            - name: NATS_STREAM_REPLICAS
+              value: {{ .Values.nats.streamReplicas | quote }}
             - name: EXTERNAL_URL
               value: "https://schwab-auth.chalupatech.com"
             - name: METRICS_PORT

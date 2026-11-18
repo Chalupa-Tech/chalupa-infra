@@ -9,6 +9,10 @@ image:
 
 nats:
   url: "nats://nats.nats.svc.cluster.local:4222"
+  # Replica count for the JetStream stream this service declares (NATS_STREAM_REPLICAS).
+  # 3 = one per NATS member, so the stream survives losing one member.
+  # go-schwab-auth and go-notify both declare SCHWAB_TOKENS; keep them equal.
+  streamReplicas: 3
 
 metrics:
   port: 9090

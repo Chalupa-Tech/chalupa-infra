@@ -48,6 +48,8 @@ spec:
                   value: "http://$(HOST_IP):4317"
                 - name: NATS_URL
                   value: {{ .Values.nats.url | quote }}
+                - name: NATS_STREAM_REPLICAS
+                  value: {{ .Values.nats.streamReplicas | quote }}
                 - name: SCHWAB_REGISTRATION
                   value: {{ .Values.schwab.registration | quote }}
                 - name: VAULT_ADDR
