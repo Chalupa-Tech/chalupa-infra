@@ -83,10 +83,14 @@
     label: "{{ item.policy }}"
   changed_when: false
 
+# The secret goes on stdin: fw1 is also a cluster node, and a command-line
+# argument is readable from /proc by anything sharing the host PID namespace.
 - name: Create users
-  ansible.builtin.command: >-
-    {{ minio_server_mc_bin }} -C {{ minio_server_mc_config_dir }}
-    admin user add local {{ item.access_key }} {{ item.secret_key }}
+  ansible.builtin.command:
+    cmd: >-
+      {{ minio_server_mc_bin }} -C {{ minio_server_mc_config_dir }}
+      admin user add local {{ item.access_key }}
+    stdin: "{{ item.secret_key }}"
   loop: "{{ minio_server_scoped_users }}"
   loop_control:
     label: "{{ item.access_key }}"
