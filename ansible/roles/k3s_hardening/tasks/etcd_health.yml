@@ -4,10 +4,10 @@
 # roll never takes a second member down while one is missing.
 
 # etcd's own list, not Kubernetes': a stale voter with no Node still counts
-# toward quorum.
+# toward quorum. k3s keeps 2379 for gRPC; etcd's HTTP API is on 2382.
 - name: Wait for etcd to list exactly the expected voters
   ansible.builtin.uri:
-    url: https://127.0.0.1:2379/v3/cluster/member/list
+    url: https://127.0.0.1:2382/v3/cluster/member/list
     method: POST
     body_format: json
     body: "{}"
