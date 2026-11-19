@@ -37,7 +37,6 @@
         executable: /bin/bash
       register: control_plane_backups_cleanup
       changed_when: control_plane_backups_cleanup.stdout | length > 0
-      failed_when: false
 
 - name: OpenBao snapshot writer
   hosts: k3s_servers

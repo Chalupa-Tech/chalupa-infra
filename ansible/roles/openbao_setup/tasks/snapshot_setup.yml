@@ -28,7 +28,6 @@
           capabilities = ["read"]
         }
     status_code: [200, 204]
-    validate_certs: false
   no_log: true
 
 - name: Write openbao-snapshot K8s auth role
@@ -42,10 +41,10 @@
       bound_service_account_names: [openbao-snapshot]
       bound_service_account_namespaces: [openbao]
       token_policies: [openbao-snapshot-policy]
+      token_no_default_policy: true
       token_ttl: 10m
       token_max_ttl: 10m
     status_code: [200, 204]
-    validate_certs: false
   no_log: true
 
 - name: Seed the snapshot writer's MinIO key at secret/platform/openbao-snapshot/minio
@@ -60,5 +59,4 @@
         access_key: "{{ minio_openbao_snapshot_access_key }}"
         secret_key: "{{ minio_openbao_snapshot_secret_key }}"
     status_code: [200, 204]
-    validate_certs: false
   no_log: true

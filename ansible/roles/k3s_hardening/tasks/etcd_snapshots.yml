@@ -40,7 +40,8 @@
   delay: 10
   changed_when: false
 
-# The name keeps the etcd-snapshot prefix so retention prunes it later.
+# The name keeps the etcd-snapshot prefix, so retention still covers it if
+# the removal below never runs.
 - name: Take a snapshot and upload it to MinIO
   ansible.builtin.command: >-
     k3s etcd-snapshot save --name etcd-snapshot-verify-{{ ansible_facts['date_time']['epoch'] }}
@@ -58,4 +59,16 @@
   register: k3s_hardening_s3_check
   failed_when: k3s_hardening_s3_check.rc != 0
   changed_when: false
+  when: k3s_etcd_snapshot_enabled
+
+# Otherwise each run spends three of the retention slots meant for history.
+- name: Remove the verification snapshot from disk and MinIO
+  ansible.builtin.shell: |
+    set -o pipefail
+    names=$(k3s etcd-snapshot ls 2>/dev/null \
+      | awk '$1 ~ /^etcd-snapshot-verify-{{ ansible_facts['date_time']['epoch'] }}-/ {print $1}' | sort -u)
+    k3s etcd-snapshot delete $names
+  args:
+    executable: /bin/bash
+  changed_when: true
   when: k3s_etcd_snapshot_enabled
