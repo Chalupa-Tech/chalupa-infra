@@ -281,6 +281,7 @@
       "description": "Time since the longhorn-mkfs-guard CronJob (every 5m) last succeeded. It re-applies the guard after a Longhorn upgrade; LonghornMkfsGuardNotApplied fires past 30m.",
       "fieldConfig": {
         "defaults": {
+          "noValue": "no data",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -328,7 +329,9 @@
       "targets": [
         {
           "expr": "time() - max(kube_cronjob_status_last_successful_time{namespace=\"longhorn-system\", cronjob=\"longhorn-mkfs-guard\"})",
+          "instant": true,
           "legendFormat": "",
+          "range": false,
           "refId": "A"
         }
       ],
@@ -365,7 +368,7 @@
             "lineWidth": 2,
             "showPoints": "never",
             "thresholdsStyle": {
-              "mode": "dashed"
+              "mode": "off"
             }
           },
           "min": 0,
@@ -375,10 +378,6 @@
               {
                 "color": "transparent",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 100
               }
             ]
           },

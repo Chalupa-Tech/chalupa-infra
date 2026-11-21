@@ -130,7 +130,8 @@ func csiFormatFailures(y int) *stat.PanelBuilder {
 			Calcs([]string{"lastNotNull"}))
 }
 
-// mkfsGuardAge — id 104. LonghornMkfsGuardNotApplied fires past 30m.
+// mkfsGuardAge — id 104. Instant: the current age, not the last value
+// seen in the range. LonghornMkfsGuardNotApplied fires past 30m.
 func mkfsGuardAge(y int) *stat.PanelBuilder {
 	return stat.NewPanelBuilder().
 		Id(104).
@@ -140,8 +141,9 @@ func mkfsGuardAge(y int) *stat.PanelBuilder {
 		Datasource(datasources.Victoria()).
 		WithTarget(query("A",
 			`time() - max(kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="longhorn-mkfs-guard"})`,
-			"")).
+			"").Instant()).
 		Unit("s").
+		NoValue("no data").
 		Thresholds(thresholds.Build([]thresholds.Step{
 			{Color: "green", Value: nil},
 			{Color: "orange", Value: pp(600)},
@@ -154,11 +156,12 @@ func mkfsGuardAge(y int) *stat.PanelBuilder {
 }
 
 // logIngestRate — id 201. Ingest against LogIngestSpike's moving
-// threshold (10x the 1-day median, floor 100 rows/s, ceiling 500).
+// threshold (10x the 1-day median, floor 100 rows/s, ceiling 500),
+// drawn as series B; no static threshold line.
 func logIngestRate(y int) *timeseries.PanelBuilder {
 	return series(201, "VictoriaLogs ingest (rows/s)",
 		"Rows per second VictoriaLogs ingested, and LogIngestSpike's threshold: 10x the 1-day median, never below 100 and never above 500. The alert needs 15m above it.",
-		layout.Pos(0, y, 12, 8), "short", 100).
+		layout.Pos(0, y, 12, 8), "short", 0).
 		WithTarget(query("A", `sum(rate(vl_rows_ingested_total[5m]))`, "ingested")).
 		WithTarget(query("B",
 			`clamp_max(clamp_min(10 * quantile_over_time(0.5, sum(rate(vl_rows_ingested_total[5m]))[1d:5m]), 100), 500)`,
