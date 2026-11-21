@@ -1,0 +1,26 @@
+# Scrape every longhorn-manager pod (platform phase-95).
+# Each manager reports the volumes attached to its own node, so the
+# endpoints of longhorn-backend (one per manager pod) together give one
+# longhorn_volume_* series per volume. Before this, no longhorn_* series
+# existed and the 2026-11-17 engine failure on tpi1 went unseen for 3h.
+#
+# The rest-client and workqueue histograms are ~3,000 of each manager's
+# ~5,000 series and no rule or panel reads them, so they are dropped at
+# scrape time.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: longhorn-manager
+  namespace: longhorn-system
+spec:
+  selector:
+    matchLabels:
+      app: longhorn-manager
+  endpoints:
+    - port: manager
+      path: /metrics
+      interval: 30s
+      metricRelabelConfigs:
+        - action: drop
+          source_labels: [__name__]
+          regex: longhorn_(rest_client|workqueue)_.*

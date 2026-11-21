@@ -24,6 +24,12 @@ vector:
       kubernetes_logs:
         type: kubernetes_logs
 
+      # Vector's own metrics (events in/out, errors, buffers), exposed by
+      # the prom_exporter sink below (platform phase-95).
+      internal_metrics:
+        type: internal_metrics
+        scrape_interval_secs: 15
+
     transforms:
       remap_logs:
         type: remap
@@ -98,7 +104,69 @@ vector:
           # Drop Vector's own internal logs
           .container != "vector"
 
+      # Platform phase-95: log lines per namespace/container, the signal
+      # that would have caught the 2026-11-17 longhorn-manager replay loop
+      # (3.98M lines in 30 minutes) directly. Counts what is shipped to
+      # VictoriaLogs (after filter_noise). The tags are Vector templates;
+      # `{{ "{{ x }}" }}` keeps Helm's tpl pass from evaluating them.
+      log_line_counts:
+        type: log_to_metric
+        inputs:
+          - filter_noise
+        metrics:
+          - type: counter
+            field: message
+            namespace: vector
+            name: pod_log_lines_total
+            tags:
+              log_namespace: '{{ "{{ namespace }}" }}'
+              log_container: '{{ "{{ container }}" }}'
+
+      # Platform phase-95: mount-utils logs "format of disk" only when mkfs
+      # fails, and the phase-97 mkfs guard's refusal is part of that line.
+      # Neither has a legitimate cause, so every such line is counted.
+      csi_format_failures:
+        type: filter
+        inputs:
+          - remap_logs
+        condition: |
+          .container == "longhorn-csi-plugin" && contains(string(.message) ?? "", "format of disk")
+
+      csi_format_failure_volume:
+        type: remap
+        inputs:
+          - csi_format_failures
+        source: |
+          m, err = parse_regex(string(.message) ?? "", r'/dev/longhorn/(?P<volume>pvc-[0-9a-f-]+)')
+          .volume = if err == null { string(m.volume) ?? "unknown" } else { "unknown" }
+
+      csi_format_failure_counts:
+        type: log_to_metric
+        inputs:
+          - csi_format_failure_volume
+        metrics:
+          - type: counter
+            field: message
+            namespace: vector
+            name: longhorn_csi_format_failures_total
+            tags:
+              volume: '{{ "{{ volume }}" }}'
+
     sinks:
+      # Scraped by templates/vmpodscrape.yaml. The chart derives the
+      # container port (named prom-exporter) from this address.
+      # flush_period_secs: a counter not updated for this long is expired;
+      # an hour keeps quiet containers' counters from resetting between
+      # lines.
+      prom_exporter:
+        type: prometheus_exporter
+        inputs:
+          - internal_metrics
+          - log_line_counts
+          - csi_format_failure_counts
+        address: 0.0.0.0:9598
+        flush_period_secs: 3600
+
       victorialogs:
         type: elasticsearch
         inputs:
