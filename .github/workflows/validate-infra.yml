@@ -96,8 +96,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Pinned: ansible/.ansible-lint-ignore is the baseline of violations
+      # that predate it (generated with this version); a new rule in a
+      # newer release would turn every Ansible PR red again.
       - name: Install ansible-lint
-        run: pip install ansible-lint
+        run: pip install ansible-lint==26.3.0 ansible-core==2.20.3
 
       - name: Run ansible-lint
         working-directory: ansible

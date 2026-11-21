@@ -14,14 +14,22 @@ on:
   workflow_dispatch:
     inputs:
       playbook:
-        description: 'Playbook to run (site | docker-node | all)'
+        description: 'Playbook to run (site | minio | backups | docker-node | all)'
         required: false
         default: all
+      tags:
+        description: 'Optional --tags for the cluster playbooks (e.g. offsite-copy)'
+        required: false
+        default: ''
 
 env:
   ANSIBLE_FORCE_COLOR: "1"
   ANSIBLE_HOST_KEY_CHECKING: "False"
   ANSIBLE_REMOTE_USER: "ci"
+  # Hosts CI must not touch. tpi1 is cordoned for session 250's storage
+  # work and tpi3 is no longer a cluster node (TP site removal); both are
+  # still in the inventory for the operator's own runs.
+  CI_LIMIT: "all:!tpi1:!tpi3"
 
 jobs:
   detect-changes:
@@ -29,6 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run_site: ${{ steps.filter.outputs.site }}
+      run_minio: ${{ steps.filter.outputs.minio }}
+      run_backups: ${{ steps.filter.outputs.backups }}
       run_docker: ${{ steps.filter.outputs.docker }}
     steps:
       - uses: actions/checkout@v4
@@ -42,6 +52,8 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             INPUT="${{ github.event.inputs.playbook }}"
             echo "site=$( [ "$INPUT" = "site" ] || [ "$INPUT" = "all" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            echo "minio=$( [ "$INPUT" = "minio" ] || [ "$INPUT" = "all" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            echo "backups=$( [ "$INPUT" = "backups" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
             echo "docker=$( [ "$INPUT" = "docker-node" ] || [ "$INPUT" = "all" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -51,10 +63,18 @@ jobs:
           echo "Changed files: $CHANGED"
 
           SITE=false
+          MINIO=false
           DOCKER=false
 
-          if echo "$CHANGED" | grep -qE '^ansible/(remote/|roles/(openbao_setup|argocd_setup|k3s_install|k3s_config|registry_config|pi_prepare|preflight|user_setup|tailscale_install|tailscale_services)/)'; then
+          # Roles applied by bootstrap.yml. k3s_hardening is there too (the
+          # finalize play and the rolling etcd snapshot play); it was missing,
+          # so its changes never reached the nodes.
+          if echo "$CHANGED" | grep -qE '^ansible/(remote/|roles/(openbao_setup|argocd_setup|k3s_install|k3s_config|k3s_hardening|registry_config|pi_prepare|preflight|user_setup|tailscale_install|tailscale_services)/)'; then
             SITE=true
+          fi
+          # MinIO on fw1 is not in bootstrap.yml: its own playbook.
+          if echo "$CHANGED" | grep -qE '^ansible/roles/minio_server/'; then
+            MINIO=true
           fi
           if echo "$CHANGED" | grep -qE '^ansible/roles/gitea_setup/|^ansible/playbooks/docker-node\.yml'; then
             DOCKER=true
@@ -62,16 +82,22 @@ jobs:
           # Always run both if shared inventory/group_vars changed
           if echo "$CHANGED" | grep -qE '^ansible/(inventory|playbooks)/'; then
             SITE=true
+            MINIO=true
             DOCKER=true
           fi
 
           echo "site=$SITE" >> "$GITHUB_OUTPUT"
+          echo "minio=$MINIO" >> "$GITHUB_OUTPUT"
+          echo "backups=false" >> "$GITHUB_OUTPUT"
           echo "docker=$DOCKER" >> "$GITHUB_OUTPUT"
 
   deploy-cluster:
-    name: Deploy K3s Cluster (bootstrap.yml)
+    name: Deploy K3s Cluster (minio, bootstrap, backups)
     needs: detect-changes
-    if: needs.detect-changes.outputs.run_site == 'true'
+    if: >-
+      needs.detect-changes.outputs.run_site == 'true' ||
+      needs.detect-changes.outputs.run_minio == 'true' ||
+      needs.detect-changes.outputs.run_backups == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,12 +120,52 @@ jobs:
       - name: Write vault password
         run: echo "${{ secrets.ANSIBLE_VAULT_PASS }}" > /tmp/vault-pass.txt && chmod 600 /tmp/vault-pass.txt
 
-      - name: Run bootstrap.yml (k3s_config / openbao_setup / cluster config)
+      # Every cluster playbook connects as the ci user on every host
+      # (-e beats the inventory's ansible_user: ubuntu on oracle1, which
+      # refused CI's key from April to November 2026) and skips CI_LIMIT.
+      # MinIO first: the other playbooks' backups write to it.
+      - name: Run minio.yml (MinIO on fw1, buckets and scoped users)
+        if: needs.detect-changes.outputs.run_minio == 'true'
+        env:
+          TAGS: ${{ github.event.inputs.tags }}
         run: |
           ansible-playbook \
             -i inventory/hosts.yml \
             --vault-password-file /tmp/vault-pass.txt \
+            -e ansible_user=ci \
+            --limit fw1 \
+            ${TAGS:+--tags "$TAGS"} \
+            playbooks/minio.yml
+        working-directory: ${{ github.workspace }}/ansible
+
+      - name: Run bootstrap.yml (k3s_config / openbao_setup / cluster config)
+        if: needs.detect-changes.outputs.run_site == 'true'
+        env:
+          TAGS: ${{ github.event.inputs.tags }}
+        run: |
+          ansible-playbook \
+            -i inventory/hosts.yml \
+            --vault-password-file /tmp/vault-pass.txt \
+            -e ansible_user=ci \
+            --limit "$CI_LIMIT" \
+            ${TAGS:+--tags "$TAGS"} \
             playbooks/bootstrap.yml
+        working-directory: ${{ github.workspace }}/ansible
+
+      # Dispatch only: the etcd and OpenBao backup settings on their own
+      # (bootstrap.yml covers the same roles on push).
+      - name: Run control-plane-backups.yml
+        if: needs.detect-changes.outputs.run_backups == 'true'
+        env:
+          TAGS: ${{ github.event.inputs.tags }}
+        run: |
+          ansible-playbook \
+            -i inventory/hosts.yml \
+            --vault-password-file /tmp/vault-pass.txt \
+            -e ansible_user=ci \
+            --limit "$CI_LIMIT" \
+            ${TAGS:+--tags "$TAGS"} \
+            playbooks/control-plane-backups.yml
         working-directory: ${{ github.workspace }}/ansible
 
       - name: Cleanup vault password
