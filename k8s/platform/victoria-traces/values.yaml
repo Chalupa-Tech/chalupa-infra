@@ -16,6 +16,19 @@ victoria-traces-single:
       size: 8Gi
       storageClassName: longhorn-single
 
+    # Stateful: keep the pod and its Longhorn volume in site-dpi, never on tpi1.
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: topology.kubernetes.io/zone
+                  operator: In
+                  values: [site-dpi]
+                - key: compute-class
+                  operator: In
+                  values: [pi5]
+
     extraArgs:
       envflag.enable: true
       envflag.prefix: VM_

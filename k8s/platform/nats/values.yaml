@@ -24,13 +24,25 @@ nats:
         memory: 256Mi
 
   podTemplate:
+    # One member per node. No zone spread: the JetStream volumes are Longhorn and
+    # must stay in site-dpi (2026-11-17 incident), so all three members share a zone.
     topologySpreadConstraints:
-      topology.kubernetes.io/zone:
-        maxSkew: 1
-        whenUnsatisfiable: ScheduleAnyway
       kubernetes.io/hostname:
         maxSkew: 1
         whenUnsatisfiable: ScheduleAnyway
+    merge:
+      spec:
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: topology.kubernetes.io/zone
+                      operator: In
+                      values: [site-dpi]
+                    - key: compute-class
+                      operator: In
+                      values: [pi5]
 
   reloader:
     enabled: true

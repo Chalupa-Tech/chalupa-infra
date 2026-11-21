@@ -10,8 +10,11 @@ longhorn:
     storageMinimalAvailablePercentage: 25
     # 2 replicas within same site (intra-site HA, avoids cross-site MTU issues)
     defaultReplicaCount: 2
-    # Allow replicas on same zone (keep storage traffic intra-site)
-    replicaZoneSoftAntiAffinity: false
+    # Soft zone anti-affinity: both replicas may sit in one zone (site-dpi).
+    # Hard (false) forced one replica of every 2-replica volume onto tpi1, the only
+    # storage node in site-tpi, so every write crossed sites (2026-11-17 incident).
+    # tpi1 also has Longhorn scheduling disabled (node CR, not in git).
+    replicaZoneSoftAntiAffinity: true
     # Only schedule on Pi nodes
     systemManagedComponentsNodeSelector: "compute-class:pi5"
     # Guaranteed engine manager CPU (prevents starvation on Pi)
