@@ -20,6 +20,18 @@ victoria-metrics-k8s-stack:
           memory: 512Mi
         limits:
           memory: 2Gi
+      # Stateful: keep the pod (and its Longhorn volume) in site-dpi, never on tpi1.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values: [site-dpi]
+                  - key: compute-class
+                    operator: In
+                    values: [pi5]
       storage:
         accessModes:
           - ReadWriteOnce
@@ -59,6 +71,18 @@ victoria-metrics-k8s-stack:
       storageClassName: longhorn-single
       accessModes:
         - ReadWriteOnce
+    # Stateful (SQLite PVC): keep the pod and its Longhorn volume in site-dpi, never on tpi1.
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: topology.kubernetes.io/zone
+                  operator: In
+                  values: [site-dpi]
+                - key: compute-class
+                  operator: In
+                  values: [pi5]
     # Admin credentials are still reset from env vars on every boot — that
     # path remains independent of SQLite persistence (defense in depth in
     # case the PVC is ever recreated). See ADR-008 Appendix A.
