@@ -118,7 +118,27 @@ kubectl -n longhorn-system wait --for=condition=Ready pod -l longhorn.io/compone
 - ArgoCD application controller at 1 replica, all apps Synced.
 - The node uncordoned.
 
+## The mkfs guard
+
+`k8s/platform/longhorn/templates/mkfs-guard.yaml` puts a wrapper over `mkfs.ext4`/`mkfs.xfs` in the `longhorn-csi-plugin` container: it formats only a volume whose Longhorn `status.actualSize` is 0 and whose device reads back as zeros, and otherwise fails the mount with `mkfs-guard: refusing to format …` in the pod's events.
+Step 4.3 still applies: the guard stops the format, not the I/O errors.
+
+Check it is in place:
+
+```bash
+kubectl -n longhorn-system get ds longhorn-csi-plugin -o jsonpath='{.spec.template.metadata.annotations.chalupa\.tech/mkfs-guard}{"\n"}'
+```
+
+An empty answer means the guard is missing.
+Longhorn's driver deployer recreates the DaemonSet without it whenever the Longhorn version or CSI image changes, and the `longhorn-mkfs-guard` CronJob puts it back within 5 minutes.
+**After a Longhorn upgrade, before any workload restarts**, put it back at once and check:
+
+```bash
+kubectl -n longhorn-system create job --from=cronjob/longhorn-mkfs-guard mkfs-guard-now
+kubectl -n longhorn-system logs job/mkfs-guard-now
+kubectl -n longhorn-system rollout status ds/longhorn-csi-plugin
+```
+
 ## Not covered
 
 - Clearing one stale errored process without restarting the whole instance-manager (open question, platform phase-97 priority 2).
-- A guard that makes formatting a data volume impossible (platform phase-97 priority 1, see the incident brief); until it exists, step 4.3 is the guard.

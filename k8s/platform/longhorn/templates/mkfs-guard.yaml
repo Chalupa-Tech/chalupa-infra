@@ -5,7 +5,8 @@
 # The longhorn-csi-plugin DaemonSet is written by Longhorn's driver deployer, not by
 # Helm or ArgoCD, and is recreated without the guard on a Longhorn upgrade. The
 # CronJob below adds the guard to it whenever it is missing or out of date (the
-# script checksum is stamped on the pod template), every 5 minutes.
+# script checksum is stamped on the pod template), every 5 minutes. After a Longhorn
+# upgrade, run it at once: docs/runbooks/longhorn-instance-manager-restart.md.
 {{- $script := .Files.Get "files/mkfs-guard.sh" }}
 {{- $sum := sha256sum $script | trunc 16 }}
 apiVersion: v1
