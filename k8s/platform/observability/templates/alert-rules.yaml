@@ -119,8 +119,17 @@ spec:
             summary: "{{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.pod {{ "}}" }} ImagePullBackOff"
             description: "Container {{ "{{" }} $labels.container {{ "}}" }} cannot pull its image."
 
+        # Fires for 10 minutes after a kill, from the kill's own timestamp.
+        # The previous expr, increase(last_terminated_reason[30m]), counted
+        # a gauge that stays 1 for the container's life, so it re-fired for
+        # old kills whenever the series reappeared after a data gap: on
+        # 2026-11-17 timescaledb-1 (killed 06:09) and vector-8bnbc
+        # re-notified hours later (platform phase-95).
         - alert: ContainerOOMKilled
-          expr: increase(kube_pod_container_status_last_terminated_reason{reason="OOMKilled"}[30m]) > 0
+          expr: |
+            (time() - kube_pod_container_status_last_terminated_timestamp) < 600
+            and on(namespace, pod, container)
+            kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1
           for: 0m
           labels:
             severity: error
@@ -394,11 +403,117 @@ spec:
             summary: "Job {{ "{{" }} $labels.namespace {{ "}}" }}/{{ "{{" }} $labels.job_name {{ "}}" }} failed"
             description: "A Job has failed."
 
-        - alert: LonghornVolumeHealth
-          expr: longhorn_volume_robustness == 2
+    # ── Storage and log pipeline (platform phase-95) ─────────────────
+    # On 2026-11-17 a longhorn-manager on tpi1 replayed an old engine log
+    # for over three hours and the volume under it ran degraded; the first
+    # alert was NodeCPUPressure. None of longhorn_*, vector_* or vl_*
+    # existed in VictoriaMetrics. The scrapes now live in
+    # k8s/platform/{longhorn,vector,victoria-logs}. Incident record:
+    # workstreams/platform/briefs/2026-11-17-tpi1-longhorn-incident.md in
+    # chalupa-brain.
+    - name: storage-and-log-pipeline
+      rules:
+        # robustness: 0 unknown (detached), 1 healthy, 2 degraded, 3 faulted.
+        # Not filtered on attached: Longhorn detaches a faulted volume, and a
+        # faulted volume is unavailable either way. Pages.
+        - alert: LonghornVolumeFaulted
+          expr: max by (volume, pvc, pvc_namespace) (longhorn_volume_robustness == 3)
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Longhorn volume {{ "{{" }} $labels.pvc_namespace {{ "}}" }}/{{ "{{" }} $labels.pvc {{ "}}" }} is faulted"
+            description: "Volume {{ "{{" }} $labels.volume {{ "}}" }} has no healthy replica, so its data is unavailable. Do not delete replicas or the volume. `kubectl -n longhorn-system get volumes.longhorn.io {{ "{{" }} $labels.volume {{ "}}" }}` and `kubectl -n longhorn-system get replicas.longhorn.io -l longhornvolume={{ "{{" }} $labels.volume {{ "}}" }}`; see reference_longhorn_operations in the brain memory."
+
+        # Replaces LonghornVolumeHealth (degraded for 10m, which also covered
+        # ordinary rebuilds) and stands in for a separate "replica rebuild
+        # stuck" rule: Longhorn 1.7.2 exports no per-replica metric, and a
+        # volume is degraded exactly while a replica is not healthy. A
+        # rebuild of these volumes (20Gi at most, NVMe) finishes well
+        # inside 30m.
+        - alert: LonghornVolumeDegraded
+          expr: max by (volume, pvc, pvc_namespace) (longhorn_volume_robustness == 2)
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn volume {{ "{{" }} $labels.pvc_namespace {{ "}}" }}/{{ "{{" }} $labels.pvc {{ "}}" }} degraded for 30m"
+            description: "A replica of {{ "{{" }} $labels.volume {{ "}}" }} has not been healthy for 30 minutes: a rebuild is stuck or a replica's node cannot take it. `kubectl -n longhorn-system get replicas.longhorn.io -l longhornvolume={{ "{{" }} $labels.volume {{ "}}" }} -o wide`. On 2026-11-17 the dpi1 replica of nats-js-nats-1 never became healthy until the nats-1 pod was restarted."
+
+        # Line rate per node from Vector's log_to_metric counter. Baseline on
+        # 2026-11-21: 45k lines/day, the busiest 5m at 16 lines/s. On
+        # 2026-11-17 the replay loop wrote about 2,200 lines/s.
+        - alert: LonghornManagerLogFlood
+          expr: |
+            sum by (node) (
+              rate(vector_pod_log_lines_total{log_namespace="longhorn-system", log_container="longhorn-manager"}[5m])
+            ) > 100
           for: 10m
           labels:
             severity: warning
           annotations:
-            summary: "Longhorn volume {{ "{{" }} $labels.volume {{ "}}" }} degraded"
-            description: "Volume has been in degraded state for 10 minutes."
+            summary: "longhorn-manager on {{ "{{" }} $labels.node {{ "}}" }} is logging {{ "{{" }} $value | printf \"%.0f\" {{ "}}" }} lines/s"
+            description: "Above 100 lines/s for 10 minutes. On 2026-11-17 this was printInstanceLogs replaying a month-old engine log, and it starved the node's CPU through Vector and VictoriaLogs. Look at the volume underneath, not only the log: check the inner timestamps of the lines in VictoriaLogs (namespace:longhorn-system container:longhorn-manager node:{{ "{{" }} $labels.node {{ "}}" }}) and the robustness of the volumes attached on that node."
+
+        # Total ingest against its own 1-day median, with a floor so a quiet
+        # baseline (13 lines/s on 2026-11-21) does not make a deploy's burst
+        # an alert. Inhibited by LonghornManagerLogFlood, which names the
+        # cause when it is that.
+        - alert: LogIngestSpike
+          expr: |
+            sum(rate(vl_rows_ingested_total[5m]))
+              > 10 * quantile_over_time(0.5, sum(rate(vl_rows_ingested_total[5m]))[1d:5m])
+            and sum(rate(vl_rows_ingested_total[5m])) > 100
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "VictoriaLogs is ingesting {{ "{{" }} $value | printf \"%.0f\" {{ "}}" }} rows/s, over 10x its 1-day median"
+            description: >-
+              {{`{{ with query "topk(1, sum by (node, log_namespace, log_container) (rate(vector_pod_log_lines_total[15m])))" }}{{ with first . }}Top stream: {{ label "log_namespace" . }}/{{ label "log_container" . }} on {{ label "node" . }} at {{ value . | printf "%.0f" }} lines/s. {{ end }}{{ end }}`}}A log flood costs CPU on the node it comes from (Vector) and on VictoriaLogs, and filled vmsingle's node on 2026-11-17.
+              Find the stream in Grafana Explore on VictoriaLogs with `* | stats by (namespace, container) count() | sort by (count() desc)`.
+
+        # The metrics pipeline itself: no `up` sample at all for 3 minutes
+        # (vmsingle has no current data, or vmagent is down), or vmagent's
+        # remote-write queue has stayed above 64 MiB for 10 minutes. After
+        # an outage vmagent replays its queue oldest-first, so "now" stays
+        # empty for many minutes and every absent()-based rule fires for a
+        # healthy service; Alertmanager inhibits those while this fires
+        # (alertmanager-config.yaml). This covers the vmagent backlog too, so
+        # there is no separate queue alert.
+        - alert: MetricsPipelineStale
+          expr: |
+            absent_over_time(up[3m])
+            or max(min_over_time(vm_persistentqueue_bytes_pending[10m])) > 64 * 1024 * 1024
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Metrics pipeline is stale: alerts are blind or delayed"
+            description: "Either vmsingle has no samples from the last 3 minutes, or vmagent has more than 64 MiB queued for vmsingle. While this fires, absent()-based alerts are inhibited, and other alerts cannot fire on current data. Check `kubectl -n observability get pods` for vmsingle-vmstack and vmagent-vmstack, and vmsingle's volume (`kubectl -n longhorn-system get volumes.longhorn.io`). A full queue replays oldest-first; vm_persistentqueue_bytes_pending shows how much is left."
+
+        # Phase-97's guard makes mkfs refuse a volume that holds data; the
+        # refusal, like any mkfs failure, is logged by mount-utils as
+        # "format of disk ... failed". Counted by Vector from the
+        # longhorn-csi-plugin log. No legitimate cause, so it pages.
+        - alert: LonghornFormatRefusedOrFailed
+          expr: sum by (node, volume) (increase(vector_longhorn_csi_format_failures_total[10m])) > 0
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Longhorn CSI refused or failed to format {{ "{{" }} $labels.volume {{ "}}" }} on {{ "{{" }} $labels.node {{ "}}" }}"
+            description: "kubelet tried to format a Longhorn volume and mkfs failed, either because the phase-97 guard refused a volume that holds data or because the device returns I/O errors. Do not retry the mount or delete the pod in a loop. Read the line in VictoriaLogs (container:longhorn-csi-plugin \"format of disk\" node:{{ "{{" }} $labels.node {{ "}}" }}) and see the 2026-11-17 incident brief and reference_longhorn_operations."
+
+        # The guard drops off the longhorn-csi-plugin DaemonSet on every
+        # Longhorn upgrade and only this 5-minute CronJob puts it back.
+        - alert: LonghornMkfsGuardNotApplied
+          expr: |
+            (time() - max(kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="longhorn-mkfs-guard"}) > 30 * 60)
+            or absent(kube_cronjob_status_last_successful_time{namespace="longhorn-system", cronjob="longhorn-mkfs-guard"})
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "longhorn-mkfs-guard has not succeeded in 30 minutes"
+            description: "The CronJob that keeps the mkfs guard on the longhorn-csi-plugin DaemonSet has not succeeded for 30 minutes, so a Longhorn upgrade or DaemonSet edit may have left volumes unguarded. `kubectl -n longhorn-system get jobs | grep longhorn-mkfs-guard` and the latest job's logs; k8s/platform/longhorn/templates/mkfs-guard.yaml."

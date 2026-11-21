@@ -1,0 +1,30 @@
+# Scrape Vector's prometheus_exporter sink on every agent pod
+# (platform phase-95). It carries Vector's own internal metrics plus two
+# counters derived from the log stream in values.yaml:
+#   vector_pod_log_lines_total{log_namespace, log_container}
+#   vector_longhorn_csi_format_failures_total{volume}
+# The pod's node is added as `node`, so a per-node log flood names the
+# node it is on.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: vector
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vector
+      app.kubernetes.io/component: Agent
+  podMetricsEndpoints:
+    - port: prom-exporter
+      path: /metrics
+      interval: 30s
+      relabelConfigs:
+        - action: replace
+          source_labels: [__meta_kubernetes_pod_node_name]
+          target_label: node
+      metricRelabelConfigs:
+        # Internal-metric histograms: no rule or panel reads them.
+        - action: drop
+          source_labels: [__name__]
+          regex: vector_.*_bucket

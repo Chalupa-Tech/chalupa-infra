@@ -14,6 +14,11 @@ victoria-logs-single:
 
     retentionPeriod: 14d
 
+    # Platform phase-95: scrape VictoriaLogs' own /metrics (vl_rows_ingested_total
+    # and friends), which LogIngestSpike reads.
+    vmServiceScrape:
+      enabled: true
+
     # Stateful: keep the pod and its Longhorn volume in site-dpi, never on tpi1.
     affinity:
       nodeAffinity:
