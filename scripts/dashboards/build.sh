@@ -15,6 +15,7 @@ RENDERS=(
   "paper-trader:k8s/apps/schwab/go-paper-trader/files/paper-trading.json"
   "schwab-feed:k8s/apps/schwab/go-schwab-feed/files/schwab-feed.json"
   "schwab-rollouts:k8s/apps/schwab/go-schwab-feed/files/schwab-rollouts.json"
+  "storage-logs:k8s/platform/observability/files/storage-logs.json"
 )
 
 cd "${REPO_ROOT}/scripts/dashboards"

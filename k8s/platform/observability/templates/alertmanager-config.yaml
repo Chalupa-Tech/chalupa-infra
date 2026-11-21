@@ -47,6 +47,18 @@ stringData:
         target_matchers:
           - alertname !~ "NodeDown|NodeNotReady|MultipleNodesDown"
         equal: ['node']
+      # A stale metrics pipeline (vmsingle down or replaying vmagent's
+      # backlog oldest-first) makes every absent()-based rule fire for
+      # healthy services; on 2026-11-17 SchwabAuthDown and KubeAPIDown did.
+      # MetricsPipelineStale pages once instead. Only its no-current-samples
+      # cause inhibits: with no current sample at all, no rule can see a
+      # real failure either; a vmagent backlog alone inhibits nothing.
+      # A new rule built on absent() belongs in this list (platform phase-95).
+      - source_matchers:
+          - alertname = MetricsPipelineStale
+          - cause = no-current-samples
+        target_matchers:
+          - alertname =~ "SchwabAuthDown|KubeAPIDown|BackupsUnhealthy|LonghornMkfsGuardNotApplied"
       - source_matchers:
           - severity = critical
         target_matchers:

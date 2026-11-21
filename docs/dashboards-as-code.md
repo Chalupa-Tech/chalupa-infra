@@ -322,6 +322,7 @@ is wrong or the redirect chain hits the OAuth login page.
 | Schwab Argo Rollouts | `k8s/apps/schwab/go-schwab-feed/files/schwab-rollouts.json` | 290 → 547 | **platform-dashboards phase-4** (ported, single-PR cutover) |
 | Schwab auth lifecycle | `k8s/apps/schwab/go-schwab-auth/files/schwab-auth-lifecycle.json` | 329 | TBD (`phase-5-port-schwab-auth-lifecycle` queued) |
 | Telemetry mesh | `k8s/apps/telemetry-mesh/files/telemetry-mesh-dashboard.json` | 972 | TBD (`phase-6-port-telemetry-mesh` queued) |
+| Storage & log pipeline | `k8s/platform/observability/files/storage-logs.json` | 648 | Born in the SDK (**platform phase-95**): Longhorn volume health, log pipeline, vmagent queue |
 
 Each migration gets its own phase informed by phase-7e's lessons. The
 package layout (`internal/<dashboard>/`) is designed to absorb new
