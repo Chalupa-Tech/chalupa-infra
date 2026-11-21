@@ -51,7 +51,11 @@ openbao:
     dataStorage:
       enabled: true
       size: 1Gi
-      storageClass: local-path
+      # No storageClass: the live StatefulSet was created (2026-02-25) without
+      # one, and Kubernetes refuses to change volumeClaimTemplates afterwards.
+      # Setting it here (2026-03-28) made every ArgoCD comparison fail, so the
+      # app stopped syncing. The PVCs use the default class, local-path.
+      # Changing the class means recreating the StatefulSet (--cascade=orphan).
     ui:
       enabled: true
     image:
