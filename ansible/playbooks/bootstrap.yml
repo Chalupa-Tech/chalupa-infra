@@ -62,12 +62,15 @@
         - {regexp: "^#?MaxRetentionSec=", line: "MaxRetentionSec={{ journald_max_retention_sec }}"}
       notify: Restart journald
 
+    # oracle1 (Ubuntu) runs unattended upgrades; wait for its apt lock
+    # rather than fail the whole CI deploy (seen 2026-11-21).
     - name: Install vnstat for egress monitoring
       ansible.builtin.apt:
         name: vnstat
         state: present
         update_cache: true
         cache_valid_time: 3600
+        lock_timeout: 600
 
     - name: Ensure vnstat service is running
       ansible.builtin.systemd:
