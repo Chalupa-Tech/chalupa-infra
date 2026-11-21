@@ -83,6 +83,19 @@
     label: "{{ item.policy }}"
   changed_when: false
 
+# "Create users" hides its output (no_log), so a missing vault value would
+# fail it with no reason given. Check each secret by user name first.
+- name: Check every scoped user's secret key is set
+  ansible.builtin.assert:
+    that:
+      - item.access_key in minio_server_scoped_user_secret_keys
+      - minio_server_scoped_user_secret_keys[item.access_key] | length >= 8
+    fail_msg: "No secret key (8+ characters) for MinIO user {{ item.access_key }}: check its vault_* entry in inventory/group_vars/all/vault.yml"
+    quiet: true
+  loop: "{{ minio_server_scoped_users }}"
+  loop_control:
+    label: "{{ item.access_key }}"
+
 # The secret goes on stdin: fw1 is also a cluster node, and a command-line
 # argument is readable from /proc by anything sharing the host PID namespace.
 - name: Create users

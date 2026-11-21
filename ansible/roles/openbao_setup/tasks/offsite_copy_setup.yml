@@ -13,6 +13,24 @@
 # Included from main.yml, and on its own from
 # playbooks/control-plane-backups.yml. All tasks are idempotent.
 
+# The seed task below hides its output (no_log), so a missing vault value
+# would fail it with no reason given. Check by name first; values are not
+# printed.
+- name: Check the off-site copy values are in Ansible Vault
+  ansible.builtin.assert:
+    that:
+      - vault_minio_offsite_copy_secret_key is defined and vault_minio_offsite_copy_secret_key | length > 0
+      - vault_offsite_b2_key_id is defined and vault_offsite_b2_key_id | length > 0
+      - vault_offsite_b2_key is defined and vault_offsite_b2_key | length > 0
+      - vault_offsite_crypt_password is defined and vault_offsite_crypt_password | length > 0
+      - vault_offsite_crypt_salt is defined and vault_offsite_crypt_salt | length > 0
+    fail_msg: >-
+      One of vault_minio_offsite_copy_secret_key, vault_offsite_b2_key_id,
+      vault_offsite_b2_key, vault_offsite_crypt_password,
+      vault_offsite_crypt_salt is missing or empty in
+      inventory/group_vars/all/vault.yml (platform phase-94a).
+    quiet: true
+
 - name: Write offsite-copy policy
   ansible.builtin.uri:
     url: "{{ openbao_url }}/v1/sys/policies/acl/offsite-copy-policy"
