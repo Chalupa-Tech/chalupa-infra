@@ -16,6 +16,8 @@
 #    non-zero byte refuses.
 # Anything else exits 1, so the mount fails visibly instead of formatting.
 # To put a fresh filesystem on a volume on purpose, give the workload a new PVC.
+# Encrypted Longhorn volumes are not supported (none exist here): their filesystem
+# goes on a /dev/mapper device, which this refuses.
 #
 # MKFS_GUARD_ACTUAL_SIZE, if set, replaces the Longhorn lookup (tests only).
 set -uo pipefail
@@ -38,9 +40,10 @@ actual_size() { # longhorn volume name -> status.actualSize in bytes
     | python3 -c '
 import json, sys
 v = json.load(sys.stdin)
-if v.get("kind") != "Volume":
+size = (v.get("status") or {}).get("actualSize") if v.get("kind") == "Volume" else None
+if size is None:
     sys.exit(1)
-print(int((v.get("status") or {}).get("actualSize") or 0))'
+print(int(size))'
 }
 
 [ -x "$real" ] || refuse "$real not found"
