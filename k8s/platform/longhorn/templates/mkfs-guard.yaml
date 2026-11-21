@@ -1,0 +1,119 @@
+---
+# mkfs guard (platform phase-97): stop Longhorn's CSI plugin from formatting a
+# volume that holds data or returns I/O errors. See files/mkfs-guard.sh.
+#
+# The longhorn-csi-plugin DaemonSet is written by Longhorn's driver deployer, not by
+# Helm or ArgoCD, and is recreated without the guard on a Longhorn upgrade. The
+# CronJob below adds the guard to it whenever it is missing or out of date (the
+# script checksum is stamped on the pod template), every 5 minutes. After a Longhorn
+# upgrade, run it at once: docs/runbooks/longhorn-instance-manager-restart.md.
+{{- $script := .Files.Get "files/mkfs-guard.sh" }}
+{{- $sum := sha256sum $script | trunc 16 }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: longhorn-mkfs-guard
+  namespace: longhorn-system
+data:
+  mkfs-guard.sh: |
+{{ $script | indent 4 }}
+  patch.json: |
+    {"spec": {"template": {
+      "metadata": {"annotations": {"chalupa.tech/mkfs-guard": "{{ $sum }}"}},
+      "spec": {
+        "volumes": [{"name": "mkfs-guard",
+                     "configMap": {"name": "longhorn-mkfs-guard", "defaultMode": 493,
+                                   "items": [{"key": "mkfs-guard.sh", "path": "mkfs-guard.sh"}]}}],
+        "containers": [{"name": "longhorn-csi-plugin", "volumeMounts": [
+          {"name": "mkfs-guard", "mountPath": "/usr/local/sbin/mkfs.ext4", "subPath": "mkfs-guard.sh", "readOnly": true},
+          {"name": "mkfs-guard", "mountPath": "/usr/local/sbin/mkfs.xfs", "subPath": "mkfs-guard.sh", "readOnly": true}]}]}}}}
+  reconcile.sh: |
+    #!/bin/sh
+    set -eu
+    sa=/var/run/secrets/kubernetes.io/serviceaccount
+    ds=https://kubernetes.default.svc/apis/apps/v1/namespaces/longhorn-system/daemonsets/longhorn-csi-plugin
+    auth="Authorization: Bearer $(cat $sa/token)"
+    if curl -sSf --cacert $sa/ca.crt -H "$auth" "$ds" | grep -q '"chalupa.tech/mkfs-guard": *"{{ $sum }}"'; then
+      echo "mkfs guard {{ $sum }} present"
+      exit 0
+    fi
+    curl -sSf --cacert $sa/ca.crt -H "$auth" -X PATCH \
+      -H "Content-Type: application/strategic-merge-patch+json" \
+      --data-binary @/guard/patch.json "$ds" > /dev/null
+    echo "mkfs guard {{ $sum }} patched into longhorn-csi-plugin"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: longhorn-mkfs-guard
+  namespace: longhorn-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: longhorn-mkfs-guard
+  namespace: longhorn-system
+rules:
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    resourceNames: ["longhorn-csi-plugin"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: longhorn-mkfs-guard
+  namespace: longhorn-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: longhorn-mkfs-guard
+subjects:
+  - kind: ServiceAccount
+    name: longhorn-mkfs-guard
+    namespace: longhorn-system
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: longhorn-mkfs-guard
+  namespace: longhorn-system
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 120
+      template:
+        metadata:
+          annotations:
+            chalupa.tech/mkfs-guard: "{{ $sum }}"
+        spec:
+          serviceAccountName: longhorn-mkfs-guard
+          restartPolicy: Never
+          nodeSelector:
+            compute-class: pi5
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+          containers:
+            - name: reconcile
+              image: curlimages/curl:8.11.1
+              command: ["/bin/sh", "/guard/reconcile.sh"]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 64Mi
+              volumeMounts:
+                - name: guard
+                  mountPath: /guard
+                  readOnly: true
+          volumes:
+            - name: guard
+              configMap:
+                name: longhorn-mkfs-guard
