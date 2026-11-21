@@ -1,7 +1,7 @@
 ---
-# etcd lists exactly the expected voters, and every member answers healthy
-# on its metrics port. Run before and after each server's k3s restart, so a
-# roll never takes a second member down while one is missing.
+# etcd lists exactly the expected voters, and every one of them answers
+# healthy on its metrics port. Run before and after each server's k3s
+# restart, so a roll never takes a second member down while one is missing.
 
 # etcd's own list, not Kubernetes': a stale voter with no Node still counts
 # toward quorum. k3s keeps 2379 for gRPC; etcd's HTTP API is on 2382.
@@ -22,29 +22,27 @@
   retries: 30
   delay: 10
 
-- name: List etcd member addresses
-  ansible.builtin.command: >-
-    k3s kubectl get nodes -l node-role.kubernetes.io/etcd=true
-    -o jsonpath='{range .items[*]}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{end}'
-  register: k3s_hardening_etcd_ips
-  until: k3s_hardening_etcd_ips.rc == 0
-  retries: 30
-  delay: 10
-  changed_when: false
+# The probes below go to the members etcd listed, so a voter that is listed
+# but dead is probed and fails. A member that never started has no client URL.
+- name: Take each listed voter's address from its client URL
+  ansible.builtin.set_fact:
+    k3s_hardening_etcd_ips: >-
+      {{ k3s_hardening_etcd_members.json.members | selectattr('clientURLs', 'defined')
+         | map(attribute='clientURLs') | map('first') | map('urlsplit', 'hostname') | list }}
 
-- name: Expect every etcd member to be listed
+- name: Expect an address for every listed voter
   ansible.builtin.assert:
     that:
-      - k3s_hardening_etcd_ips.stdout_lines | length == k3s_hardening_etcd_member_count
+      - k3s_hardening_etcd_ips | length == k3s_hardening_etcd_member_count
     fail_msg: >-
-      Found {{ k3s_hardening_etcd_ips.stdout_lines | length }} etcd nodes, expected
+      etcd lists {{ k3s_hardening_etcd_ips | length }} started members, expected
       {{ k3s_hardening_etcd_member_count }}. Not restarting anything.
 
 - name: Wait for each etcd member to report healthy
   ansible.builtin.uri:
     url: "http://{{ item }}:2381/health"
     return_content: true
-  loop: "{{ k3s_hardening_etcd_ips.stdout_lines }}"
+  loop: "{{ k3s_hardening_etcd_ips }}"
   register: k3s_hardening_etcd_health
   # etcd sends no JSON content type, and answers 503 when unhealthy.
   until: k3s_hardening_etcd_health.status | default(-1) == 200
@@ -55,7 +53,7 @@
   ansible.builtin.uri:
     url: "http://{{ item }}:2381/metrics"
     return_content: true
-  loop: "{{ k3s_hardening_etcd_ips.stdout_lines }}"
+  loop: "{{ k3s_hardening_etcd_ips }}"
   register: k3s_hardening_etcd_metrics
   until: "'\\netcd_server_is_learner 0\\n' in k3s_hardening_etcd_metrics.content"
   retries: 30

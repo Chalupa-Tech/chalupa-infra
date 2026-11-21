@@ -2,15 +2,15 @@
 # etcd snapshot S3 offload (platform phase-94).
 # Each server snapshots every 12h and keeps 14 locally (7 days).
 # In MinIO, k3s prunes by the shared name prefix across ALL servers, and its
-# S3 limit is a separate setting that defaults to 5. 45 = 15 rounds of 3
-# servers, 12h apart, so the oldest is 7 days old just after a round. A
-# snapshot is ~30 MB.
+# S3 limit is a separate setting that defaults to 5. 48 = 15 rounds of 3
+# servers, 12h apart (the oldest is 7 days old just after a round), plus
+# room for one playbook run's 3 verification uploads. A snapshot is ~30 MB.
 # The MinIO user can read and write the etcd-snapshots bucket only; it and
 # the bucket are created by the minio_server role (playbooks/minio.yml).
 k3s_etcd_snapshot_enabled: true
 k3s_etcd_snapshot_schedule: "0 */12 * * *"
 k3s_etcd_snapshot_retention: 14
-k3s_hardening_etcd_s3_retention: 45
+k3s_hardening_etcd_s3_retention: 48
 k3s_etcd_s3_endpoint: "192.168.2.51:9000"
 k3s_etcd_s3_bucket: "etcd-snapshots"
 k3s_etcd_s3_access_key: "{{ minio_etcd_access_key }}"

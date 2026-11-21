@@ -355,10 +355,10 @@ spec:
         #   2. TimescaleDB: more than 64 WAL segments (~1 GiB) waiting to be
         #      archived. WAL that cannot reach MinIO piles up on the 10Gi
         #      data volume and stops Postgres when it fills, well inside 48h;
-        #   3. etcd: no snapshot uploaded to MinIO by any server in 48h
-        #      (k3s snapshots every 12h; job="apiserver" counts each server
-        #      once). A failed upload alone is not an alert: the next one
-        #      may succeed, and one server's snapshot restores the cluster.
+        #   3. etcd: fewer than all 3 servers uploaded a snapshot to MinIO
+        #      in 48h (k3s snapshots every 12h; job="apiserver" has one
+        #      series per server). A failed upload alone is not an alert:
+        #      the next one may succeed.
         #      The success series exists only after a k3s process's first
         #      upload, so "never" is absent_over_time over 48h; a plain
         #      absent() would fire after every k3s restart;
@@ -370,7 +370,7 @@ spec:
             (time() - max(cnpg_collector_last_available_backup_timestamp{namespace="schwab-ddowell"}) > 48 * 3600)
             or absent(cnpg_collector_last_available_backup_timestamp{namespace="schwab-ddowell"})
             or (max(cnpg_collector_pg_wal_archive_status{namespace="schwab-ddowell",value="ready"}) > 64)
-            or (sum(increase(k3s_etcd_snapshot_save_s3_duration_seconds_count{job="apiserver",status="success"}[48h])) < 1)
+            or ((count(increase(k3s_etcd_snapshot_save_s3_duration_seconds_count{job="apiserver",status="success"}[48h]) > 0) or vector(0)) < 3)
             or absent_over_time(k3s_etcd_snapshot_save_s3_duration_seconds_count{job="apiserver",status="success"}[48h])
             or (time() - max(kube_cronjob_status_last_successful_time{namespace="openbao",cronjob="openbao-snapshot"}) > 48 * 3600)
             or absent(kube_cronjob_status_last_successful_time{namespace="openbao",cronjob="openbao-snapshot"})
@@ -379,7 +379,7 @@ spec:
             severity: warning
           annotations:
             summary: "A backup to MinIO on fw1 is unhealthy"
-            description: "One of: no TimescaleDB base backup in 48h or WAL not reaching MinIO; no etcd snapshot uploaded in 48h; no successful OpenBao snapshot in 48h. All three write to MinIO on fw1 (http://192.168.2.51:9000), so first check that fw1 is powered on. Then: `kubectl -n schwab-ddowell get backups.postgresql.cnpg.io` and the ContinuousArchiving condition on cluster/timescaledb; `kubectl get etcdsnapshotfiles.k3s.cattle.io` for s3 entries; `kubectl -n openbao get jobs` and the openbao-snapshot job logs. If fw1 will stay down, disable WAL archiving before the database volume fills. See docs/runbooks/cluster-cold-recovery.md in chalupa-brain."
+            description: "One of: no TimescaleDB base backup in 48h or WAL not reaching MinIO; an etcd server has not uploaded a snapshot in 48h; no successful OpenBao snapshot in 48h. All three write to MinIO on fw1 (http://192.168.2.51:9000), so first check that fw1 is powered on. Then: `kubectl -n schwab-ddowell get backups.postgresql.cnpg.io` and the ContinuousArchiving condition on cluster/timescaledb; `kubectl get etcdsnapshotfiles.k3s.cattle.io` for s3 entries; `kubectl -n openbao get jobs` and the openbao-snapshot job logs. If fw1 will stay down, disable WAL archiving before the database volume fills. See docs/runbooks/cluster-cold-recovery.md in chalupa-brain."
 
 
     # ── Info ─────────────────────────────────────────────────────────

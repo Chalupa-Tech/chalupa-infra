@@ -55,15 +55,16 @@ spec:
                     role={{ .Values.snapshot.authRole }} \
                     jwt=@/var/run/secrets/kubernetes.io/serviceaccount/token)
                   export BAO_TOKEN
-                  bao operator raft snapshot save /work/openbao.snap
-                  echo "snapshot: $(wc -c < /work/openbao.snap) bytes"
-                  tar -tzf /work/openbao.snap
-                  # The key goes into a curl config file (mode 0600, in-memory
-                  # volume), never into a command line.
+                  # The key is read first, while the 10-minute token is fresh,
+                  # into a curl config file (mode 0600, in-memory volume),
+                  # never into a command line.
                   umask 077
                   ak=$(bao kv get -mount=secret -field=access_key {{ .Values.snapshot.minioKeyPath }})
                   sk=$(bao kv get -mount=secret -field=secret_key {{ .Values.snapshot.minioKeyPath }})
                   printf 'user = "%s:%s"\n' "$ak" "$sk" > /creds/curlrc
+                  bao operator raft snapshot save /work/openbao.snap
+                  echo "snapshot: $(wc -c < /work/openbao.snap) bytes"
+                  tar -tzf /work/openbao.snap
               env:
                 - name: HOME
                   value: /tmp
