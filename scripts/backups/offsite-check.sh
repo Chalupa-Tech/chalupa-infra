@@ -10,7 +10,8 @@
 #      try to read it and to delete it permanently. Both must be refused.
 #      A plain delete (B2 "hide") is tried last and reported as found.
 #
-# Needs: rclone, ansible-vault (the vault password), and a short-lived B2
+# Needs: rclone, ansible-vault (the vault password, from the Keychain via
+# ansible/ansible.cfg or asked for), and a short-lived B2
 # key that can list and read the bucket, made with the B2 CLI:
 #
 #   b2 key create --bucket chalupa-offsite-27c70e32 --duration 3600 \
@@ -39,7 +40,8 @@ trap 'rm -rf "$work"' EXIT
 umask 077
 
 # One vault prompt; each value goes to its own 0600 file, never to argv.
-ansible-vault view "$VAULT_FILE" | python3 -c '
+# From ansible/ so ansible.cfg supplies the vault password (Keychain).
+(cd ansible && ansible-vault view inventory/group_vars/all/vault.yml) | python3 -c '
 import sys, yaml, os
 v = yaml.safe_load(sys.stdin)
 out = sys.argv[1]
