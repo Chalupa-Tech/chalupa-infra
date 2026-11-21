@@ -46,6 +46,16 @@ spec:
         spec:
           serviceAccountName: offsite-copy
           restartPolicy: Never
+          # Run at the site that holds MinIO (fw1), so the whole backlog is
+          # read over the LAN, not across the inter-site link.
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: topology.kubernetes.io/zone
+                        operator: In
+                        values: [{{ .Values.offsiteCopy.zone | quote }}]
           securityContext:
             runAsNonRoot: true
             runAsUser: 65534
