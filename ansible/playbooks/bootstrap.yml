@@ -1,4 +1,38 @@
 ---
+# apt-daily.service (the daily package-list refresh) has no start timeout.
+# On oracle1 one run hung on a dead mirror connection from 2026-05-30 to
+# 2026-11-21, holding the apt lock: no security updates for 175 days and
+# every apt task here failed. A refresh that has not finished in an hour is
+# killed; the timer starts it again the next day. Only the download unit:
+# apt-daily-upgrade runs dpkg and must not be cut off.
+- name: Bound apt's daily refresh
+  hosts: k3s_servers:k3s_ha_servers:k3s_oci_servers:k3s_agents:k3s_vm_agents
+  become: true
+  tasks:
+    - name: Create the apt-daily.service drop-in directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/apt-daily.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Give apt-daily.service a one-hour start timeout
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/apt-daily.service.d/timeout.conf
+        content: |
+          # Managed by Ansible (bootstrap.yml).
+          [Service]
+          TimeoutStartSec=1h
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload systemd for the apt-daily drop-in
+  handlers:
+    - name: Reload systemd for the apt-daily drop-in
+      ansible.builtin.systemd:
+        daemon_reload: true
+
 - name: Provision Primary K3s Server
   hosts: k3s_servers
   become: true
