@@ -12,8 +12,10 @@
 #
 # copy never deletes. The MinIO key can only read the three buckets; the B2
 # key can only list and write the one bucket (no read, no delete), and a
-# write with an existing name adds a version in B2. Old files expire by a
-# B2 lifecycle rule on the bucket, not from here.
+# write with an existing name adds a version in B2. The key can still hide
+# files, so the bucket's default Object Lock retention (governance, 30 days)
+# keeps every uploaded version for 30 days whatever this key does. Old
+# files expire by a B2 lifecycle rule on the bucket, not from here.
 #
 # Failure is caught by CronJobFailed; a job that stops running at all is
 # caught by the off-site clause in BackupsUnhealthy.

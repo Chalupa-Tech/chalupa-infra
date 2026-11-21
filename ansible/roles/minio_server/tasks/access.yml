@@ -90,7 +90,7 @@
     cmd: >-
       {{ minio_server_mc_bin }} -C {{ minio_server_mc_config_dir }}
       admin user add local {{ item.access_key }}
-    stdin: "{{ item.secret_key }}"
+    stdin: "{{ minio_server_scoped_user_secret_keys[item.access_key] }}"
   loop: "{{ minio_server_scoped_users }}"
   loop_control:
     label: "{{ item.access_key }}"

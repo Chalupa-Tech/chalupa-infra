@@ -24,9 +24,17 @@ minio_server_buckets:
   # The OpenBao snapshot writer can only put objects; MinIO deletes them.
   - name: openbao-snapshots
     expire_days: 14
+# Secret keys by access key. Kept out of minio_server_scoped_users so that
+# the tasks looping over that list (policies, attach) never hold a secret
+# in their loop item; only the no_log "Create users" task reads this.
+# (Built in Jinja: Ansible does not template mapping keys.)
+minio_server_scoped_user_secret_keys: >-
+  {{ dict([
+       [minio_etcd_access_key, minio_etcd_secret_key],
+       [minio_openbao_snapshot_access_key, minio_openbao_snapshot_secret_key],
+       [minio_offsite_copy_access_key, minio_offsite_copy_secret_key]]) }}
 minio_server_scoped_users:
   - access_key: "{{ minio_etcd_access_key }}"
-    secret_key: "{{ minio_etcd_secret_key }}"
     policy: etcd-snapshots-rw
     statements:
       - Effect: Allow
@@ -36,7 +44,6 @@ minio_server_scoped_users:
         Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
         Resource: ["arn:aws:s3:::etcd-snapshots/*"]
   - access_key: "{{ minio_openbao_snapshot_access_key }}"
-    secret_key: "{{ minio_openbao_snapshot_secret_key }}"
     policy: openbao-snapshots-put
     statements:
       - Effect: Allow
@@ -45,7 +52,6 @@ minio_server_scoped_users:
   # The off-site copy job (platform phase-94a) reads all three backup
   # buckets and writes nothing here.
   - access_key: "{{ minio_offsite_copy_access_key }}"
-    secret_key: "{{ minio_offsite_copy_secret_key }}"
     policy: offsite-copy-read
     statements:
       - Effect: Allow

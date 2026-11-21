@@ -7,9 +7,12 @@
 #
 #   cd ansible && ansible-playbook playbooks/control-plane-backups.yml --ask-vault-pass
 #
-# Only the off-site copy job's OpenBao policy, role and keys (phase-94a):
+# Only the off-site copy job's OpenBao policy, role and keys (phase-94a).
+# Its MinIO read user is made by minio.yml, so run that first; without it
+# every copy fails to authenticate to MinIO:
 #
-#   cd ansible && ansible-playbook playbooks/control-plane-backups.yml --ask-vault-pass --tags offsite-copy
+#   cd ansible && ansible-playbook playbooks/minio.yml -l fw1 --tags minio-access
+#   cd ansible && ansible-playbook playbooks/control-plane-backups.yml --tags offsite-copy
 #
 # This is deliberately narrower than bootstrap.yml, which re-applies every
 # role to every node. etcd servers restart one at a time; a server that
@@ -57,7 +60,8 @@
       tags: [openbao-snapshot]
 
     # Platform phase-94a. Runs on its own with --tags offsite-copy, without
-    # restarting any etcd server.
+    # restarting any etcd server. Needs minio.yml --tags minio-access first
+    # (the offsite-copy MinIO user); see the header.
     - name: Include off-site copy setup from openbao_setup
       ansible.builtin.include_role:
         name: openbao_setup

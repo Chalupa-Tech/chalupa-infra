@@ -81,7 +81,10 @@ offsiteCopy:
   # minio_secret_key, b2_key_id, b2_key, crypt_password, crypt_salt.
   keyPath: platform/offsite-copy
   minioEndpoint: http://192.168.2.51:9000
-  # Private B2 bucket; 30-day hide + 7-day delete lifecycle rule set on it.
+  # Private B2 bucket, made by the operator: Object Lock on, default
+  # retention governance 30 days, lifecycle hide after 30 days and delete
+  # 7 days after hiding. The lock is what keeps a hide by the job's key
+  # from destroying a version early.
   b2Bucket: chalupa-offsite-27c70e32
   rcloneImage: rclone/rclone:1.76.0
   # Small, most important first. A copy cut short by --max-duration fails
