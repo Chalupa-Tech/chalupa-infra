@@ -15,12 +15,12 @@
 #      "hide") is tried last; if it is allowed, the hidden canary must come
 #      back through --b2-version-at, the restore path for hidden files.
 #
-# Needs: rclone, ansible-vault (the vault password, from the Keychain via
-# ansible/ansible.cfg or asked for), and a short-lived B2
-# key that can list and read the bucket, made with the B2 CLI:
+# Needs: rclone, the b2 CLI, ansible-vault (the vault password, from the
+# Keychain via ansible/ansible.cfg or asked for), and a short-lived B2 key
+# that can list and read the bucket and its retention settings:
 #
 #   b2 key create --bucket chalupa-offsite-27c70e32 --duration 3600 \
-#     offsite-check listBuckets,listFiles,readFiles
+#     offsite-check listBuckets,listFiles,readFiles,readFileRetentions,readBucketRetentions
 #
 # Usage (from the chalupa-infra repo root):
 #   B2_READ_KEY_ID=... B2_READ_KEY=... bash scripts/backups/offsite-check.sh
@@ -111,7 +111,10 @@ done
 # present, and every WAL segment from begin_wal to end_wal in the copy
 # (the range is computed, so a gap is caught without MinIO). With MinIO
 # reachable, its base directory must match the original file for file.
-info=$(rclone lsf -R --files-only --include "*/base/*/backup.info" "offsite:cnpg-backups" | sort | tail -n 1)
+# Newest by backup id (the directory name, a UTC timestamp), whatever the
+# server prefix.
+info=$(rclone lsf -R --files-only --include "*/base/*/backup.info" "offsite:cnpg-backups" \
+  | awk -F/ '{print $(NF-1) " " $0}' | sort | tail -n 1 | cut -d" " -f2-)
 if [ -z "$info" ]; then
   echo "FAIL: no base backup (backup.info) in offsite:cnpg-backups"; fail=1
 else
@@ -124,14 +127,34 @@ else
   server=${info%%/*}
   echo "cnpg-backups/$basedir  status=$status  wal=$begin..$endw"
   [ "$status" = DONE ] || { echo "  FAIL: base backup status is not DONE"; fail=1; }
+  # Base backups run daily; the newest must have ended within 50 hours.
+  age=$(sed -n "s/^end_time=//p" "$work/backup.info" | python3 -c '
+import sys, datetime
+s = sys.stdin.read().strip().strip("\x27\"")
+try:
+    t = datetime.datetime.fromisoformat(s)
+    print(int((datetime.datetime.now(datetime.timezone.utc) - t).total_seconds() // 3600))
+except Exception:
+    print(-1)')
+  if [ "$age" -ge 0 ] && [ "$age" -le 50 ]; then echo "  ended ${age}h ago"
+  else echo "  FAIL: newest base backup ended ${age}h ago (or end_time unreadable)"; fail=1; fi
   rclone lsf -R --files-only "offsite:cnpg-backups/$basedir" > "$work/base.txt"
   if grep -q '^data\.tar' "$work/base.txt"; then echo "  data: $(grep '^data\.tar' "$work/base.txt" | tr '\n' ' ')"
   else echo "  FAIL: no data.tar* in the base backup"; fail=1; fi
-  rclone lsf -R --files-only "offsite:cnpg-backups/$server/wals" > "$work/wals.txt"
+  rclone lsf -R --files-only --format "sp" --separator " " "offsite:cnpg-backups/$server/wals" > "$work/wals.txt"
   if python3 - "$begin" "$endw" "${segsize:-16777216}" "$work/wals.txt" <<'WAL'
 import sys, os
 begin, end, segsize, listing = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
-have = {os.path.basename(l.strip())[:24] for l in open(listing) if l.strip()}
+import re
+# A segment counts only as a complete object: 24 hex digits, optionally a
+# compression suffix, never .partial, and not empty.
+seg_re = re.compile(r"^([0-9A-F]{24})(\.(gz|bz2|xz|snappy|zst|lz4))?$")
+have = set()
+for line in open(listing):
+    size, _, path = line.strip().partition(" ")
+    m = seg_re.match(os.path.basename(path))
+    if m and size.isdigit() and int(size) > 0:
+        have.add(m.group(1))
 per_log = 0x100000000 // segsize
 tli = begin[:8]
 log, seg = int(begin[8:16], 16), int(begin[16:24], 16)
@@ -176,6 +199,27 @@ for b in openbao-snapshots etcd-snapshots; do
 done
 
 echo "== 2. key scope (the CronJob's write key)"
+# What the key is allowed, from B2 itself: restricted to this bucket, with
+# list and write only. The key goes in a header from a file, never argv.
+caps=$(python3 - "$work" "$BUCKET" <<'CAPS'
+import base64, json, sys, urllib.request, os
+work, bucket = sys.argv[1], sys.argv[2]
+kid = open(os.path.join(work, "vault_offsite_b2_key_id")).read().strip()
+key = open(os.path.join(work, "vault_offsite_b2_key")).read().strip()
+req = urllib.request.Request("https://api.backblazeb2.com/b2api/v2/b2_authorize_account",
+    headers={"Authorization": "Basic " + base64.b64encode(f"{kid}:{key}".encode()).decode()})
+a = json.load(urllib.request.urlopen(req, timeout=30)).get("allowed") or {}
+caps = set(a.get("capabilities") or [])
+bad = caps & {"deleteFiles", "bypassGovernance", "readFiles", "writeFileRetentions",
+              "writeBucketRetentions", "writeBuckets", "deleteBuckets", "writeKeys", "deleteKeys", "shareFiles"}
+ok = a.get("bucketName") == bucket and not bad and "writeFiles" in caps
+print(("ok" if ok else "bad") + " bucket=" + str(a.get("bucketName")) + " caps=" + ",".join(sorted(caps)))
+CAPS
+) || caps="bad (authorize failed)"
+case "$caps" in
+  ok*) echo "capabilities: ${caps#ok } (expected)";;
+  *) echo "FAIL: write key ${caps#bad }"; fail=1;;
+esac
 # The write key can hide files (b2_hide_file is a writeFiles call), and the
 # lifecycle rule deletes hidden versions. What protects the copy is the
 # bucket's default Object Lock retention (governance, 30 days): a locked
