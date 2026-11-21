@@ -46,7 +46,8 @@
     return_content: true
   loop: "{{ k3s_hardening_etcd_ips.stdout_lines }}"
   register: k3s_hardening_etcd_health
-  until: (k3s_hardening_etcd_health.json.health | default('false')) == 'true'
+  # etcd sends no JSON content type, and answers 503 when unhealthy.
+  until: k3s_hardening_etcd_health.status | default(-1) == 200
   retries: 30
   delay: 10
 
