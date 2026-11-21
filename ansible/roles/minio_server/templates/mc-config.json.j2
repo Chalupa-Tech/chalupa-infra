@@ -1,0 +1,12 @@
+{
+  "version": "10",
+  "aliases": {
+    "local": {
+      "url": "http://127.0.0.1:{{ minio_api_port }}",
+      "accessKey": {{ minio_access_key | to_json }},
+      "secretKey": {{ minio_secret_key | to_json }},
+      "api": "s3v4",
+      "path": "auto"
+    }
+  }
+}

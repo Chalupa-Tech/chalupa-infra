@@ -40,6 +40,12 @@ ts_operator_client_secret: "{{ vault_ts_operator_client_secret }}"
 cloudflare_api_key: "{{ vault_cloudflare_api_key }}"
 minio_access_key: "{{ vault_minio_access_key }}"
 minio_secret_key: "{{ vault_minio_secret_key }}"
+# Scoped MinIO users (platform phase-94). Access keys are names, not
+# secrets; the minio_server role creates the users with these keys.
+minio_etcd_access_key: etcd-snapshots
+minio_etcd_secret_key: "{{ vault_minio_etcd_secret_key }}"
+minio_openbao_snapshot_access_key: openbao-snapshots
+minio_openbao_snapshot_secret_key: "{{ vault_minio_openbao_snapshot_secret_key }}"
 ts_service_name: "{{ vault_ts_service_name | default('svc:chalupa-k3s') }}"
 tailscale_api_key: "{{ vault_tailscale_api_key }}"
 

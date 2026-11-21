@@ -11,3 +11,34 @@ minio_nas_source: "192.168.2.18:/volume/6b052579-611b-4ae6-bbab-bdcc54f095eb/.sr
 minio_nas_mountpoint: /mnt/nas-backups
 minio_nas_fstype: nfs
 minio_nas_opts: "nfsvers=3,soft,timeo=30,retrans=3,nolock,_netdev"
+
+# Buckets and scoped users (platform phase-94). The root key stays the
+# operator's and the database backups'; each backup writer gets a user
+# that can touch its own bucket only.
+minio_server_mc_bin: mc
+minio_server_mc_config_dir: /etc/minio/mc
+minio_server_buckets:
+  # k3s prunes its own snapshots (etcd-snapshot-retention), so no expiry.
+  - name: etcd-snapshots
+    expire_days: 0
+  # The OpenBao snapshot writer can only put objects; MinIO deletes them.
+  - name: openbao-snapshots
+    expire_days: 14
+minio_server_scoped_users:
+  - access_key: "{{ minio_etcd_access_key }}"
+    secret_key: "{{ minio_etcd_secret_key }}"
+    policy: etcd-snapshots-rw
+    statements:
+      - Effect: Allow
+        Action: ["s3:GetBucketLocation", "s3:ListBucket"]
+        Resource: ["arn:aws:s3:::etcd-snapshots"]
+      - Effect: Allow
+        Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Resource: ["arn:aws:s3:::etcd-snapshots/*"]
+  - access_key: "{{ minio_openbao_snapshot_access_key }}"
+    secret_key: "{{ minio_openbao_snapshot_secret_key }}"
+    policy: openbao-snapshots-put
+    statements:
+      - Effect: Allow
+        Action: ["s3:PutObject"]
+        Resource: ["arn:aws:s3:::openbao-snapshots/*"]

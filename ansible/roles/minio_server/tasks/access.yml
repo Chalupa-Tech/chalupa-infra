@@ -1,0 +1,111 @@
+---
+# Buckets, lifecycle rules and scoped users (platform phase-94).
+# Every command here is idempotent: mb ignores an existing bucket, ilm
+# import and policy create replace what is there, user add resets the key.
+
+- name: Check the MinIO client is installed
+  ansible.builtin.command: "{{ minio_server_mc_bin }} --version"
+  changed_when: false
+
+- name: Create directories for the mc config and policies
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - "{{ minio_server_mc_config_dir }}"
+    - /etc/minio/policies
+
+# The root key goes in a root-only file rather than on a command line.
+# Only this task hides its output.
+- name: Write the mc alias for the local server
+  ansible.builtin.template:
+    src: mc-config.json.j2
+    dest: "{{ minio_server_mc_config_dir }}/config.json"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Create buckets
+  ansible.builtin.command: >-
+    {{ minio_server_mc_bin }} -C {{ minio_server_mc_config_dir }}
+    mb --ignore-existing local/{{ item.name }}
+  loop: "{{ minio_server_buckets }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: minio_server_mb
+  changed_when: "'created successfully' in minio_server_mb.stdout"
+
+- name: Write lifecycle rules
+  ansible.builtin.copy:
+    dest: "/etc/minio/policies/{{ item.name }}-lifecycle.json"
+    content: >-
+      {{ {'Rules': [{'ID': 'expire-' ~ item.expire_days ~ 'd', 'Status': 'Enabled',
+           'Filter': {'Prefix': ''},
+           'Expiration': {'Days': item.expire_days}}]} | to_nice_json }}
+    owner: root
+    group: root
+    mode: "0600"
+  loop: "{{ minio_server_buckets | selectattr('expire_days', '>', 0) | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Apply lifecycle rules
+  ansible.builtin.shell: >-
+    {{ minio_server_mc_bin }} -C {{ minio_server_mc_config_dir }}
+    ilm import local/{{ item.name }}
+    < /etc/minio/policies/{{ item.name }}-lifecycle.json
+  loop: "{{ minio_server_buckets | selectattr('expire_days', '>', 0) | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: false
+
+- name: Write user policies
+  ansible.builtin.copy:
+    dest: "/etc/minio/policies/{{ item.policy }}.json"
+    content: "{{ {'Version': '2012-10-17', 'Statement': item.statements} | to_nice_json }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop: "{{ minio_server_scoped_users }}"
+  loop_control:
+    label: "{{ item.policy }}"
+
+- name: Create or update user policies
+  ansible.builtin.command: >-
+    {{ minio_server_mc_bin }} -C {{ minio_server_mc_config_dir }}
+    admin policy create local {{ item.policy }} /etc/minio/policies/{{ item.policy }}.json
+  loop: "{{ minio_server_scoped_users }}"
+  loop_control:
+    label: "{{ item.policy }}"
+  changed_when: false
+
+# The secret goes on stdin: fw1 is also a cluster node, and a command-line
+# argument is readable from /proc by anything sharing the host PID namespace.
+- name: Create users
+  ansible.builtin.command:
+    cmd: >-
+      {{ minio_server_mc_bin }} -C {{ minio_server_mc_config_dir }}
+      admin user add local {{ item.access_key }}
+    stdin: "{{ item.secret_key }}"
+  loop: "{{ minio_server_scoped_users }}"
+  loop_control:
+    label: "{{ item.access_key }}"
+  changed_when: false
+  no_log: true
+
+- name: Attach each user's policy
+  ansible.builtin.command: >-
+    {{ minio_server_mc_bin }} -C {{ minio_server_mc_config_dir }}
+    admin policy attach local {{ item.policy }} --user {{ item.access_key }}
+  loop: "{{ minio_server_scoped_users }}"
+  loop_control:
+    label: "{{ item.access_key }}"
+  register: minio_server_attach
+  changed_when: minio_server_attach.rc == 0
+  failed_when:
+    - minio_server_attach.rc != 0
+    - "'already' not in (minio_server_attach.stderr + minio_server_attach.stdout)"

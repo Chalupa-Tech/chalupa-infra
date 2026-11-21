@@ -1,0 +1,50 @@
+---
+# Control-plane backups (platform phase-94): etcd snapshots to MinIO and
+# the OpenBao snapshot writer's policy, auth role and MinIO key.
+#
+# Run from the operator's shell, after playbooks/minio.yml has created the
+# buckets and scoped users:
+#
+#   cd ansible && ansible-playbook playbooks/control-plane-backups.yml --ask-vault-pass
+#
+# This is deliberately narrower than bootstrap.yml, which re-applies every
+# role to every node. etcd servers restart one at a time; a server that
+# does not come back ready, or cannot upload a snapshot, stops the run
+# with the other two still serving.
+
+- name: Offload etcd snapshots to MinIO (rolling, one server at a time)
+  hosts: k3s_servers:k3s_ha_servers:k3s_oci_servers
+  become: true
+  serial: 1
+  max_fail_percentage: 0
+  tasks:
+    - name: Include etcd snapshot tasks from k3s_hardening
+      ansible.builtin.include_role:
+        name: k3s_hardening
+        tasks_from: etcd_snapshots
+
+    # The first phase-94 run named its check snapshots verify-s3-*, which
+    # retention (prefix etcd-snapshot) never prunes. Deleting the
+    # ETCDSnapshotFile record does not delete the file, so delete by name.
+    - name: Remove the first run's verify-s3 snapshots
+      ansible.builtin.shell: |
+        set -o pipefail
+        names=$(k3s etcd-snapshot ls 2>/dev/null | awk '$1 ~ /^verify-s3-/ {print $1}' | sort -u)
+        if [ -z "$names" ]; then exit 0; fi
+        echo "$names"
+        k3s etcd-snapshot delete $names
+      args:
+        executable: /bin/bash
+      register: control_plane_backups_cleanup
+      changed_when: control_plane_backups_cleanup.stdout | length > 0
+
+- name: OpenBao snapshot writer
+  hosts: k3s_servers
+  become: true
+  tasks:
+    - name: Include snapshot setup from openbao_setup
+      ansible.builtin.include_role:
+        name: openbao_setup
+        tasks_from: snapshot_setup
+      vars:
+        openbao_setup_root_token: "{{ openbao_root_token }}"

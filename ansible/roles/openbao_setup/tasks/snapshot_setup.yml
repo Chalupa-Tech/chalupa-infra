@@ -1,0 +1,62 @@
+---
+# Daily Raft snapshot writer (platform phase-94).
+#
+# The openbao-snapshot CronJob (k8s/platform/openbao) logs in with its own
+# ServiceAccount through Kubernetes auth and gets a 10-minute token that can
+# only take a Raft snapshot and read the MinIO key it uploads with. No
+# static OpenBao token exists for it. The MinIO user can only put objects
+# into the openbao-snapshots bucket (minio_server role); MinIO expires them.
+#
+# Included from main.yml, and on its own from
+# playbooks/control-plane-backups.yml. All tasks are idempotent.
+
+- name: Write openbao-snapshot policy
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/policies/acl/openbao-snapshot-policy"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      policy: |
+        # Take a Raft snapshot (the whole store, encrypted by the barrier).
+        path "sys/storage/raft/snapshot" {
+          capabilities = ["read"]
+        }
+        # The MinIO key the snapshot is uploaded with.
+        path "secret/data/platform/openbao-snapshot/minio" {
+          capabilities = ["read"]
+        }
+    status_code: [200, 204]
+  no_log: true
+
+- name: Write openbao-snapshot K8s auth role
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/auth/kubernetes/role/openbao-snapshot-role"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      bound_service_account_names: [openbao-snapshot]
+      bound_service_account_namespaces: [openbao]
+      token_policies: [openbao-snapshot-policy]
+      token_no_default_policy: true
+      token_ttl: 10m
+      token_max_ttl: 10m
+    status_code: [200, 204]
+  no_log: true
+
+- name: Seed the snapshot writer's MinIO key at secret/platform/openbao-snapshot/minio
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/platform/openbao-snapshot/minio"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      data:
+        access_key: "{{ minio_openbao_snapshot_access_key }}"
+        secret_key: "{{ minio_openbao_snapshot_secret_key }}"
+    status_code: [200, 204]
+  no_log: true
