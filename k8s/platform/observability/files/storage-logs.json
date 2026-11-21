@@ -352,7 +352,7 @@
         "type": "prometheus",
         "uid": "VictoriaMetrics"
       },
-      "description": "Rows per second VictoriaLogs ingested, and LogIngestSpike's threshold: 10x the 1-day median, never below 100. The alert needs 15m above it.",
+      "description": "Rows per second VictoriaLogs ingested, and LogIngestSpike's threshold: 10x the 1-day median, never below 100 and never above 500. The alert needs 15m above it.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -414,7 +414,7 @@
           "refId": "A"
         },
         {
-          "expr": "clamp_min(10 * quantile_over_time(0.5, sum(rate(vl_rows_ingested_total[5m]))[1d:5m]), 100)",
+          "expr": "clamp_max(clamp_min(10 * quantile_over_time(0.5, sum(rate(vl_rows_ingested_total[5m]))[1d:5m]), 100), 500)",
           "legendFormat": "alert threshold",
           "refId": "B"
         }

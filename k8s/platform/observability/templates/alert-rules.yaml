@@ -457,13 +457,16 @@ spec:
 
         # Total ingest against its own 1-day median, with a floor so a quiet
         # baseline (13 lines/s on 2026-11-21) does not make a deploy's burst
-        # an alert. Inhibited by LonghornManagerLogFlood, which names the
-        # cause when it is that.
+        # an alert. The 500 rows/s ceiling keeps a flood that lasts long
+        # enough to raise the median (half a day) from resolving itself.
         - alert: LogIngestSpike
           expr: |
-            sum(rate(vl_rows_ingested_total[5m]))
-              > 10 * quantile_over_time(0.5, sum(rate(vl_rows_ingested_total[5m]))[1d:5m])
-            and sum(rate(vl_rows_ingested_total[5m])) > 100
+            (
+              sum(rate(vl_rows_ingested_total[5m]))
+                > 10 * quantile_over_time(0.5, sum(rate(vl_rows_ingested_total[5m]))[1d:5m])
+              and sum(rate(vl_rows_ingested_total[5m])) > 100
+            )
+            or sum(rate(vl_rows_ingested_total[5m])) > 500
           for: 15m
           labels:
             severity: warning
@@ -473,24 +476,29 @@ spec:
               {{`{{ with query "topk(1, sum by (node, log_namespace, log_container) (rate(vector_pod_log_lines_total[15m])))" }}{{ with first . }}Top stream: {{ label "log_namespace" . }}/{{ label "log_container" . }} on {{ label "node" . }} at {{ value . | printf "%.0f" }} lines/s. {{ end }}{{ end }}`}}A log flood costs CPU on the node it comes from (Vector) and on VictoriaLogs, and filled vmsingle's node on 2026-11-17.
               Find the stream in Grafana Explore on VictoriaLogs with `* | stats by (namespace, container) count() | sort by (count() desc)`.
 
-        # The metrics pipeline itself: no `up` sample at all for 3 minutes
-        # (vmsingle has no current data, or vmagent is down), or vmagent's
-        # remote-write queue has stayed above 64 MiB for 10 minutes. After
-        # an outage vmagent replays its queue oldest-first, so "now" stays
-        # empty for many minutes and every absent()-based rule fires for a
-        # healthy service; Alertmanager inhibits those while this fires
-        # (alertmanager-config.yaml). This covers the vmagent backlog too, so
-        # there is no separate queue alert.
+        # The metrics pipeline itself, as one alert with a `cause` label:
+        #   no-current-samples: vmsingle answers but holds no `up` sample
+        #     from the last 3 minutes (vmagent down, or replaying its queue
+        #     oldest-first after an outage, so "now" stays empty). Every
+        #     absent()-based rule then fires for healthy services, so
+        #     Alertmanager inhibits those for this cause only
+        #     (alertmanager-config.yaml);
+        #   vmagent-backlog: vmagent's remote-write queue above 64 MiB for
+        #     10 minutes while current samples may still arrive. Inhibits
+        #     nothing. Covers the backlog, so there is no separate queue alert.
+        # It cannot see vmsingle being down: vmalert queries vmsingle, and a
+        # failing query leaves every rule's state unchanged. That needs a
+        # dead man's switch outside the cluster (Watchdog is routed to null).
         - alert: MetricsPipelineStale
           expr: |
-            absent_over_time(up[3m])
-            or max(min_over_time(vm_persistentqueue_bytes_pending[10m])) > 64 * 1024 * 1024
+            label_set(absent_over_time(up[3m]), "cause", "no-current-samples")
+            or label_set(max(min_over_time(vm_persistentqueue_bytes_pending[10m])) > 64 * 1024 * 1024, "cause", "vmagent-backlog")
           for: 2m
           labels:
             severity: critical
           annotations:
-            summary: "Metrics pipeline is stale: alerts are blind or delayed"
-            description: "Either vmsingle has no samples from the last 3 minutes, or vmagent has more than 64 MiB queued for vmsingle. While this fires, absent()-based alerts are inhibited, and other alerts cannot fire on current data. Check `kubectl -n observability get pods` for vmsingle-vmstack and vmagent-vmstack, and vmsingle's volume (`kubectl -n longhorn-system get volumes.longhorn.io`). A full queue replays oldest-first; vm_persistentqueue_bytes_pending shows how much is left."
+            summary: "Metrics pipeline is stale ({{ "{{" }} $labels.cause {{ "}}" }}): alerts are blind or delayed"
+            description: "no-current-samples: vmsingle has no samples from the last 3 minutes, so no rule sees current data and absent()-based alerts are inhibited. vmagent-backlog: vmagent has held more than 64 MiB for vmsingle for 10 minutes, so recent data arrives late. Check `kubectl -n observability get pods` for vmsingle-vmstack and vmagent-vmstack, and vmsingle's volume (`kubectl -n longhorn-system get volumes.longhorn.io`). A full queue replays oldest-first; vm_persistentqueue_bytes_pending shows how much is left."
 
         # Phase-97's guard makes mkfs refuse a volume that holds data; the
         # refusal, like any mkfs failure, is logged by mount-utils as

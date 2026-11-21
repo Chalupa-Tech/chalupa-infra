@@ -50,17 +50,15 @@ stringData:
       # A stale metrics pipeline (vmsingle down or replaying vmagent's
       # backlog oldest-first) makes every absent()-based rule fire for
       # healthy services; on 2026-11-17 SchwabAuthDown and KubeAPIDown did.
-      # MetricsPipelineStale pages once instead. A new rule built on
-      # absent() belongs in this list (platform phase-95).
+      # MetricsPipelineStale pages once instead. Only its no-current-samples
+      # cause inhibits: with no current sample at all, no rule can see a
+      # real failure either; a vmagent backlog alone inhibits nothing.
+      # A new rule built on absent() belongs in this list (platform phase-95).
       - source_matchers:
           - alertname = MetricsPipelineStale
+          - cause = no-current-samples
         target_matchers:
           - alertname =~ "SchwabAuthDown|KubeAPIDown|BackupsUnhealthy|LonghornMkfsGuardNotApplied"
-      # A longhorn-manager log flood is a log-ingest spike; page the cause.
-      - source_matchers:
-          - alertname = LonghornManagerLogFlood
-        target_matchers:
-          - alertname = LogIngestSpike
       - source_matchers:
           - severity = critical
         target_matchers:

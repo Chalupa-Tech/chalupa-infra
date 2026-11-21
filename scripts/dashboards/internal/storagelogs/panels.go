@@ -151,14 +151,14 @@ func mkfsGuardAge(y int) *stat.PanelBuilder {
 }
 
 // logIngestRate — id 201. Ingest against LogIngestSpike's moving
-// threshold (10x the 1-day median, floor 100 rows/s).
+// threshold (10x the 1-day median, floor 100 rows/s, ceiling 500).
 func logIngestRate(y int) *timeseries.PanelBuilder {
 	return series(201, "VictoriaLogs ingest (rows/s)",
-		"Rows per second VictoriaLogs ingested, and LogIngestSpike's threshold: 10x the 1-day median, never below 100. The alert needs 15m above it.",
+		"Rows per second VictoriaLogs ingested, and LogIngestSpike's threshold: 10x the 1-day median, never below 100 and never above 500. The alert needs 15m above it.",
 		layout.Pos(0, y, 12, 8), "short", 100).
 		WithTarget(query("A", `sum(rate(vl_rows_ingested_total[5m]))`, "ingested")).
 		WithTarget(query("B",
-			`clamp_min(10 * quantile_over_time(0.5, sum(rate(vl_rows_ingested_total[5m]))[1d:5m]), 100)`,
+			`clamp_max(clamp_min(10 * quantile_over_time(0.5, sum(rate(vl_rows_ingested_total[5m]))[1d:5m]), 100), 500)`,
 			"alert threshold"))
 }
 
