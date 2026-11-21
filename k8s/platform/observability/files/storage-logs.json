@@ -130,8 +130,8 @@
       "repeatDirection": "h",
       "targets": [
         {
-          "expr": "max by (pvc_namespace, pvc) (longhorn_volume_robustness)",
-          "legendFormat": "{{pvc_namespace}}/{{pvc}}",
+          "expr": "max by (volume, pvc_namespace, pvc) (longhorn_volume_robustness)",
+          "legendFormat": "{{pvc_namespace}}/{{pvc}} {{volume}}",
           "refId": "A"
         }
       ],

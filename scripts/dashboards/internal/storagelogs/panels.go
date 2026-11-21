@@ -56,7 +56,8 @@ func series(id uint32, title, description string, pos dashboard.GridPos, unit st
 			Mode(common.TooltipDisplayModeMulti))
 }
 
-// volumeRobustness — id 101. One lane per volume. Each longhorn-manager
+// volumeRobustness — id 101. One lane per volume, keyed on the Longhorn
+// volume name so volumes without a PVC stay apart. Each longhorn-manager
 // reports the volumes attached to its node; `max by` keeps one series
 // when a volume moves between nodes.
 func volumeRobustness(y int) *statetimeline.PanelBuilder {
@@ -76,8 +77,8 @@ func volumeRobustness(y int) *statetimeline.PanelBuilder {
 		GridPos(layout.Pos(0, y, 24, 6)).
 		Datasource(datasources.Victoria()).
 		WithTarget(query("A",
-			`max by (pvc_namespace, pvc) (longhorn_volume_robustness)`,
-			"{{pvc_namespace}}/{{pvc}}")).
+			`max by (volume, pvc_namespace, pvc) (longhorn_volume_robustness)`,
+			"{{pvc_namespace}}/{{pvc}} {{volume}}")).
 		Mappings([]dashboard.ValueMapping{
 			mapping("0", "Unknown", "text"),
 			mapping("1", "Healthy", "green"),
