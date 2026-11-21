@@ -154,13 +154,16 @@ vector:
 
       # Only these internal metrics reach the exporter, which holds every
       # series it receives for flush_period_secs; filtering here bounds
-      # Vector's own memory, not just what is scraped.
+      # Vector's own memory, not just what is scraped. kubernetes_logs tags
+      # its received-events counter with pod_name and pod_namespace (one
+      # series per pod, so it grows with pod churn); those series are
+      # dropped, and vector_pod_log_lines_total gives the per-container view.
       internal_metrics_kept:
         type: filter
         inputs:
           - internal_metrics
         condition: |
-          includes(["component_received_events_total", "component_sent_events_total", "component_discarded_events_total", "component_errors_total", "buffer_events", "buffer_byte_size"], .name)
+          includes(["component_received_events_total", "component_sent_events_total", "component_discarded_events_total", "component_errors_total", "buffer_events", "buffer_byte_size"], .name) && !exists(.tags.pod_name)
 
     sinks:
       # Scraped by templates/vmpodscrape.yaml. The chart derives the
