@@ -15,16 +15,20 @@
 #      "hide") is tried last; if it is allowed, the hidden canary must come
 #      back through --b2-version-at, the restore path for hidden files.
 #
-# Needs: rclone, the b2 CLI, ansible-vault (the vault password, from the
-# Keychain via ansible/ansible.cfg or asked for), and a short-lived B2 key
-# that can list and read the bucket and its retention settings:
+# Needs: rclone, the b2 CLI and ansible-vault (the vault password, from the
+# Keychain via ansible/ansible.cfg or asked for). The B2 read key is in the
+# vault (vault_offsite_b2_read_key_id / _key): a permanent key that can only
+# list and read this bucket and its retention settings. It fetches
+# ciphertext; the crypt password, also in the vault, decrypts it. If it is
+# ever lost, make another with the B2 master login:
 #
-#   b2 key create --bucket chalupa-offsite-27c70e32 --duration 3600 \
-#     offsite-check listBuckets,listFiles,readFiles,readFileRetentions,readBucketRetentions
+#   b2 key create --bucket chalupa-offsite-27c70e32 \
+#     offsite-read listBuckets,listFiles,readFiles,readFileRetentions,readBucketRetentions
 #
 # Usage (from the chalupa-infra repo root):
-#   B2_READ_KEY_ID=... B2_READ_KEY=... bash scripts/backups/offsite-check.sh
-# Without the two variables it asks for them. Nothing secret is printed.
+#   bash scripts/backups/offsite-check.sh
+# B2_READ_KEY_ID and B2_READ_KEY in the environment override the vault's
+# key. Nothing secret is printed.
 #
 # In a real restore, the same remotes fetch everything, e.g.
 #   rclone copy offsite:openbao-snapshots ./openbao-snapshots
@@ -41,9 +45,6 @@ command -v rclone >/dev/null || { echo "rclone not found (brew install rclone)";
 command -v b2 >/dev/null || { echo "b2 not found (brew install b2-tools)"; exit 2; }
 [ -f "$VAULT_FILE" ] || { echo "run from the chalupa-infra repo root"; exit 2; }
 
-if [ -z "${B2_READ_KEY_ID:-}" ]; then read -r -p "B2 read key id: " B2_READ_KEY_ID; fi
-if [ -z "${B2_READ_KEY:-}" ]; then read -r -s -p "B2 read key: " B2_READ_KEY; echo; fi
-
 work=$(mktemp -d "${TMPDIR:-/tmp}/offsite-check.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 umask 077
@@ -56,13 +57,16 @@ v = yaml.safe_load(sys.stdin)
 out = sys.argv[1]
 for k in ["vault_offsite_crypt_password", "vault_offsite_crypt_salt",
           "vault_offsite_b2_key_id", "vault_offsite_b2_key",
-          "vault_minio_access_key", "vault_minio_secret_key"]:
+          "vault_minio_access_key", "vault_minio_secret_key",
+          "vault_offsite_b2_read_key_id", "vault_offsite_b2_read_key"]:
     if not v.get(k):
         sys.exit(f"{k} missing from the vault")
     with open(os.path.join(out, k), "w") as f:
         f.write(str(v[k]))
 ' "$work"
 s() { cat "$work/$1"; }
+B2_READ_KEY_ID=${B2_READ_KEY_ID:-$(s vault_offsite_b2_read_key_id)}
+B2_READ_KEY=${B2_READ_KEY:-$(s vault_offsite_b2_read_key)}
 
 export RCLONE_CONFIG="$work/rclone.conf"
 export RCLONE_CONFIG_B2R_TYPE=b2 RCLONE_CONFIG_B2W_TYPE=b2
