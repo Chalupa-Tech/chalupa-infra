@@ -7,6 +7,10 @@
 #
 #   cd ansible && ansible-playbook playbooks/control-plane-backups.yml --ask-vault-pass
 #
+# Only the off-site copy job's OpenBao policy, role and keys (phase-94a):
+#
+#   cd ansible && ansible-playbook playbooks/control-plane-backups.yml --ask-vault-pass --tags offsite-copy
+#
 # This is deliberately narrower than bootstrap.yml, which re-applies every
 # role to every node. etcd servers restart one at a time; a server that
 # does not come back ready, or cannot upload a snapshot, stops the run
@@ -38,7 +42,7 @@
       register: control_plane_backups_cleanup
       changed_when: control_plane_backups_cleanup.stdout | length > 0
 
-- name: OpenBao snapshot writer
+- name: OpenBao snapshot writer and off-site copy job
   hosts: k3s_servers
   become: true
   tasks:
@@ -46,5 +50,20 @@
       ansible.builtin.include_role:
         name: openbao_setup
         tasks_from: snapshot_setup
+        apply:
+          tags: [openbao-snapshot]
       vars:
         openbao_setup_root_token: "{{ openbao_root_token }}"
+      tags: [openbao-snapshot]
+
+    # Platform phase-94a. Runs on its own with --tags offsite-copy, without
+    # restarting any etcd server.
+    - name: Include off-site copy setup from openbao_setup
+      ansible.builtin.include_role:
+        name: openbao_setup
+        tasks_from: offsite_copy_setup
+        apply:
+          tags: [offsite-copy]
+      vars:
+        openbao_setup_root_token: "{{ openbao_root_token }}"
+      tags: [offsite-copy]

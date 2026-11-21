@@ -69,3 +69,28 @@ snapshot:
   s3Endpoint: http://192.168.2.51:9000
   bucket: openbao-snapshots
   curlImage: curlimages/curl:8.11.1
+
+# Daily copy of the three fw1 backup buckets to Backblaze B2, encrypted
+# with rclone crypt (platform phase-94a). Runs after all three backups:
+# etcd 00:00/12:00, OpenBao 03:30, the database base backup 04:00.
+offsiteCopy:
+  enabled: true
+  schedule: "30 5 * * *"
+  authRole: offsite-copy-role
+  # OpenBao KV path (mount "secret") holding minio_access_key,
+  # minio_secret_key, b2_key_id, b2_key, crypt_password, crypt_salt.
+  keyPath: platform/offsite-copy
+  minioEndpoint: http://192.168.2.51:9000
+  # Private B2 bucket; 30-day hide + 7-day delete lifecycle rule set on it.
+  b2Bucket: chalupa-offsite-27c70e32
+  rcloneImage: rclone/rclone:1.76.0
+  # Small, most important first. A copy cut short by --max-duration fails
+  # the job and resumes where it stopped on the next run.
+  buckets:
+    - name: openbao-snapshots
+      maxDuration: 30m
+    - name: etcd-snapshots
+      maxDuration: 1h
+    - name: cnpg-backups
+      maxDuration: 4h
+  activeDeadlineSeconds: 21600

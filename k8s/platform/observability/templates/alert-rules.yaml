@@ -365,6 +365,9 @@ spec:
         #   4. OpenBao: the daily openbao-snapshot CronJob has not succeeded
         #      in 48h, or has never succeeded. A failed run also fires
         #      CronJobFailed; this clause catches a job that stops running.
+        #   5. Off-site copy (phase-94a): the daily offsite-copy CronJob,
+        #      which copies all three buckets to Backblaze B2, has not
+        #      succeeded in 48h, or has never succeeded.
         - alert: BackupsUnhealthy
           expr: |
             (time() - max(cnpg_collector_last_available_backup_timestamp{namespace="schwab-ddowell"}) > 48 * 3600)
@@ -374,12 +377,14 @@ spec:
             or absent_over_time(k3s_etcd_snapshot_save_s3_duration_seconds_count{job="apiserver",status="success"}[48h])
             or (time() - max(kube_cronjob_status_last_successful_time{namespace="openbao",cronjob="openbao-snapshot"}) > 48 * 3600)
             or absent(kube_cronjob_status_last_successful_time{namespace="openbao",cronjob="openbao-snapshot"})
+            or (time() - max(kube_cronjob_status_last_successful_time{namespace="openbao",cronjob="offsite-copy"}) > 48 * 3600)
+            or absent(kube_cronjob_status_last_successful_time{namespace="openbao",cronjob="offsite-copy"})
           for: 1h
           labels:
             severity: warning
           annotations:
-            summary: "A backup to MinIO on fw1 is unhealthy"
-            description: "One of: no TimescaleDB base backup in 48h or WAL not reaching MinIO; an etcd server has not uploaded a snapshot in 48h; no successful OpenBao snapshot in 48h. All three write to MinIO on fw1 (http://192.168.2.51:9000), so first check that fw1 is powered on. Then: `kubectl -n schwab-ddowell get backups.postgresql.cnpg.io` and the ContinuousArchiving condition on cluster/timescaledb; `kubectl get etcdsnapshotfiles.k3s.cattle.io` for s3 entries; `kubectl -n openbao get jobs` and the openbao-snapshot job logs. If fw1 will stay down, disable WAL archiving before the database volume fills. See docs/runbooks/cluster-cold-recovery.md in chalupa-brain."
+            summary: "A backup to MinIO on fw1, or its off-site copy, is unhealthy"
+            description: "One of: no TimescaleDB base backup in 48h or WAL not reaching MinIO; an etcd server has not uploaded a snapshot in 48h; no successful OpenBao snapshot in 48h; the off-site copy to Backblaze B2 has not succeeded in 48h (`kubectl -n openbao get jobs` and the offsite-copy job logs; it needs fw1 and the internet). All three backups write to MinIO on fw1 (http://192.168.2.51:9000), so first check that fw1 is powered on. Then: `kubectl -n schwab-ddowell get backups.postgresql.cnpg.io` and the ContinuousArchiving condition on cluster/timescaledb; `kubectl get etcdsnapshotfiles.k3s.cattle.io` for s3 entries; `kubectl -n openbao get jobs` and the openbao-snapshot job logs. If fw1 will stay down, disable WAL archiving before the database volume fills. See docs/runbooks/cluster-cold-recovery.md in chalupa-brain."
 
 
     # ── Info ─────────────────────────────────────────────────────────

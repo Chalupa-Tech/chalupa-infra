@@ -1,0 +1,65 @@
+---
+# Off-site copy of the fw1 backups (platform phase-94a).
+#
+# The offsite-copy CronJob (k8s/platform/openbao) logs in with its own
+# ServiceAccount through Kubernetes auth and gets a 10-minute token that can
+# read one secret: the MinIO key that reads the three backup buckets, the
+# Backblaze B2 key that can list and write one bucket, and the rclone crypt
+# password and salt. No static OpenBao token exists for it.
+#
+# The crypt password and salt are copied here from Ansible Vault for the
+# job. Ansible Vault (in git) is the copy that survives losing the site.
+#
+# Included from main.yml, and on its own from
+# playbooks/control-plane-backups.yml. All tasks are idempotent.
+
+- name: Write offsite-copy policy
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/sys/policies/acl/offsite-copy-policy"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      policy: |
+        # MinIO read key, B2 write key, rclone crypt password and salt.
+        path "secret/data/platform/offsite-copy" {
+          capabilities = ["read"]
+        }
+    status_code: [200, 204]
+  no_log: true
+
+- name: Write offsite-copy K8s auth role
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/auth/kubernetes/role/offsite-copy-role"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      bound_service_account_names: [offsite-copy]
+      bound_service_account_namespaces: [openbao]
+      token_policies: [offsite-copy-policy]
+      token_no_default_policy: true
+      token_ttl: 10m
+      token_max_ttl: 10m
+    status_code: [200, 204]
+  no_log: true
+
+- name: Seed the off-site copy keys at secret/platform/offsite-copy
+  ansible.builtin.uri:
+    url: "{{ openbao_url }}/v1/secret/data/platform/offsite-copy"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ openbao_setup_root_token }}"
+    body_format: json
+    body:
+      data:
+        minio_access_key: "{{ minio_offsite_copy_access_key }}"
+        minio_secret_key: "{{ minio_offsite_copy_secret_key }}"
+        b2_key_id: "{{ offsite_b2_key_id }}"
+        b2_key: "{{ offsite_b2_key }}"
+        crypt_password: "{{ offsite_crypt_password }}"
+        crypt_salt: "{{ offsite_crypt_salt }}"
+    status_code: [200, 204]
+  no_log: true
