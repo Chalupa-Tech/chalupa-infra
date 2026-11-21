@@ -12,7 +12,8 @@
 #   2. Key scope: with the CronJob's write key, upload a canary file; it
 #      must carry the bucket's default Object Lock retention. Reading it and
 #      deleting it permanently must both be refused. A plain delete (B2
-#      "hide") is tried last and reported as found.
+#      "hide") is tried last; if it is allowed, the hidden canary must come
+#      back through --b2-version-at, the restore path for hidden files.
 #
 # Needs: rclone, ansible-vault (the vault password, from the Keychain via
 # ansible/ansible.cfg or asked for), and a short-lived B2
@@ -27,6 +28,9 @@
 #
 # In a real restore, the same remotes fetch everything, e.g.
 #   rclone copy offsite:openbao-snapshots ./openbao-snapshots
+# If files may have been hidden (the job's key can hide; Object Lock keeps
+# the versions), read the bucket as it was before that time instead:
+#   rclone copy offsite:openbao-snapshots ./openbao-snapshots --b2-version-at 2026-11-20T00:00:00Z
 set -euo pipefail
 
 BUCKET=${OFFSITE_B2_BUCKET:-chalupa-offsite-27c70e32}
@@ -103,8 +107,10 @@ for b in cnpg-backups etcd-snapshots openbao-snapshots; do
   fi
 done
 
-# The newest database base backup must be complete, and the WAL it needs
-# (begin_wal to end_wal) must be in the copy.
+# The newest database base backup must be complete: DONE, its data
+# present, and every WAL segment from begin_wal to end_wal in the copy
+# (the range is computed, so a gap is caught without MinIO). With MinIO
+# reachable, its base directory must match the original file for file.
 info=$(rclone lsf -R --files-only --include "*/base/*/backup.info" "offsite:cnpg-backups" | sort | tail -n 1)
 if [ -z "$info" ]; then
   echo "FAIL: no base backup (backup.info) in offsite:cnpg-backups"; fail=1
@@ -113,14 +119,42 @@ else
   status=$(sed -n 's/^status=//p' "$work/backup.info")
   begin=$(sed -n 's/^begin_wal=//p' "$work/backup.info")
   endw=$(sed -n 's/^end_wal=//p' "$work/backup.info")
-  echo "cnpg-backups/$info  status=$status  wal=$begin..$endw"
-  [ "$status" = DONE ] || { echo "  FAIL: base backup status is not DONE"; fail=1; }
+  segsize=$(sed -n 's/^xlog_segment_size=//p' "$work/backup.info")
+  basedir=${info%/backup.info}
   server=${info%%/*}
+  echo "cnpg-backups/$basedir  status=$status  wal=$begin..$endw"
+  [ "$status" = DONE ] || { echo "  FAIL: base backup status is not DONE"; fail=1; }
+  rclone lsf -R --files-only "offsite:cnpg-backups/$basedir" > "$work/base.txt"
+  if grep -q '^data\.tar' "$work/base.txt"; then echo "  data: $(grep '^data\.tar' "$work/base.txt" | tr '\n' ' ')"
+  else echo "  FAIL: no data.tar* in the base backup"; fail=1; fi
   rclone lsf -R --files-only "offsite:cnpg-backups/$server/wals" > "$work/wals.txt"
-  for w in "$begin" "$endw"; do
-    if [ -n "$w" ] && grep -q "/$w" "$work/wals.txt"; then echo "  WAL $w present"
-    else echo "  FAIL: WAL ${w:-<none>} missing"; fail=1; fi
-  done
+  if python3 - "$begin" "$endw" "${segsize:-16777216}" "$work/wals.txt" <<'WAL'
+import sys, os
+begin, end, segsize, listing = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
+have = {os.path.basename(l.strip())[:24] for l in open(listing) if l.strip()}
+per_log = 0x100000000 // segsize
+tli = begin[:8]
+log, seg = int(begin[8:16], 16), int(begin[16:24], 16)
+missing, n = [], 0
+while True:
+    name = f"{tli}{log:08X}{seg:08X}"
+    n += 1
+    if name not in have:
+        missing.append(name)
+    if name == end or n > 100000:
+        break
+    seg += 1
+    if seg >= per_log:
+        log, seg = log + 1, 0
+print(f"  WAL range: {n} segments, {len(missing)} missing" + (f" (first {missing[0]})" if missing else ""))
+sys.exit(1 if missing or end[:8] != tli else 0)
+WAL
+  then :; else echo "  FAIL: the base backup's WAL range is incomplete"; fail=1; fi
+  if [ "$minio_ok" = 1 ]; then
+    if rclone check --one-way --size-only "minio:cnpg-backups/$basedir" "offsite:cnpg-backups/$basedir" >"$work/check-base.txt" 2>&1; then
+      echo "  base directory matches MinIO file for file"
+    else echo "  FAIL: base directory differs from MinIO"; grep -E 'ERROR|differ|not found' "$work/check-base.txt" | head -5; fail=1; fi
+  fi
 fi
 
 newest() { rclone lsf --files-only --format "tp" --separator " " "offsite:$1" | sort | tail -n 1 | cut -d" " -f3-; }
@@ -153,20 +187,39 @@ echo "offsite-check canary" > "$work/canary.txt"
 if rclone copyto "$work/canary.txt" "b2w:$BUCKET/$canary" --retries 1 --low-level-retries 1 >/dev/null 2>&1; then
   echo "write: allowed (expected)"
 else echo "FAIL: write key cannot upload"; fail=1; fi
-mode=$(B2_ACCOUNT_INFO="$work/b2-account-info" B2_APPLICATION_KEY_ID="$B2_READ_KEY_ID" B2_APPLICATION_KEY="$B2_READ_KEY" \
-  b2 file info "b2://$BUCKET/$canary" 2>/dev/null \
-  | python3 -c 'import json,sys; print(((json.load(sys.stdin).get("fileRetention") or {}).get("mode")) or "none")' || echo "unknown")
-if [ "$mode" = governance ] || [ "$mode" = compliance ]; then
-  echo "retention on a job upload: $mode (expected)"
-else echo "FAIL: a job upload has retention '$mode', not the bucket default"; fail=1; fi
+# The read key needs readFileRetentions to see retention. The b2 CLI and
+# the raw API nest it differently ({"mode"} or {"value": {"mode"}}): accept
+# either, and require a retain-until at least 29 days out.
+ret=$(B2_ACCOUNT_INFO="$work/b2-account-info" B2_APPLICATION_KEY_ID="$B2_READ_KEY_ID" B2_APPLICATION_KEY="$B2_READ_KEY" \
+  b2 file info "b2://$BUCKET/$canary" 2>/dev/null | python3 -c '
+import json, sys, time
+r = json.load(sys.stdin).get("fileRetention") or {}
+r = r.get("value") or r
+mode, until = r.get("mode") or "none", r.get("retainUntilTimestamp") or 0
+days = (int(until) / 1000 - time.time()) / 86400 if until else 0
+print(mode, int(days))' || echo "unknown 0")
+mode=${ret% *}; days=${ret#* }
+if { [ "$mode" = governance ] || [ "$mode" = compliance ]; } && [ "$days" -ge 29 ]; then
+  echo "retention on a job upload: $mode, $days days left (expected)"
+else echo "FAIL: a job upload has retention '$mode' with $days days left, not the bucket default of 30"; fail=1; fi
 if rclone cat "b2w:$BUCKET/$canary" --retries 1 --low-level-retries 1 >/dev/null 2>&1; then
   echo "FAIL: write key can read"; fail=1
 else echo "read: refused (expected)"; fi
 if rclone deletefile "b2w:$BUCKET/$canary" --b2-hard-delete --retries 1 --low-level-retries 1 >/dev/null 2>&1; then
   echo "FAIL: write key can permanently delete"; fail=1
 else echo "permanent delete: refused (expected)"; fi
+# A moment between the upload and the hide, with margin for clock skew.
+sleep 5; before_hide=$(date -u +%Y-%m-%dT%H:%M:%SZ); sleep 5
 if rclone deletefile "b2w:$BUCKET/$canary" --retries 1 --low-level-retries 1 >/dev/null 2>&1; then
   echo "hide: allowed (the version stays under retention; lifecycle cannot delete it before then)"
+  # A hidden file is missing from a plain listing, so a plain restore would
+  # skip it. The restore path for that case reads the bucket as it was
+  # before the hide (--b2-version-at); prove it brings the canary back.
+  if rclone lsf "b2r:$BUCKET/$canary" 2>/dev/null | grep -q .; then
+    echo "  FAIL: hidden canary still listed"; fail=1; fi
+  if [ "$(rclone cat "b2r:$BUCKET/$canary" --b2-version-at "$before_hide" 2>/dev/null)" = "offsite-check canary" ]; then
+    echo "  version-aware read (--b2-version-at) returns the hidden canary (expected)"
+  else echo "  FAIL: --b2-version-at could not read the hidden canary"; fail=1; fi
 else echo "hide: refused"; fi
 
 [ "$fail" = 0 ] && echo "OFFSITE CHECK OK" || echo "OFFSITE CHECK FAILED"
