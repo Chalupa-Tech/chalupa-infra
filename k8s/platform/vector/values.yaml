@@ -130,14 +130,14 @@ vector:
         inputs:
           - remap_logs
         condition: |
-          .container == "longhorn-csi-plugin" && contains(string(.message) ?? "", "format of disk")
+          .container == "longhorn-csi-plugin" && (contains(string(.message) ?? "", "format of disk") || contains(string(.error_msg) ?? "", "format of disk"))
 
       csi_format_failure_volume:
         type: remap
         inputs:
           - csi_format_failures
         source: |
-          m, err = parse_regex(string(.message) ?? "", r'/dev/longhorn/(?P<volume>pvc-[0-9a-f-]+)')
+          m, err = parse_regex((string(.message) ?? "") + " " + (string(.error_msg) ?? ""), r'/dev/longhorn/(?P<volume>pvc-[0-9a-f-]+)')
           .volume = if err == null { string(m.volume) ?? "unknown" } else { "unknown" }
 
       csi_format_failure_counts:
@@ -152,6 +152,16 @@ vector:
             tags:
               volume: '{{ "{{ volume }}" }}'
 
+      # Only these internal metrics reach the exporter, which holds every
+      # series it receives for flush_period_secs; filtering here bounds
+      # Vector's own memory, not just what is scraped.
+      internal_metrics_kept:
+        type: filter
+        inputs:
+          - internal_metrics
+        condition: |
+          includes(["component_received_events_total", "component_sent_events_total", "component_discarded_events_total", "component_errors_total", "buffer_events", "buffer_byte_size"], .name)
+
     sinks:
       # Scraped by templates/vmpodscrape.yaml. The chart derives the
       # container port (named prom-exporter) from this address.
@@ -161,7 +171,7 @@ vector:
       prom_exporter:
         type: prometheus_exporter
         inputs:
-          - internal_metrics
+          - internal_metrics_kept
           - log_line_counts
           - csi_format_failure_counts
         address: 0.0.0.0:9598

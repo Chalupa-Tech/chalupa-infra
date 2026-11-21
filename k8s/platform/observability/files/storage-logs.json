@@ -263,7 +263,9 @@
       "targets": [
         {
           "expr": "sum by (volume) (increase(vector_longhorn_csi_format_failures_total[$__range]))",
+          "instant": true,
           "legendFormat": "{{volume}}",
+          "range": false,
           "refId": "A"
         }
       ],

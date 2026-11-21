@@ -103,8 +103,10 @@ func managerLogRate(y int) *timeseries.PanelBuilder {
 			"{{node}}"))
 }
 
-// csiFormatFailures — id 103. No series exists until the first failure,
-// so "none seen" is the normal state, not missing data.
+// csiFormatFailures — id 103. An instant query at the range end over
+// $__range, so it counts only failures inside the selected range. No
+// series exists until the first failure, so "none seen" is the normal
+// state; a failed Vector scrape fires TargetDown.
 func csiFormatFailures(y int) *stat.PanelBuilder {
 	return stat.NewPanelBuilder().
 		Id(103).
@@ -114,7 +116,7 @@ func csiFormatFailures(y int) *stat.PanelBuilder {
 		Datasource(datasources.Victoria()).
 		WithTarget(query("A",
 			`sum by (volume) (increase(vector_longhorn_csi_format_failures_total[$__range]))`,
-			"{{volume}}")).
+			"{{volume}}").Instant()).
 		Unit("short").
 		Decimals(0).
 		NoValue("none seen").
