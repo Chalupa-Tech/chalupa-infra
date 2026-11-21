@@ -230,45 +230,53 @@ esac
 # version cannot be deleted by a lifecycle rule or by a key without
 # bypassGovernance. So the canary, uploaded the way the job uploads, must
 # carry that retention.
-canary="key-scope-canary/$(date -u +%Y%m%dT%H%M%SZ).txt"
-echo "offsite-check canary" > "$work/canary.txt"
-if rclone copyto "$work/canary.txt" "b2w:$BUCKET/$canary" --retries 1 --low-level-retries 1 >/dev/null 2>&1; then
+# The job's key has no readFiles, so every rclone call that looks at one
+# file by name (copyto, cat, deletefile: they HEAD it first) is refused for
+# that reason alone. Upload and delete the way the job does, through a
+# directory listing (listFiles), and confirm results with the read key.
+cname="$(date -u +%Y%m%dT%H%M%SZ).txt"
+canary="key-scope-canary/$cname"
+mkdir -p "$work/canary"; echo "offsite-check canary" > "$work/canary/$cname"
+listed() { rclone lsf "b2r:$BUCKET/key-scope-canary/" --include "$cname" 2>/dev/null | grep -qx "$cname"; }
+rb() { rclone "$@" --retries 1 --low-level-retries 1 >/dev/null 2>&1; }
+if rb copy "$work/canary" "b2w:$BUCKET/key-scope-canary/" && listed; then
   echo "write: allowed (expected)"
-else echo "FAIL: write key cannot upload"; fail=1; fi
-# The read key needs readFileRetentions to see retention. The b2 CLI and
-# the raw API nest it differently ({"mode"} or {"value": {"mode"}}): accept
-# either, and require a retain-until at least 29 days out.
-ret=$(B2_ACCOUNT_INFO="$work/b2-account-info" B2_APPLICATION_KEY_ID="$B2_READ_KEY_ID" B2_APPLICATION_KEY="$B2_READ_KEY" \
-  b2 file info "b2://$BUCKET/$canary" 2>/dev/null | python3 -c '
+  # The read key needs readFileRetentions to see retention. The b2 CLI and
+  # the raw API nest it differently ({"mode"} or {"value": {"mode"}}):
+  # accept either, and require a retain-until at least 29 days out.
+  ret=$(B2_ACCOUNT_INFO="$work/b2-account-info" B2_APPLICATION_KEY_ID="$B2_READ_KEY_ID" B2_APPLICATION_KEY="$B2_READ_KEY" \
+    b2 file info "b2://$BUCKET/$canary" 2>/dev/null | python3 -c '
 import json, sys, time
 r = json.load(sys.stdin).get("fileRetention") or {}
 r = r.get("value") or r
 mode, until = r.get("mode") or "none", r.get("retainUntilTimestamp") or 0
 days = (int(until) / 1000 - time.time()) / 86400 if until else 0
-print(mode, int(days))' || echo "unknown 0")
-mode=${ret% *}; days=${ret#* }
-if { [ "$mode" = governance ] || [ "$mode" = compliance ]; } && [ "$days" -ge 29 ]; then
-  echo "retention on a job upload: $mode, $days days left (expected)"
-else echo "FAIL: a job upload has retention '$mode' with $days days left, not the bucket default of 30"; fail=1; fi
-if rclone cat "b2w:$BUCKET/$canary" --retries 1 --low-level-retries 1 >/dev/null 2>&1; then
-  echo "FAIL: write key can read"; fail=1
-else echo "read: refused (expected)"; fi
-if rclone deletefile "b2w:$BUCKET/$canary" --b2-hard-delete --retries 1 --low-level-retries 1 >/dev/null 2>&1; then
-  echo "FAIL: write key can permanently delete"; fail=1
-else echo "permanent delete: refused (expected)"; fi
-# A moment between the upload and the hide, with margin for clock skew.
-sleep 5; before_hide=$(date -u +%Y-%m-%dT%H:%M:%SZ); sleep 5
-if rclone deletefile "b2w:$BUCKET/$canary" --retries 1 --low-level-retries 1 >/dev/null 2>&1; then
-  echo "hide: allowed (the version stays under retention; lifecycle cannot delete it before then)"
-  # A hidden file is missing from a plain listing, so a plain restore would
-  # skip it. The restore path for that case reads the bucket as it was
-  # before the hide (--b2-version-at); prove it brings the canary back.
-  if rclone lsf "b2r:$BUCKET/$canary" 2>/dev/null | grep -q .; then
-    echo "  FAIL: hidden canary still listed"; fail=1; fi
-  if [ "$(rclone cat "b2r:$BUCKET/$canary" --b2-version-at "$before_hide" 2>/dev/null)" = "offsite-check canary" ]; then
-    echo "  version-aware read (--b2-version-at) returns the hidden canary (expected)"
-  else echo "  FAIL: --b2-version-at could not read the hidden canary"; fail=1; fi
-else echo "hide: refused"; fi
+print(mode, int(days))' 2>/dev/null || echo "unknown 0")
+  mode=${ret% *}; days=${ret#* }
+  if { [ "$mode" = governance ] || [ "$mode" = compliance ]; } && [ "$days" -ge 29 ]; then
+    echo "retention on a job upload: $mode, $days days left (expected)"
+  else echo "FAIL: a job upload has retention '$mode' with $days days left, not the bucket default of 30"; fail=1; fi
+  if [ "$(rclone cat "b2w:$BUCKET/$canary" --retries 1 --low-level-retries 1 2>/dev/null)" = "offsite-check canary" ]; then
+    echo "FAIL: write key can read"; fail=1
+  else echo "read: refused (expected)"; fi
+  rb delete "b2w:$BUCKET/key-scope-canary/" --include "$cname" --b2-hard-delete
+  if listed; then echo "permanent delete: refused (expected)"
+  else echo "FAIL: write key can permanently delete"; fail=1; fi
+  # A moment between the upload and the hide, with margin for clock skew.
+  sleep 5; before_hide=$(date -u +%Y-%m-%dT%H:%M:%SZ); sleep 5
+  rb delete "b2w:$BUCKET/key-scope-canary/" --include "$cname"
+  if ! listed; then
+    echo "hide: allowed (the version stays under retention; lifecycle cannot delete it before then)"
+    # A hidden file is missing from a plain listing, so a plain restore
+    # would skip it. The restore path for that case reads the bucket as it
+    # was before the hide (--b2-version-at); prove it brings the canary back.
+    if [ "$(rclone cat "b2r:$BUCKET/$canary" --b2-version-at "$before_hide" 2>/dev/null)" = "offsite-check canary" ]; then
+      echo "  version-aware read (--b2-version-at) returns the hidden canary (expected)"
+    else echo "  FAIL: --b2-version-at could not read the hidden canary"; fail=1; fi
+  else echo "hide: refused"; fi
+else
+  echo "FAIL: write key cannot upload (retention, read and delete checks skipped)"; fail=1
+fi
 
 [ "$fail" = 0 ] && echo "OFFSITE CHECK OK" || echo "OFFSITE CHECK FAILED"
 exit "$fail"
