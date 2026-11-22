@@ -12,6 +12,14 @@ vector:
       cpu: 20m
       memory: 64Mi
     limits:
+      # Platform phase-96: normal use is about 0.005 cores. Measured
+      # 2026-11-22: a 10k lines/s flood costs about 65us/line (0.65 cores
+      # averaged, about 2 cores while draining) even with the throttle
+      # ahead of remap_logs, because the source and the counters see every
+      # line. The limit makes the 0.5-core bound real: a flood drains more
+      # slowly (the lines stay in the node's log files) while the throttle
+      # still caps what ships.
+      cpu: 500m
       memory: 256Mi
 
   customConfig:
