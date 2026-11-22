@@ -10,7 +10,11 @@ victoria-logs-single:
     persistentVolume:
       enabled: true
       size: 10Gi
-      storageClassName: longhorn-single
+      # Must match the live StatefulSet: volumeClaimTemplates is immutable,
+      # and a different class here (longhorn-single, 2026-04 to 2026-11)
+      # makes every ArgoCD diff fail, so the app never syncs. Changing the
+      # class means recreating the StatefulSet with --cascade=orphan.
+      storageClassName: longhorn
 
     retentionPeriod: 14d
 
