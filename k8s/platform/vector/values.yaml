@@ -104,6 +104,72 @@ vector:
           # Drop Vector's own internal logs
           .container != "vector"
 
+      # Platform phase-96: one pod/container cannot cost more than
+      # 200 events/s on the way to VictoriaLogs (2026-11-17: one
+      # longhorn-manager stream produced 3.98M lines in 30 minutes). Only
+      # the victorialogs sink reads this; log_line_counts and the CSI
+      # counters read filter_noise/remap_logs directly, so
+      # vector_pod_log_lines_total still counts every line and
+      # LonghornManagerLogFlood can still fire. Drops are counted in
+      # component_discarded_events_total{component_id="throttle_logs"}
+      # (no per-pod tag, so internal_metrics_kept keeps it).
+      throttle_logs:
+        type: throttle
+        inputs:
+          - filter_noise
+        key_field: '{{ "{{ namespace }}/{{ pod }}/{{ container }}" }}'
+        threshold: 200
+        window_secs: 1
+
+      # One line per flooding pod/container per minute, so a throttled
+      # flood is visible in VictoriaLogs rather than silent. Vector 0.54's
+      # throttle cannot reroute what it drops, so lines are counted per key
+      # before the throttle and a summary is emitted when a stream averaged
+      # above the cap (200/s * 60s) for the minute. The exact drop count is
+      # component_discarded_events_total{component_id="throttle_logs"}.
+      flood_marker:
+        type: remap
+        inputs:
+          - filter_noise
+        source: |
+          . = {
+            "namespace": .namespace,
+            "pod": .pod,
+            "container": .container,
+            "node": .node,
+            "lines": 1
+          }
+
+      flood_minute:
+        type: reduce
+        inputs:
+          - flood_marker
+        group_by:
+          - namespace
+          - pod
+          - container
+        end_every_period_ms: 60000
+        merge_strategies:
+          lines: sum
+
+      flood_over_cap:
+        type: filter
+        inputs:
+          - flood_minute
+        condition: (int(.lines) ?? 0) > 12000
+
+      flood_summary_line:
+        type: remap
+        inputs:
+          - flood_over_cap
+        source: |
+          .timestamp = now()
+          .level = "warn"
+          .throttled = true
+          .message = "log flood: " + to_string!(.lines) +
+            " lines in the last minute from this pod and container;" +
+            " anything above 200/s is dropped before VictoriaLogs"
+
       # Platform phase-95: log lines per namespace/container, the signal
       # that would have caught the 2026-11-17 longhorn-manager replay loop
       # (3.98M lines in 30 minutes) directly. Counts what is shipped to
@@ -183,7 +249,16 @@ vector:
       victorialogs:
         type: elasticsearch
         inputs:
-          - filter_noise
+          - throttle_logs
+          - flood_summary_line
+        # Platform phase-96: bounded memory buffer that drops instead of
+        # blocking. 2026-11-17: a stalled VictoriaLogs volume left vector-8bnbc
+        # OOMKilled (256Mi) twice. Blocking would also stall the shared
+        # source and with it the line counters the flood alert reads.
+        buffer:
+          type: memory
+          max_events: 1000
+          when_full: drop_newest
         endpoints:
           - "http://victoria-logs-victoria-logs-single-server.observability.svc.cluster.local:9428/insert/elasticsearch/"
         mode: bulk
