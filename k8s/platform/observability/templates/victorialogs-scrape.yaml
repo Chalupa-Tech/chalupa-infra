@@ -1,13 +1,10 @@
 # Scrape VictoriaLogs' own /metrics (vl_rows_ingested_total and the rest,
 # ~600 series), which LogIngestSpike reads (platform phase-95).
 #
-# This lives here rather than as `server.vmServiceScrape.enabled` in
-# k8s/platform/victoria-logs because that ArgoCD app cannot sync: since
-# #236 (2026-04-02) git asks for storageClassName longhorn-single in the
-# StatefulSet's volumeClaimTemplates, the live StatefulSet still has
-# longhorn, the field is immutable, and every server-side diff fails. Any
-# change to that chart stays undeployed until the StatefulSet is recreated
-# (incident brief in chalupa-brain, "victoria-logs app cannot sync").
+# It lives here rather than as `server.vmServiceScrape.enabled` in
+# k8s/platform/victoria-logs because that ArgoCD app could not sync when
+# phase-95 added it (an immutable volumeClaimTemplates storageClassName,
+# fixed in the same phase).
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMServiceScrape
 metadata:

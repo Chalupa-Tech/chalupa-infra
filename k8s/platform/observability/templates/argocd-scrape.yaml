@@ -1,0 +1,28 @@
+# Scrape the ArgoCD application controller, which ArgoCDOutOfSync and
+# ArgoCDUnhealthy read (argocd_app_info). The ArgoCD install here has no
+# metrics Service and is not itself managed by ArgoCD, so the pod is
+# scraped directly from this chart. Until this existed neither rule could
+# fire: four apps sat in sync status Unknown for months on an immutable
+# StatefulSet field and nothing reported it (platform phase-95).
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: argocd-application-controller
+  namespace: observability
+spec:
+  namespaceSelector:
+    matchNames:
+      - argocd
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-application-controller
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 60s
+      metricRelabelConfigs:
+        # One series per Application; the controller's workqueue and
+        # reconcile histograms are not used by any rule or dashboard.
+        - action: keep
+          source_labels: [__name__]
+          regex: argocd_app_info
