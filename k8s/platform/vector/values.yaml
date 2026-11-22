@@ -31,11 +31,46 @@ vector:
         scrape_interval_secs: 15
 
     transforms:
-      remap_logs:
+      # Platform phase-96: the cheap early stages. Everything that must see
+      # every line (the counters, the CSI filter) taps drop_self using only
+      # .kubernetes.* fields; the expensive parsing in remap_logs runs only
+      # on what the throttle lets through. Measured 2026-11-22: with the
+      # throttle after remap_logs a 10k lines/s burst cost Vector about
+      # 88us per line (roughly 2 cores for 11s), because every dropped line
+      # was still parsed first.
+      drop_self:
         type: remap
         inputs:
           - kubernetes_logs
         source: |
+          if .kubernetes.container_name == "vector" {
+            abort
+          }
+          # The throttle key; kept short because toYaml folds long lines
+          # inside Helm's template string. remap_logs deletes it.
+          .tk = (string(.kubernetes.pod_namespace) ?? "") + "/" +
+            (string(.kubernetes.pod_name) ?? "") + "/" +
+            (string(.kubernetes.container_name) ?? "")
+
+      # One pod/container cannot cost more than 200 events/s on the way to
+      # VictoriaLogs (2026-11-17: one longhorn-manager stream produced
+      # 3.98M lines in 30 minutes). Drops are counted in
+      # component_discarded_events_total{component_id="throttle_logs"}
+      # (no per-pod tag, so internal_metrics_kept keeps it).
+      throttle_logs:
+        type: throttle
+        inputs:
+          - drop_self
+        key_field: '{{ "{{ tk }}" }}'
+        threshold: 200
+        window_secs: 1
+
+      remap_logs:
+        type: remap
+        inputs:
+          - throttle_logs
+        source: |
+          del(.tk)
           .pod = .kubernetes.pod_name
           .namespace = .kubernetes.pod_namespace
           .container = .kubernetes.container_name
@@ -104,106 +139,104 @@ vector:
           # Drop Vector's own internal logs
           .container != "vector"
 
-      # Platform phase-96: one pod/container cannot cost more than
-      # 200 events/s on the way to VictoriaLogs (2026-11-17: one
-      # longhorn-manager stream produced 3.98M lines in 30 minutes). Only
-      # the victorialogs sink reads this; log_line_counts and the CSI
-      # counters read filter_noise/remap_logs directly, so
-      # vector_pod_log_lines_total still counts every line and
-      # LonghornManagerLogFlood can still fire. Drops are counted in
-      # component_discarded_events_total{component_id="throttle_logs"}
-      # (no per-pod tag, so internal_metrics_kept keeps it).
-      throttle_logs:
-        type: throttle
-        inputs:
-          - filter_noise
-        key_field: '{{ "{{ namespace }}/{{ pod }}/{{ container }}" }}'
-        threshold: 200
-        window_secs: 1
-
-      # One line per flooding pod/container per minute, so a throttled
-      # flood is visible in VictoriaLogs rather than silent. Vector 0.54's
-      # throttle cannot reroute what it drops, so lines are counted per key
-      # before the throttle and a summary is emitted when a stream averaged
-      # above the cap (200/s * 60s) for the minute. The exact drop count is
-      # component_discarded_events_total{component_id="throttle_logs"}.
-      flood_marker:
-        type: remap
-        inputs:
-          - filter_noise
-        source: |
-          . = {
-            "namespace": .namespace,
-            "pod": .pod,
-            "container": .container,
-            "node": .node,
-            "lines": 1
-          }
-
-      flood_minute:
-        type: reduce
-        inputs:
-          - flood_marker
-        group_by:
-          - namespace
-          - pod
-          - container
-        end_every_period_ms: 60000
-        merge_strategies:
-          lines: sum
-
-      flood_over_cap:
-        type: filter
-        inputs:
-          - flood_minute
-        condition: (int(.lines) ?? 0) > 12000
-
-      flood_summary_line:
-        type: remap
-        inputs:
-          - flood_over_cap
-        source: |
-          .timestamp = now()
-          .level = "warn"
-          .throttled = true
-          .message = "log flood: " + to_string!(.lines) +
-            " lines in the last minute from this pod and container;" +
-            " anything above 200/s is dropped before VictoriaLogs"
-
       # Platform phase-95: log lines per namespace/container, the signal
       # that would have caught the 2026-11-17 longhorn-manager replay loop
-      # (3.98M lines in 30 minutes) directly. Counts what is shipped to
-      # VictoriaLogs (after filter_noise). The tags are Vector templates;
-      # `{{ "{{ x }}" }}` keeps Helm's tpl pass from evaluating them.
+      # (3.98M lines in 30 minutes) directly. Phase-96 moved it ahead of the
+      # throttle so it counts every line a container writes, not only what is
+      # shipped; it now also counts probe lines that filter_noise drops. The
+      # tags are Vector templates; `{{ "{{ x }}" }}` keeps Helm's tpl pass
+      # from evaluating them.
       log_line_counts:
         type: log_to_metric
         inputs:
-          - filter_noise
+          - drop_self
         metrics:
           - type: counter
             field: message
             namespace: vector
             name: pod_log_lines_total
             tags:
-              log_namespace: '{{ "{{ namespace }}" }}'
-              log_container: '{{ "{{ container }}" }}'
+              log_namespace: '{{ "{{ kubernetes.pod_namespace }}" }}'
+              log_container: '{{ "{{ kubernetes.container_name }}" }}'
+
+      # Platform phase-96: one line per flooding pod/container per minute, so
+      # a throttled flood is visible in VictoriaLogs rather than silent.
+      # Vector 0.54's throttle cannot reroute what it drops, so lines are
+      # counted per pod before the throttle (not exported: it has a pod tag)
+      # and a summary is emitted when a stream averaged above the cap
+      # (200/s * 60s) over the minute. The exact drop count is
+      # component_discarded_events_total{component_id="throttle_logs"}.
+      flood_counts:
+        type: log_to_metric
+        inputs:
+          - drop_self
+        metrics:
+          - type: counter
+            field: message
+            namespace: vector
+            name: flood_pod_lines
+            tags:
+              log_namespace: '{{ "{{ kubernetes.pod_namespace }}" }}'
+              log_pod: '{{ "{{ kubernetes.pod_name }}" }}'
+              log_container: '{{ "{{ kubernetes.container_name }}" }}'
+
+      flood_minute:
+        type: aggregate
+        inputs:
+          - flood_counts
+        interval_ms: 60000
+        mode: Sum
+
+      flood_minute_logs:
+        type: metric_to_log
+        inputs:
+          - flood_minute
+
+      flood_over_cap:
+        type: filter
+        inputs:
+          - flood_minute_logs
+        condition: (float(.counter.value) ?? 0.0) > 12000.0
+
+      flood_summary_line:
+        type: remap
+        inputs:
+          - flood_over_cap
+        source: |
+          n = to_int!(.counter.value)
+          . = {
+            "timestamp": now(),
+            "namespace": .tags.log_namespace,
+            "pod": .tags.log_pod,
+            "container": .tags.log_container,
+            "node": get_env_var("VECTOR_SELF_NODE_NAME") ?? "unknown",
+            "level": "warn",
+            "throttled": true,
+            "lines": n,
+            "message": "log flood: " + to_string(n) +
+              " lines in the last minute from this pod and container;" +
+              " anything above 200/s is dropped before VictoriaLogs"
+          }
 
       # Platform phase-95: mount-utils logs "format of disk" only when mkfs
       # fails, and the phase-97 mkfs guard's refusal is part of that line.
       # Neither has a legitimate cause, so every such line is counted.
+      # Phase-96: reads drop_self (before the throttle) so a flood cannot
+      # hide a format failure; the raw message holds whatever remap_logs
+      # would have copied into error_msg.
       csi_format_failures:
         type: filter
         inputs:
-          - remap_logs
+          - drop_self
         condition: |
-          .container == "longhorn-csi-plugin" && (contains(string(.message) ?? "", "format of disk") || contains(string(.error_msg) ?? "", "format of disk"))
+          .kubernetes.container_name == "longhorn-csi-plugin" && contains(string(.message) ?? "", "format of disk")
 
       csi_format_failure_volume:
         type: remap
         inputs:
           - csi_format_failures
         source: |
-          m, err = parse_regex((string(.message) ?? "") + " " + (string(.error_msg) ?? ""), r'/dev/longhorn/(?P<volume>pvc-[0-9a-f-]+)')
+          m, err = parse_regex(string(.message) ?? "", r'/dev/longhorn/(?P<volume>pvc-[0-9a-f-]+)')
           .volume = if err == null { string(m.volume) ?? "unknown" } else { "unknown" }
 
       csi_format_failure_counts:
@@ -249,7 +282,7 @@ vector:
       victorialogs:
         type: elasticsearch
         inputs:
-          - throttle_logs
+          - filter_noise
           - flood_summary_line
         # Platform phase-96: bounded memory buffer that drops instead of
         # blocking. 2026-11-17: a stalled VictoriaLogs volume left vector-8bnbc
