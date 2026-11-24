@@ -259,12 +259,12 @@ print(mode, int(days))' 2>/dev/null || echo "unknown 0")
   if [ "$(rclone cat "b2w:$BUCKET/$canary" --retries 1 --low-level-retries 1 2>/dev/null)" = "offsite-check canary" ]; then
     echo "FAIL: write key can read"; fail=1
   else echo "read: refused (expected)"; fi
-  rb delete "b2w:$BUCKET/key-scope-canary/" --include "$cname" --b2-hard-delete
+  rb delete "b2w:$BUCKET/key-scope-canary/" --include "$cname" --b2-hard-delete || true  # refused is the expected outcome
   if listed; then echo "permanent delete: refused (expected)"
   else echo "FAIL: write key can permanently delete"; fail=1; fi
   # A moment between the upload and the hide, with margin for clock skew.
   sleep 5; before_hide=$(date -u +%Y-%m-%dT%H:%M:%SZ); sleep 5
-  rb delete "b2w:$BUCKET/key-scope-canary/" --include "$cname"
+  rb delete "b2w:$BUCKET/key-scope-canary/" --include "$cname" || true
   if ! listed; then
     echo "hide: allowed (the version stays under retention; lifecycle cannot delete it before then)"
     # A hidden file is missing from a plain listing, so a plain restore
