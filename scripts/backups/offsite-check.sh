@@ -278,5 +278,9 @@ else
   echo "FAIL: write key cannot upload (retention, read and delete checks skipped)"; fail=1
 fi
 
-[ "$fail" = 0 ] && echo "OFFSITE CHECK OK" || echo "OFFSITE CHECK FAILED"
+# Without MinIO nothing was compared with the originals: a file missing from
+# B2 (an older snapshot, WAL outside the newest base) would go unnoticed.
+if [ "$fail" != 0 ]; then echo "OFFSITE CHECK FAILED"
+elif [ "$minio_ok" = 1 ]; then echo "OFFSITE CHECK OK"
+else echo "OFFSITE CHECK OK (restore proof and key scope only; completeness not compared: MinIO unreachable)"; fi
 exit "$fail"

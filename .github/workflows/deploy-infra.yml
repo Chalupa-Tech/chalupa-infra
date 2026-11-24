@@ -22,6 +22,12 @@ on:
         required: false
         default: ''
 
+# One deploy at a time: two runs both write MinIO users and seed OpenBao from
+# their own checkout, so an older run finishing last could restore old keys.
+concurrency:
+  group: deploy-infra
+  cancel-in-progress: false
+
 env:
   ANSIBLE_FORCE_COLOR: "1"
   ANSIBLE_HOST_KEY_CHECKING: "False"
