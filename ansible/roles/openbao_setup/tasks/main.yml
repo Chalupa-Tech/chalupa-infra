@@ -188,6 +188,9 @@
     - name: Setup Raft snapshot writer (policy, K8s auth role, MinIO key)
       ansible.builtin.include_tasks: snapshot_setup.yml
 
+    - name: Setup off-site copy job (policy, K8s auth role, keys)
+      ansible.builtin.include_tasks: offsite_copy_setup.yml
+
     - name: Setup Users, Namespaces and SAs
       ansible.builtin.include_tasks: user_setup.yml
       loop: "{{ managed_users }}"

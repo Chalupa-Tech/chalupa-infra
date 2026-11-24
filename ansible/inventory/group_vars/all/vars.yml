@@ -46,6 +46,16 @@ minio_etcd_access_key: etcd-snapshots
 minio_etcd_secret_key: "{{ vault_minio_etcd_secret_key }}"
 minio_openbao_snapshot_access_key: openbao-snapshots
 minio_openbao_snapshot_secret_key: "{{ vault_minio_openbao_snapshot_secret_key }}"
+minio_offsite_copy_access_key: offsite-copy
+minio_offsite_copy_secret_key: "{{ vault_minio_offsite_copy_secret_key }}"
+# Off-site copy to Backblaze B2 (platform phase-94a). The B2 key can list
+# and write the one bucket, not read or delete. The rclone crypt password
+# and salt are the only way to decrypt the copy: keep them outside the site
+# as well (this file is in git; also a password manager).
+offsite_b2_key_id: "{{ vault_offsite_b2_key_id }}"
+offsite_b2_key: "{{ vault_offsite_b2_key }}"
+offsite_crypt_password: "{{ vault_offsite_crypt_password }}"
+offsite_crypt_salt: "{{ vault_offsite_crypt_salt }}"
 ts_service_name: "{{ vault_ts_service_name | default('svc:chalupa-k3s') }}"
 tailscale_api_key: "{{ vault_tailscale_api_key }}"
 
