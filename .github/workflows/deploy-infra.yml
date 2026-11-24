@@ -59,7 +59,7 @@ jobs:
             INPUT="${{ github.event.inputs.playbook }}"
             echo "site=$( [ "$INPUT" = "site" ] || [ "$INPUT" = "all" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
             echo "minio=$( [ "$INPUT" = "minio" ] || [ "$INPUT" = "all" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
-            echo "backups=$( [ "$INPUT" = "backups" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            echo "backups=$( [ "$INPUT" = "backups" ] || [ "$INPUT" = "all" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
             echo "docker=$( [ "$INPUT" = "docker-node" ] || [ "$INPUT" = "all" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
             exit 0
           fi

@@ -60,6 +60,9 @@ for k in ["vault_offsite_crypt_password", "vault_offsite_crypt_salt",
           "vault_minio_access_key", "vault_minio_secret_key",
           "vault_offsite_b2_read_key_id", "vault_offsite_b2_read_key"]:
     if not v.get(k):
+        # The read key may come from B2_READ_KEY_ID / B2_READ_KEY instead.
+        if k.startswith("vault_offsite_b2_read_key") and os.environ.get("B2_READ_KEY_ID") and os.environ.get("B2_READ_KEY"):
+            continue
         sys.exit(f"{k} missing from the vault")
     with open(os.path.join(out, k), "w") as f:
         f.write(str(v[k]))
