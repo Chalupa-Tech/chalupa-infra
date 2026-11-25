@@ -23,22 +23,33 @@ DIR="${MIGRATIONS_DIR:-/migrations}"
 LOCK_KEY="${LOCK_KEY:-727015}"
 LOCK_TIMEOUT="${LOCK_TIMEOUT:-30s}"
 
+# Work from a private copy: a mounted ConfigMap can be refreshed while the Job
+# runs, and each file must be hashed and executed from the same bytes.
+script=""
+snap="$(mktemp -d "${TMPDIR:-/tmp}/migrations.XXXXXX")"
+trap 'rm -rf "$script" "$snap"' EXIT
+cp -L "$DIR"/*.sql "$snap"/ 2>/dev/null || true
+
 shopt -s nullglob
-files=("$DIR"/*.sql)
+files=("$snap"/*.sql)
 if [ "${#files[@]}" -eq 0 ]; then
   echo "no migrations found in $DIR" >&2
   exit 1
 fi
 
 script="$(mktemp "${TMPDIR:-/tmp}/migrate.XXXXXX")"
-trap 'rm -f "$script"' EXIT
 
 prev=""
 cat >"$script" <<EOF
 \\set ON_ERROR_STOP on
 SELECT pg_advisory_lock($LOCK_KEY);
 SET lock_timeout = '$LOCK_TIMEOUT';
-CREATE TABLE IF NOT EXISTS schema_migrations (
+-- The ledger lives in its own schema, created here and nowhere else: the
+-- application roles can CREATE in public, so a table there could be theirs.
+-- Schema, table and RLS are one transaction, so no moment leaves it writable.
+BEGIN;
+CREATE SCHEMA IF NOT EXISTS migrations;
+CREATE TABLE IF NOT EXISTS migrations.schema_migrations (
   name       text PRIMARY KEY,
   checksum   text NOT NULL,
   applied_at timestamptz NOT NULL DEFAULT now(),
@@ -47,7 +58,15 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 -- The application roles hold pg_write_all_data, which ignores table grants but
 -- not row-level security. With RLS on and no policy they can neither read nor
 -- forge ledger rows; superusers (this Job) bypass it.
-ALTER TABLE schema_migrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE migrations.schema_migrations ENABLE ROW LEVEL SECURITY;
+DO \$\$ BEGIN
+  IF (SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname = 'migrations') <> current_user
+     OR (SELECT pg_get_userbyid(relowner) FROM pg_class WHERE oid = 'migrations.schema_migrations'::regclass) <> current_user
+     OR EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'migrations.schema_migrations'::regclass AND NOT tgisinternal) THEN
+    RAISE EXCEPTION 'migrations.schema_migrations is not owned by % or has triggers: refusing to trust it', current_user;
+  END IF;
+END \$\$;
+COMMIT;
 EOF
 
 for f in "${files[@]}"; do
@@ -66,7 +85,7 @@ for f in "${files[@]}"; do
 
   cat >>"$script" <<EOF
 \\echo == $name
-SELECT coalesce(max(checksum), '') AS applied FROM schema_migrations WHERE name = '$name' \\gset
+SELECT coalesce(max(checksum), '') AS applied FROM migrations.schema_migrations WHERE name = '$name' \\gset
 SELECT :'applied' = '' AS pending, :'applied' NOT IN ('', '$sum') AS drifted \\gset
 \\if :drifted
   DO \$\$ BEGIN RAISE EXCEPTION 'migration $name was edited after it was applied (recorded checksum differs from $sum)'; END \$\$;
@@ -82,12 +101,12 @@ EOF
   fi
   cat >>"$script" <<EOF
   \\if :baseline
-    INSERT INTO schema_migrations (name, checksum, baseline) VALUES ('$name', '$sum', true);
+    INSERT INTO migrations.schema_migrations (name, checksum, baseline) VALUES ('$name', '$sum', true);
     \\echo baselined, not run
   \\else
     BEGIN;
     \\i $f
-    INSERT INTO schema_migrations (name, checksum) VALUES ('$name', '$sum');
+    INSERT INTO migrations.schema_migrations (name, checksum) VALUES ('$name', '$sum');
     COMMIT;
     \\echo applied
   \\endif

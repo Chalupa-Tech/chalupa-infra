@@ -48,7 +48,7 @@ PY
 gen() { DRY_RUN=1 MIGRATIONS_DIR="$1" bash "$chart/files/migrate.sh"; }
 
 out="$(gen "$chart/migrations")"
-for want in 'pg_advisory_lock' 'CREATE TABLE IF NOT EXISTS schema_migrations' '\if :drifted' \
+for want in 'pg_advisory_lock' 'CREATE TABLE IF NOT EXISTS migrations.schema_migrations' '\if :drifted' \
   'ENABLE ROW LEVEL SECURITY' "'001_candle_reconciliation_views.sql'" "'002_merge_quote_candles_functions.sql'" '\i '; do
   grep -qF -- "$want" <<<"$out" || fail "generated script lacks: $want"
 done
@@ -73,7 +73,12 @@ sum="$(sha256sum "$chart/migrations/001_candle_reconciliation_views.sql" | cut -
 grep -qF "$sum" <<<"$out" || fail "checksum not in script"
 cp -R "$chart/migrations" "$work/m"
 echo "-- edited" >>"$work/m/001_candle_reconciliation_views.sql"
-! gen "$work/m" | grep -qF "$sum" || fail "edit did not change the checksum"
+edited="$(gen "$work/m")" || fail "generator failed on the edited migration"
+grep -qF "'001_candle_reconciliation_views.sql'" <<<"$edited" || fail "edited script lacks the migration"
+! grep -qF "$sum" <<<"$edited" || fail "edit did not change the checksum"
+# The ledger is a schema of its own, created with RLS in one transaction.
+grep -qF 'CREATE SCHEMA IF NOT EXISTS migrations' <<<"$out" || fail "ledger schema"
+! grep -qE '(FROM|INTO) schema_migrations' <<<"$out" || fail "unqualified ledger reference"
 
 # Bad input is rejected before psql is ever reached.
 mkdir "$work/dup" "$work/bad" "$work/empty"
