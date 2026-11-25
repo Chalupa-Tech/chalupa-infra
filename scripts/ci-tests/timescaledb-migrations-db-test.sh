@@ -90,8 +90,7 @@ sql "SELECT alter_job(job_id, scheduled => true) FROM timescaledb_information.jo
 out="$(migrate)" || fail "run after fixing the job: $out"
 
 echo "== renaming an applied migration is refused, not re-run"
-cp -R "$chart/migrations" "$work/renamed"
-mv "$work/renamed/001_candle_reconciliation_views.sql" "$work/renamed/001_views_renamed.sql"
+cp -R "$chart/migrations" "$work/renamed" && mv "$work/renamed/001_candle_reconciliation_views.sql" "$work/renamed/001_views_renamed.sql"
 if out="$(migrate "$work/renamed" 2>&1)"; then fail "a renamed migration was accepted: $out"; fi
 grep -q "cannot be renamed" <<<"$out" || fail "wrong failure for rename: $out"
 
