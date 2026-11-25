@@ -57,13 +57,20 @@ Check with `select rolpassword is not null from pg_authid where rolname = 'postg
 Set it once from the Secret, without printing it, then start a new sync (a failed sync does not retry by itself):
 
 ```bash
+set -eu
 PW="$(kubectl get secret -n schwab-ddowell timescaledb-superuser -o jsonpath='{.data.password}' | base64 -d)"
-printf "SET log_statement = 'none';\nALTER ROLE postgres PASSWORD :'pw';\n" | kubectl exec -i -n schwab-ddowell timescaledb-1 -c postgres -- psql -U postgres -d market -v ON_ERROR_STOP=1 -v pw="$PW"
+[ -n "$PW" ] || { echo "empty password: not changing anything" >&2; exit 1; }
+# printf is a shell builtin and the password travels on stdin, so it is in no process arguments
+# and not in the kubectl exec request. Generated passwords are alphanumeric (no quotes to escape).
+printf "SET log_statement = 'none';\n\\set pw '%s'\nALTER ROLE postgres PASSWORD :'pw';\n" "$PW" \
+  | kubectl exec -i -n schwab-ddowell timescaledb-1 -c postgres -- psql -U postgres -d market -v ON_ERROR_STOP=1
 unset PW
+# Only after the ALTER succeeded (a failed sync does not retry by itself):
 kubectl -n argocd patch application schwab-ddowell-timescaledb --type merge -p '{"operation":{"sync":{}}}'
 ```
 
 This was done on the live cluster on 2026-11-25. Rotating the Secret later needs the same `ALTER ROLE`.
+Open risk, not yet observed: `timescaledb-app` (owner `postgres`) holds a different password for the same role. Earlier instance-manager restarts did not apply it, but if a restart ever replaces this password, the Job fails with the same authentication error and the steps above fix it again.
 
 ## What stays in the bootstrap SQL
 
