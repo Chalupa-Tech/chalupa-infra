@@ -92,7 +92,10 @@ for f in "${files[@]}"; do
   cat >>"$script" <<EOF
 \\echo == $name
 SELECT coalesce(max(checksum), '') AS applied FROM migrations.schema_migrations WHERE name = '$name' \\gset
-SELECT :'applied' = '' AS pending, :'applied' NOT IN ('', '$sum') AS drifted \\gset
+SELECT :'applied' = '' AS pending, :'applied' NOT IN ('', '$sum') AS drifted, EXISTS (SELECT 1 FROM migrations.schema_migrations WHERE left(name, 3) = '${name:0:3}' AND name <> '$name') AS renamed \\gset
+\\if :renamed
+  DO \$\$ BEGIN RAISE EXCEPTION 'migration number ${name:0:3} is already recorded under another name; an applied migration cannot be renamed'; END \$\$;
+\\endif
 \\if :drifted
   DO \$\$ BEGIN RAISE EXCEPTION 'migration $name was edited after it was applied (recorded checksum differs from $sum)'; END \$\$;
 \\endif

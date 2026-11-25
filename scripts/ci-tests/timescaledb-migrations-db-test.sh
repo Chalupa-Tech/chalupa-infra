@@ -89,6 +89,12 @@ grep -q "not exactly as expected" <<<"$out" || fail "wrong failure: $out"
 sql "SELECT alter_job(job_id, scheduled => true) FROM timescaledb_information.jobs WHERE proc_name = 'merge_quote_candles_1h'" >/dev/null
 out="$(migrate)" || fail "run after fixing the job: $out"
 
+echo "== renaming an applied migration is refused, not re-run"
+cp -R "$chart/migrations" "$work/renamed"
+mv "$work/renamed/001_candle_reconciliation_views.sql" "$work/renamed/001_views_renamed.sql"
+if out="$(migrate "$work/renamed" 2>&1)"; then fail "a renamed migration was accepted: $out"; fi
+grep -q "cannot be renamed" <<<"$out" || fail "wrong failure for rename: $out"
+
 echo "== a job paused with next_start = infinity is not accepted either"
 sql "DROP SCHEMA migrations CASCADE"
 sql "SELECT alter_job(job_id, next_start => 'infinity') FROM timescaledb_information.jobs WHERE proc_name = 'merge_quote_candles'" >/dev/null
