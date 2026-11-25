@@ -75,10 +75,10 @@ cp -R "$chart/migrations" "$work/m"
 echo "-- edited" >>"$work/m/001_candle_reconciliation_views.sql"
 edited="$(gen "$work/m")" || fail "generator failed on the edited migration"
 grep -qF "'001_candle_reconciliation_views.sql'" <<<"$edited" || fail "edited script lacks the migration"
-! grep -qF "$sum" <<<"$edited" || fail "edit did not change the checksum"
+if grep -qF "$sum" <<<"$edited"; then fail "edit did not change the checksum"; fi
 # The ledger is a schema of its own, created with RLS in one transaction.
 grep -qF 'CREATE SCHEMA IF NOT EXISTS migrations' <<<"$out" || fail "ledger schema"
-! grep -qE '(FROM|INTO) schema_migrations' <<<"$out" || fail "unqualified ledger reference"
+if grep -qE '(FROM|INTO) schema_migrations' <<<"$out"; then fail "unqualified ledger reference"; fi
 
 # Bad input is rejected before psql is ever reached.
 mkdir "$work/dup" "$work/bad" "$work/empty" "$work/broken"

@@ -13,14 +13,26 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 db="migtest_$$_$(date +%s)"
 sql() { psql --no-psqlrc -v ON_ERROR_STOP=1 -Atq -d "$db" -c "$1"; }
 migrate() { MIGRATIONS_DIR="${1:-$chart/migrations}" PGDATABASE="$db" CONNECT_WAIT=30 bash "$chart/files/migrate.sh"; }
-psql --no-psqlrc -v ON_ERROR_STOP=1 -q -d postgres -c "CREATE DATABASE $db"
-trap 'psql --no-psqlrc -q -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" >/dev/null 2>&1 || true; rm -rf "$work"' EXIT
+psql --no-psqlrc -v ON_ERROR_STOP=1 -q -d postgres -c "CREATE DATABASE $db TEMPLATE template0"   # template1 may already carry the extension
+roles_made=0
+cleanup() {
+  psql --no-psqlrc -q -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" >/dev/null 2>&1 || true
+  if [ "$roles_made" = 1 ]; then
+    psql --no-psqlrc -q -d postgres -c "DROP ROLE IF EXISTS marketstore, grafana, papertrader" >/dev/null 2>&1 || true
+  fi
+  rm -rf "$work"
+}
+trap cleanup EXIT
 
 # The extension version the chart bootstraps (postInitTemplateSQL), installed and asserted.
 ext="$(helm template t "$chart" | sed -n "s/.*CREATE EXTENSION IF NOT EXISTS timescaledb VERSION '\([0-9.]*\)'.*/\1/p" | head -n 1)"
 [ -n "$ext" ] || fail "no bootstrap extension version found in the chart"
 sql "CREATE EXTENSION timescaledb VERSION '$ext'"
 [ "$(sql "SELECT extversion FROM pg_extension WHERE extname = 'timescaledb'")" = "$ext" ] || fail "extension is not $ext"
+# Roles are cluster-wide: refuse a server that already has them, and drop only the ones this run made.
+[ "$(psql --no-psqlrc -Atq -d postgres -c "SELECT count(*) FROM pg_roles WHERE rolname IN ('marketstore', 'grafana', 'papertrader')")" = 0 ] \
+  || fail "this server already has marketstore/grafana/papertrader roles; use a disposable instance"
+roles_made=1
 sql "CREATE ROLE marketstore LOGIN; CREATE ROLE grafana LOGIN; CREATE ROLE papertrader LOGIN;
      GRANT pg_read_all_data, pg_write_all_data TO marketstore; GRANT pg_read_all_data TO grafana;
      GRANT CREATE, USAGE ON SCHEMA public TO papertrader"
@@ -76,6 +88,14 @@ grep -q "not exactly as expected" <<<"$out" || fail "wrong failure: $out"
 [ "$(sql "SELECT count(*) FROM migrations.schema_migrations")" = 1 ] || fail "failed 002 must not be recorded (001 may be)"
 sql "SELECT alter_job(job_id, scheduled => true) FROM timescaledb_information.jobs WHERE proc_name = 'merge_quote_candles_1h'" >/dev/null
 out="$(migrate)" || fail "run after fixing the job: $out"
+
+echo "== a job paused with next_start = infinity is not accepted either"
+sql "DROP SCHEMA migrations CASCADE"
+sql "SELECT alter_job(job_id, next_start => 'infinity') FROM timescaledb_information.jobs WHERE proc_name = 'merge_quote_candles'" >/dev/null
+if out="$(migrate 2>&1)"; then fail "a paused job was accepted: $out"; fi
+grep -q "not exactly as expected" <<<"$out" || fail "wrong failure for paused job: $out"
+sql "SELECT alter_job(job_id, next_start => now()) FROM timescaledb_information.jobs WHERE proc_name = 'merge_quote_candles'" >/dev/null
+out="$(migrate)" || fail "run after unpausing: $out"
 
 echo "== application roles cannot touch the ledger"
 for stmt in "INSERT INTO migrations.schema_migrations (name, checksum) VALUES ('x', 'y')" \

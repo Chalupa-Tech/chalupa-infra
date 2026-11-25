@@ -2,7 +2,7 @@
 -- The baseline check needs the same definitions and all three scheduled jobs; otherwise the file runs.
 -- Function definitions are the live ones (pg_get_functiondef, 2026-11-24).
 -- The add_job blocks run only on a fresh cluster; the live one is baselined without running them.
--- baseline-if: SELECT (SELECT md5(string_agg(pg_get_functiondef(p.oid), E'\n' ORDER BY p.proname)) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname IN ('merge_quote_candles', 'merge_quote_candles_1h', 'merge_quote_candles_1d')) = '228df82454f39fc28b34308d2ed5ff17' AND (SELECT count(*) FROM (VALUES ('merge_quote_candles', INTERVAL '5 minutes'), ('merge_quote_candles_1h', INTERVAL '1 hour'), ('merge_quote_candles_1d', INTERVAL '1 day')) v(proc, every) WHERE (SELECT count(*) FROM timescaledb_information.jobs j WHERE j.proc_name = v.proc) = 1 AND (SELECT count(*) FROM timescaledb_information.jobs j WHERE j.proc_name = v.proc AND j.proc_schema = 'public' AND j.schedule_interval = v.every AND j.scheduled AND j.owner::text = current_user AND j.config IS NULL) = 1) = 3
+-- baseline-if: SELECT (SELECT md5(string_agg(pg_get_functiondef(p.oid), E'\n' ORDER BY p.proname)) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname IN ('merge_quote_candles', 'merge_quote_candles_1h', 'merge_quote_candles_1d')) = '228df82454f39fc28b34308d2ed5ff17' AND (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname IN ('merge_quote_candles', 'merge_quote_candles_1h', 'merge_quote_candles_1d') AND p.proowner::regrole::text = current_user) = 3 AND (SELECT count(*) FROM (VALUES ('merge_quote_candles', INTERVAL '5 minutes'), ('merge_quote_candles_1h', INTERVAL '1 hour'), ('merge_quote_candles_1d', INTERVAL '1 day')) v(proc, every) WHERE (SELECT count(*) FROM timescaledb_information.jobs j WHERE j.proc_name = v.proc) = 1 AND (SELECT count(*) FROM timescaledb_information.jobs j WHERE j.proc_name = v.proc AND j.proc_schema = 'public' AND j.schedule_interval = v.every AND j.scheduled AND j.owner::text = current_user AND j.config IS NULL AND j.next_start < 'infinity') = 1) = 3
 
 CREATE OR REPLACE FUNCTION public.merge_quote_candles(job_id integer, config jsonb)
  RETURNS void
@@ -67,6 +67,14 @@ DECLARE
   n_public int;
   n_other int;
 BEGIN
+  -- A function an application role created first keeps its owner through
+  -- CREATE OR REPLACE; scheduling it here would run its code as this superuser.
+  IF (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public'
+         AND p.proname IN ('merge_quote_candles', 'merge_quote_candles_1h', 'merge_quote_candles_1d')
+         AND p.proowner::regrole::text = current_user) <> 3 THEN
+    RAISE EXCEPTION 'merge_quote_candles* functions are missing or not owned by %', current_user;
+  END IF;
   FOR j IN
     SELECT * FROM (VALUES
       ('merge_quote_candles',    INTERVAL '5 minutes'),
@@ -94,7 +102,7 @@ BEGIN
         JOIN timescaledb_information.jobs t
           ON t.proc_name = v.proc AND t.proc_schema = 'public'
          AND t.schedule_interval = v.every AND t.scheduled
-         AND t.owner::text = current_user AND t.config IS NULL) <> 3 THEN
-    RAISE EXCEPTION 'merge_quote_candles jobs are not exactly as expected (owner, interval, enabled, no stored config); fix them by hand';
+         AND t.owner::text = current_user AND t.config IS NULL AND t.next_start < 'infinity') <> 3 THEN
+    RAISE EXCEPTION 'merge_quote_candles jobs are not exactly as expected (owner, interval, enabled, not paused, no stored config); fix them by hand';
   END IF;
 END $$;
