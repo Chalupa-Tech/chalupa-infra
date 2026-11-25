@@ -26,6 +26,13 @@ monitoring:
 vault:
   secretPath: "secret/data/schwab-ddowell/timescaledb"
   papertraderSecretPath: "secret/data/schwab-ddowell/timescaledb/papertrader"
+  # Password of the `migrator` role (key: password). Written by the operator.
+  migratorSecretPath: "secret/data/schwab-ddowell/timescaledb/migrator"
+
+# PostSync Job that applies migrations/*.sql (docs/timescaledb-migrations.md).
+migrations:
+  role: migrator
+  activeDeadlineSeconds: 300
 
 # Database backups: CloudNativePG base backups + continuous WAL archiving to
 # MinIO on fw1, in its own bucket.

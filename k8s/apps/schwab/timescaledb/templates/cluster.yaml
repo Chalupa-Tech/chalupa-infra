@@ -61,6 +61,16 @@ spec:
         login: true
         passwordSecret:
           name: timescaledb-papertrader-secret
+      # migrator applies migrations/*.sql through the timescaledb-migrate
+      # PostSync Job. Superuser because the views, functions and continuous
+      # aggregates it replaces are owned by postgres, and superuser access is
+      # off on this Cluster. Its password is read only by that Job.
+      - name: {{ .Values.migrations.role }}
+        ensure: present
+        login: true
+        superuser: true
+        passwordSecret:
+          name: timescaledb-migrator-secret
     services:
       additional:
         - selectorType: rw

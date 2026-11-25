@@ -1,0 +1,71 @@
+-- Baseline: the three merge_quote_candles* job functions and their add_job schedules.
+-- Function definitions are the live ones (pg_get_functiondef, 2026-11-24).
+-- The add_job blocks run only on a fresh cluster; the live one is baselined without running them.
+-- baseline-if: SELECT count(*) = 3 FROM pg_proc WHERE proname IN ('merge_quote_candles', 'merge_quote_candles_1h', 'merge_quote_candles_1d')
+
+CREATE OR REPLACE FUNCTION public.merge_quote_candles(job_id integer, config jsonb)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  INSERT INTO candles (time, symbol, frequency, open, high, low, close, volume, source)
+  SELECT time, symbol, frequency, open, high, low, close, volume, source
+  FROM candles_from_quotes
+  WHERE time > now() - INTERVAL '1 day'
+  ON CONFLICT (time, symbol, frequency, source) DO UPDATE SET
+    open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
+    close = EXCLUDED.close, volume = EXCLUDED.volume;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.merge_quote_candles_1d(job_id integer, config jsonb)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  INSERT INTO candles (time, symbol, frequency, open, high, low, close, volume, source)
+  SELECT time, symbol, frequency, open, high, low, close, volume, source
+  FROM candles_1d
+  WHERE time > now() - INTERVAL '7 days'
+  ON CONFLICT (time, symbol, frequency, source) DO UPDATE SET
+    open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
+    close = EXCLUDED.close, volume = EXCLUDED.volume;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.merge_quote_candles_1h(job_id integer, config jsonb)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  INSERT INTO candles (time, symbol, frequency, open, high, low, close, volume, source)
+  SELECT time, symbol, frequency, open, high, low, close, volume, source
+  FROM candles_1h
+  WHERE time > now() - INTERVAL '3 days'
+  ON CONFLICT (time, symbol, frequency, source) DO UPDATE SET
+    open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
+    close = EXCLUDED.close, volume = EXCLUDED.volume;
+END;
+$function$
+;
+
+
+-- add_job does not raise on a duplicate, so guard on the job list instead.
+DO $$
+DECLARE
+  j record;
+BEGIN
+  FOR j IN
+    SELECT * FROM (VALUES
+      ('merge_quote_candles',    INTERVAL '5 minutes'),
+      ('merge_quote_candles_1h', INTERVAL '1 hour'),
+      ('merge_quote_candles_1d', INTERVAL '1 day')
+    ) AS t(proc, every)
+  LOOP
+    IF NOT EXISTS (SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = j.proc) THEN
+      PERFORM add_job(j.proc::regproc, j.every);
+    END IF;
+  END LOOP;
+END $$;

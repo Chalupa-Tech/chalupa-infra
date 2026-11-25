@@ -1,0 +1,68 @@
+# Applies migrations/NNN_*.sql once each and records them in schema_migrations.
+# PostSync: fires after every other resource in the Application is Synced and
+# Healthy (memory reference_argocd_hooks), so the Cluster is up first. Nothing
+# in this Application reads the Job's output, so there is no health deadlock.
+#
+# Delete policy: BeforeHookCreation replaces last sync's Job; HookSucceeded
+# removes it on success. A FAILED Job stays (no ttlSecondsAfterFinished) so
+# `kubectl logs job/timescaledb-migrate` still works. A clean run leaves no
+# Job: read `SELECT * FROM schema_migrations` instead.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: timescaledb-migrate
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  # A checksum mismatch or a bad migration will fail the same way on retry.
+  backoffLimit: 0
+  activeDeadlineSeconds: {{ .Values.migrations.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: timescaledb-migrate
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: {{ .Values.image.name }}
+          command: ["bash", "/scripts/migrate.sh"]
+          env:
+            - name: PGHOST
+              value: timescaledb-rw
+            - name: PGDATABASE
+              value: {{ .Values.database.name | quote }}
+            - name: PGUSER
+              value: {{ .Values.migrations.role | quote }}
+            - name: PGSSLMODE
+              value: require
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: timescaledb-migrator-secret
+                  key: password
+            - name: MIGRATIONS_DIR
+              value: /migrations
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: migrations
+              mountPath: /migrations
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+      volumes:
+        - name: scripts
+          configMap:
+            name: timescaledb-migrate-script
+        - name: migrations
+          configMap:
+            name: timescaledb-migrations

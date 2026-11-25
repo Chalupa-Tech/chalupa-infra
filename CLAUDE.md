@@ -85,6 +85,10 @@ bash scripts/deploy-core-apps.sh
 
 All services accessible via `*.chalupatech.com` domains (cert-manager + Cloudflare DNS).
 
+## TimescaleDB schema changes
+
+Add a numbered `migrations/NNN_name.sql` to `k8s/apps/schwab/timescaledb/`; an ArgoCD PostSync Job applies each file once and records it in `schema_migrations`. Never edit an applied file, and do not `kubectl exec` schema changes. See `docs/timescaledb-migrations.md`.
+
 ## Known Limitations
 
 - **hostPort does not work on K3s with flannel VXLAN** — the portmap CNI plugin is not included. Use `status.hostIP` downward API to inject the node IP, then target the DaemonSet pod via ClusterIP or direct node IP. This affects any service needing DaemonSet-local connectivity (e.g., OTel Collector sidecar-less pattern).
