@@ -87,7 +87,7 @@ All services accessible via `*.chalupatech.com` domains (cert-manager + Cloudfla
 
 ## TimescaleDB schema changes
 
-Add a numbered `migrations/NNN_name.sql` to `k8s/apps/schwab/timescaledb/`; an ArgoCD PostSync Job applies each file once and records it in `schema_migrations`. Never edit an applied file, and do not `kubectl exec` schema changes. See `docs/timescaledb-migrations.md`.
+Add a numbered `migrations/NNN_name.sql` to `k8s/apps/schwab/timescaledb/`; an ArgoCD PostSync Job applies each file once and records it in `migrations.schema_migrations`. Never edit an applied file, and do not `kubectl exec` schema changes. See `docs/timescaledb-migrations.md`.
 
 ## Known Limitations
 
