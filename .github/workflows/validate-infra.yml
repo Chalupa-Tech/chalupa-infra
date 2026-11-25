@@ -8,6 +8,7 @@ on:
       - '**.yaml'
       - '**.sh'
       - 'scripts/raspberrypi-k3s/ansible/**'
+      - 'k8s/apps/schwab/timescaledb/migrations/**'
   pull_request:
     branches: [main]
     paths:
@@ -15,6 +16,7 @@ on:
       - '**.yaml'
       - '**.sh'
       - 'scripts/raspberrypi-k3s/ansible/**'
+      - 'k8s/apps/schwab/timescaledb/migrations/**'
 
 jobs:
   changes:

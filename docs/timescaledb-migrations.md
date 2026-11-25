@@ -12,8 +12,11 @@ The CloudNativePG bootstrap SQL (`configmap-init-sql.yaml`) runs once, when the 
   - Not recorded: run the file and insert its row in one transaction. A failed file records nothing.
   - Recorded with the same checksum: skip.
   - Recorded with a different checksum: fail the Job. Applied files are never edited.
-- The Job connects as the managed role `migrator`, with its password in OpenBao at `secret/data/schwab-ddowell/timescaledb/migrator` (key `password`) through the `timescaledb-migrator-secret` ExternalSecret.
-  The role is a superuser because the views, functions and continuous aggregates are owned by `postgres` and superuser access is off on this cluster.
+- The Job connects as `postgres` with the `timescaledb-superuser` Secret that CloudNativePG generates (`enableSuperuserAccess: true`).
+  The views, functions and continuous aggregates are owned by `postgres`, so a lesser role could not replace them.
+  The credential lives only in Kubernetes: it is deliberately not in OpenBao, because the namespace's shared `default` ServiceAccount can read everything under `secret/data/schwab-ddowell/*`.
+- Before running anything the Job waits up to 120 s for the primary to accept that login, because CloudNativePG sets the password shortly after the database reports ready.
+- `schema_migrations` has row-level security on and no policy, so the application roles (which hold `pg_write_all_data`) can neither read nor forge ledger rows.
 
 ## Add a migration
 
@@ -23,7 +26,8 @@ The CloudNativePG bootstrap SQL (`configmap-init-sql.yaml`) runs once, when the 
 4. Merge. ArgoCD syncs, the Job applies the file, and `SELECT * FROM schema_migrations` lists it.
 
 If a migration has a first line `-- baseline-if: <one-line SQL returning boolean>`, the Job records the file as applied without running it when that query is true while the file is still unrecorded.
-Migrations 001 and 002 use it: the objects already exist on the live cluster, and a fresh cluster runs them.
+Migrations 001 and 002 use it with a fingerprint of the live definitions (and, for 002, the three scheduled jobs), so a cluster whose objects differ runs the file instead of recording it.
+The live cluster matches, so it is baselined; a fresh cluster runs them.
 
 ## Read the result
 
@@ -39,18 +43,10 @@ The ArgoCD Application shows the sync as failed.
 ## Failure modes
 
 - **Checksum mismatch** (`was edited after it was applied`): revert the edit and add a new numbered file instead.
-- **Application stuck waiting before the Job**: the `timescaledb-migrator-secret` ExternalSecret is unhealthy because the OpenBao key does not exist. Write it, then resync.
+- **`primary not reachable with these credentials`**: the `timescaledb-superuser` Secret is missing or `enableSuperuserAccess` is off. Check `kubectl get secret -n schwab-ddowell timescaledb-superuser`.
 - **A migration fails**: nothing is recorded for it and the Job fails. Fix the file (it was never applied, so editing it is safe) or add a corrective migration, and merge.
 - **A removed file**: the Job does not notice. Recorded rows stay; delete a row by hand only to re-run a file you know did not take effect.
 - **No rollback**: migrations are forward-only. Undo with a new migration.
-
-## First-time setup
-
-Write the migrator password before the first sync, or the sync waits on the ExternalSecret:
-
-```bash
-bao kv put secret/schwab-ddowell/timescaledb/migrator password="$(openssl rand -base64 32 | tr -d '\n')"
-```
 
 ## What stays in the bootstrap SQL
 

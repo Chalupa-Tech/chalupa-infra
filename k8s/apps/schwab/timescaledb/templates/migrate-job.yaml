@@ -40,7 +40,7 @@ spec:
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: timescaledb-migrator-secret
+                  name: {{ .Values.migrations.secretName }}
                   key: password
             - name: MIGRATIONS_DIR
               value: /migrations

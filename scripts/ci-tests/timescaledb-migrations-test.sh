@@ -34,8 +34,12 @@ assert "HookSucceeded" in ann["argocd.argoproj.io/hook-delete-policy"]
 c = job["spec"]["template"]["spec"]["containers"][0]
 assert c["resources"]["limits"]["memory"], "no memory limit"
 cluster = next(d for d in docs if d["kind"] == "Cluster")
-roles = {r["name"]: r for r in cluster["spec"]["managed"]["roles"]}
-assert roles["migrator"]["superuser"] is True
+assert cluster["spec"]["enableSuperuserAccess"] is True
+assert all(r["name"] != "migrator" for r in cluster["spec"]["managed"]["roles"])
+assert not any(d["kind"] == "ExternalSecret" and "migrator" in d["metadata"]["name"] for d in docs), "superuser cred must not go through OpenBao"
+env = {e["name"]: e for e in c["env"]}
+assert env["PGUSER"]["value"] == "postgres"
+assert env["PGPASSWORD"]["valueFrom"]["secretKeyRef"]["name"] == "timescaledb-superuser"
 init = cms["timescaledb-init-sql"]["data"]["schema.sql"]
 assert "CREATE OR REPLACE VIEW candle_" not in init, "views still in bootstrap SQL"
 assert "FUNCTION merge_quote_candles" not in init, "functions still in bootstrap SQL"
@@ -45,10 +49,22 @@ gen() { DRY_RUN=1 MIGRATIONS_DIR="$1" bash "$chart/files/migrate.sh"; }
 
 out="$(gen "$chart/migrations")"
 for want in 'pg_advisory_lock' 'CREATE TABLE IF NOT EXISTS schema_migrations' '\if :drifted' \
-  "'001_candle_reconciliation_views.sql'" "'002_merge_quote_candles_functions.sql'" '\i '; do
+  'ENABLE ROW LEVEL SECURITY' "'001_candle_reconciliation_views.sql'" "'002_merge_quote_candles_functions.sql'" '\i '; do
   grep -qF -- "$want" <<<"$out" || fail "generated script lacks: $want"
 done
 [ "$(grep -c '^\\if :pending' <<<"$out")" -eq "$(ls "$chart"/migrations/*.sql | wc -l)" ] || fail "pending guard per file"
+# A baseline-if header is ONE line of complete SQL: quotes and parentheses
+# balance (a stray newline in an E'\\n' literal cuts the query short).
+CHART="$chart" python3 -I - <<'PY' || fail "baseline-if header"
+import glob, os
+for f in sorted(glob.glob(os.path.join(os.environ["CHART"], "migrations", "*.sql"))):
+    for line in open(f):
+        if line.startswith("-- baseline-if: "):
+            q = line[len("-- baseline-if: "):].rstrip("\n")
+            assert q.count("'") % 2 == 0, f"{f}: unbalanced quotes"
+            assert q.count("(") == q.count(")"), f"{f}: unbalanced parentheses"
+            assert q.upper().startswith("SELECT"), f"{f}: not a SELECT"
+PY
 # The lock must be taken before any migration statement.
 [ "$(grep -n 'pg_advisory_lock' <<<"$out" | head -n1 | cut -d: -f1)" -lt "$(grep -n '\\i ' <<<"$out" | head -n1 | cut -d: -f1)" ] || fail "lock after first \\i"
 

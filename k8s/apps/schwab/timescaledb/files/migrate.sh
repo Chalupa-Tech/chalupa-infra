@@ -44,6 +44,10 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
   applied_at timestamptz NOT NULL DEFAULT now(),
   baseline   boolean NOT NULL DEFAULT false
 );
+-- The application roles hold pg_write_all_data, which ignores table grants but
+-- not row-level security. With RLS on and no policy they can neither read nor
+-- forge ledger rows; superusers (this Job) bypass it.
+ALTER TABLE schema_migrations ENABLE ROW LEVEL SECURITY;
 EOF
 
 for f in "${files[@]}"; do
@@ -99,5 +103,19 @@ if [ "${DRY_RUN:-}" = "1" ]; then
 fi
 
 # PGHOST, PGUSER, PGPASSWORD, PGDATABASE and PGSSLMODE come from the Job env.
+# Wait (bounded) until the writable primary accepts this login: after a cluster
+# is created or the superuser secret is first enabled, CloudNativePG sets the
+# password a little after the database reports ready. Only connection and
+# authentication failures retry; SQL and checksum failures below fail at once.
+deadline=$((SECONDS + ${CONNECT_WAIT:-120}))
+until [ "$(psql --no-psqlrc -Atc 'SELECT NOT pg_is_in_recovery()' 2>/dev/null || true)" = "t" ]; do
+  if [ "$SECONDS" -ge "$deadline" ]; then
+    echo "primary not reachable with these credentials after ${CONNECT_WAIT:-120}s" >&2
+    psql --no-psqlrc -Atc 'SELECT 1' >&2 || true
+    exit 1
+  fi
+  echo "waiting for the primary to accept the login..."
+  sleep 5
+done
 psql --no-psqlrc --quiet --file "$script"
 echo "migrations complete"
