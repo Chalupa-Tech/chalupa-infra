@@ -10,6 +10,8 @@ work="$(mktemp -d "${TMPDIR:-/tmp}/tsdb-db-test.XXXXXX")"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 # A uniquely named scratch database: this script never touches `market` or any
 # other existing database, even when pointed at a real server by mistake.
+# 001 and 002 are baselinable; every later migration simply applies. Counts below follow the file set.
+all="$(ls "$chart"/migrations/*.sql | wc -l | tr -d " ")"
 db="migtest_$$_$(date +%s)"
 sql() { psql --no-psqlrc -v ON_ERROR_STOP=1 -Atq -d "$db" -c "$1"; }
 migrate() { MIGRATIONS_DIR="${1:-$chart/migrations}" PGDATABASE="$db" CONNECT_WAIT=30 bash "$chart/files/migrate.sh"; }
@@ -49,14 +51,14 @@ psql --no-psqlrc -v ON_ERROR_STOP=1 -q -d "$db" -f "$work/schema.sql" >/dev/null
 
 echo "== fresh cluster: both migrations run"
 out="$(migrate)" || fail "first run: $out"
-[ "$(grep -c '^applied$' <<<"$out")" -eq 2 ] || fail "expected two applied: $out"
+[ "$(grep -c '^applied$' <<<"$out")" -eq "$all" ] || fail "expected $all applied: $out"
 [ "$(sql "SELECT count(*) FROM pg_views WHERE schemaname='public' AND viewname LIKE 'candle\_%'")" = 6 ] || fail "six views"
 [ "$(sql "SELECT count(*) FROM timescaledb_information.jobs WHERE proc_name LIKE 'merge\_quote\_candles%' AND scheduled")" = 3 ] || fail "three scheduled jobs"
-[ "$(sql "SELECT count(*) FROM migrations.schema_migrations WHERE NOT baseline")" = 2 ] || fail "ledger rows"
+[ "$(sql "SELECT count(*) FROM migrations.schema_migrations WHERE NOT baseline")" = "$all" ] || fail "ledger rows"
 
 echo "== second run skips"
 out="$(migrate)" || fail "second run: $out"
-[ "$(grep -c 'already applied' <<<"$out")" -eq 2 ] || fail "expected two skips: $out"
+[ "$(grep -c 'already applied' <<<"$out")" -eq "$all" ] || fail "expected $all skips: $out"
 [ "$(sql "SELECT count(*) FROM timescaledb_information.jobs WHERE proc_name LIKE 'merge\_quote\_candles%'")" = 3 ] || fail "jobs duplicated"
 
 echo "== an edited applied file fails the run"
@@ -76,7 +78,7 @@ sql "DROP SCHEMA migrations CASCADE"
 sql "CREATE OR REPLACE VIEW candle_backfill_gaps AS SELECT time, symbol, frequency, close AS quote_close, now() - time AS age FROM candles WHERE false"
 sql "SELECT delete_job(job_id) FROM timescaledb_information.jobs WHERE proc_name = 'merge_quote_candles_1d'" >/dev/null
 out="$(migrate)" || fail "repair run: $out"
-[ "$(grep -c '^applied$' <<<"$out")" -eq 2 ] || fail "drift should have run both files: $out"
+[ "$(grep -c '^applied$' <<<"$out")" -eq "$all" ] || fail "drift should have run every file: $out"
 [ "$(sql "SELECT count(*) FROM timescaledb_information.jobs WHERE proc_name LIKE 'merge\_quote\_candles%' AND scheduled")" = 3 ] || fail "job not restored"
 
 echo "== a changed job is never altered: the migration fails and leaves it as found"
@@ -111,6 +113,6 @@ for stmt in "INSERT INTO migrations.schema_migrations (name, checksum) VALUES ('
     [ "$n" = 0 ] || fail "$role could run: $stmt"
   done
 done
-[ "$(sql "SELECT count(*) FROM migrations.schema_migrations")" = 2 ] || fail "ledger changed"
+[ "$(sql "SELECT count(*) FROM migrations.schema_migrations")" = "$all" ] || fail "ledger changed"
 
 echo "ok"
