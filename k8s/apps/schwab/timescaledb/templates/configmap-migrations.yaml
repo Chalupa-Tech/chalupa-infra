@@ -1,0 +1,17 @@
+# Numbered SQL files applied by the timescaledb-migrate PostSync Job.
+# Add a file under migrations/; never edit one that has been applied
+# (the Job fails on a checksum mismatch). See docs/timescaledb-migrations.md.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: timescaledb-migrations
+data:
+{{ (.Files.Glob "migrations/*.sql").AsConfig | indent 2 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: timescaledb-migrate-script
+data:
+  migrate.sh: |
+{{ .Files.Get "files/migrate.sh" | indent 4 }}

@@ -27,6 +27,13 @@ vault:
   secretPath: "secret/data/schwab-ddowell/timescaledb"
   papertraderSecretPath: "secret/data/schwab-ddowell/timescaledb/papertrader"
 
+# PostSync Job that applies migrations/*.sql (docs/timescaledb-migrations.md).
+migrations:
+  # Role and Secret CloudNativePG creates when enableSuperuserAccess is on.
+  role: postgres
+  secretName: timescaledb-superuser
+  activeDeadlineSeconds: 300
+
 # Database backups: CloudNativePG base backups + continuous WAL archiving to
 # MinIO on fw1, in its own bucket.
 #

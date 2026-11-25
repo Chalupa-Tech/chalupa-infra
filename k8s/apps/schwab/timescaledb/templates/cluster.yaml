@@ -9,6 +9,10 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   instances: 1
+  # CloudNativePG generates the `timescaledb-superuser` Secret (Kubernetes only,
+  # never OpenBao) that the timescaledb-migrate Job logs in with: the views,
+  # functions and continuous aggregates it replaces are owned by postgres.
+  enableSuperuserAccess: true
   imageName: {{ .Values.image.name }}
 
   storage:
