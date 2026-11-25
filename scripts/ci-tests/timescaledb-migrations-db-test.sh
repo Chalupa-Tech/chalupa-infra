@@ -7,13 +7,20 @@ set -euo pipefail
 
 chart="$(cd "$(dirname "$0")/../.." && pwd)/k8s/apps/schwab/timescaledb"
 work="$(mktemp -d "${TMPDIR:-/tmp}/tsdb-db-test.XXXXXX")"
-trap 'rm -rf "$work"' EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
-sql() { psql --no-psqlrc -v ON_ERROR_STOP=1 -Atq -d market -c "$1"; }
-migrate() { MIGRATIONS_DIR="${1:-$chart/migrations}" PGDATABASE=market CONNECT_WAIT=30 bash "$chart/files/migrate.sh"; }
+# A uniquely named scratch database: this script never touches `market` or any
+# other existing database, even when pointed at a real server by mistake.
+db="migtest_$$_$(date +%s)"
+sql() { psql --no-psqlrc -v ON_ERROR_STOP=1 -Atq -d "$db" -c "$1"; }
+migrate() { MIGRATIONS_DIR="${1:-$chart/migrations}" PGDATABASE="$db" CONNECT_WAIT=30 bash "$chart/files/migrate.sh"; }
+psql --no-psqlrc -v ON_ERROR_STOP=1 -q -d postgres -c "CREATE DATABASE $db"
+trap 'psql --no-psqlrc -q -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" >/dev/null 2>&1 || true; rm -rf "$work"' EXIT
 
-psql --no-psqlrc -v ON_ERROR_STOP=1 -q -d postgres -c "DROP DATABASE IF EXISTS market" -c "CREATE DATABASE market"
-sql "CREATE EXTENSION timescaledb"
+# The extension version the chart bootstraps (postInitTemplateSQL), installed and asserted.
+ext="$(helm template t "$chart" | sed -n "s/.*CREATE EXTENSION IF NOT EXISTS timescaledb VERSION '\([0-9.]*\)'.*/\1/p" | head -n 1)"
+[ -n "$ext" ] || fail "no bootstrap extension version found in the chart"
+sql "CREATE EXTENSION timescaledb VERSION '$ext'"
+[ "$(sql "SELECT extversion FROM pg_extension WHERE extname = 'timescaledb'")" = "$ext" ] || fail "extension is not $ext"
 sql "CREATE ROLE marketstore LOGIN; CREATE ROLE grafana LOGIN; CREATE ROLE papertrader LOGIN;
      GRANT pg_read_all_data, pg_write_all_data TO marketstore; GRANT pg_read_all_data TO grafana;
      GRANT CREATE, USAGE ON SCHEMA public TO papertrader"
@@ -26,7 +33,7 @@ for d in yaml.safe_load_all(open(os.environ["RENDER"])):
     if d and d["kind"] == "ConfigMap" and d["metadata"]["name"] == "timescaledb-init-sql":
         open(os.environ["OUT"], "w").write(d["data"]["schema.sql"])
 PY
-psql --no-psqlrc -v ON_ERROR_STOP=1 -q -d market -f "$work/schema.sql" >/dev/null
+psql --no-psqlrc -v ON_ERROR_STOP=1 -q -d "$db" -f "$work/schema.sql" >/dev/null
 
 echo "== fresh cluster: both migrations run"
 out="$(migrate)" || fail "first run: $out"
@@ -52,7 +59,7 @@ out="$(migrate)" || fail "baseline run: $out"
 [ "$(grep -c 'baselined, not run' <<<"$out")" -eq 2 ] || fail "expected two baselines: $out"
 [ "$(sql "SELECT count(*) FROM migrations.schema_migrations WHERE baseline")" = 2 ] || fail "baseline rows"
 
-echo "== a drifted view is repaired by running the file instead of baselining it"
+echo "== a drifted view is repaired by running the file instead of baselining it; a missing job is added"
 sql "DROP SCHEMA migrations CASCADE"
 sql "CREATE OR REPLACE VIEW candle_backfill_gaps AS SELECT time, symbol, frequency, close AS quote_close, now() - time AS age FROM candles WHERE false"
 sql "SELECT delete_job(job_id) FROM timescaledb_information.jobs WHERE proc_name = 'merge_quote_candles_1d'" >/dev/null
@@ -60,12 +67,22 @@ out="$(migrate)" || fail "repair run: $out"
 [ "$(grep -c '^applied$' <<<"$out")" -eq 2 ] || fail "drift should have run both files: $out"
 [ "$(sql "SELECT count(*) FROM timescaledb_information.jobs WHERE proc_name LIKE 'merge\_quote\_candles%' AND scheduled")" = 3 ] || fail "job not restored"
 
+echo "== a changed job is never altered: the migration fails and leaves it as found"
+sql "DROP SCHEMA migrations CASCADE"
+sql "SELECT alter_job(job_id, scheduled => false) FROM timescaledb_information.jobs WHERE proc_name = 'merge_quote_candles_1h'" >/dev/null
+if out="$(migrate 2>&1)"; then fail "a disabled job was accepted: $out"; fi
+grep -q "not exactly as expected" <<<"$out" || fail "wrong failure: $out"
+[ "$(sql "SELECT scheduled FROM timescaledb_information.jobs WHERE proc_name = 'merge_quote_candles_1h'")" = f ] || fail "job was altered"
+[ "$(sql "SELECT count(*) FROM migrations.schema_migrations")" = 1 ] || fail "failed 002 must not be recorded (001 may be)"
+sql "SELECT alter_job(job_id, scheduled => true) FROM timescaledb_information.jobs WHERE proc_name = 'merge_quote_candles_1h'" >/dev/null
+out="$(migrate)" || fail "run after fixing the job: $out"
+
 echo "== application roles cannot touch the ledger"
 for stmt in "INSERT INTO migrations.schema_migrations (name, checksum) VALUES ('x', 'y')" \
             "UPDATE migrations.schema_migrations SET checksum = 'z'" \
             "DELETE FROM migrations.schema_migrations"; do
   for role in marketstore papertrader; do
-    n="$(psql --no-psqlrc -Atq -d market -c "SET ROLE $role" -c "$stmt RETURNING 1" 2>&1 | grep -c '^1$' || true)"
+    n="$(psql --no-psqlrc -Atq -d "$db" -c "SET ROLE $role" -c "$stmt RETURNING 1" 2>&1 | grep -c '^1$' || true)"
     [ "$n" = 0 ] || fail "$role could run: $stmt"
   done
 done

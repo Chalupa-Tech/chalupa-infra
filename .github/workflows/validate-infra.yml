@@ -84,7 +84,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: timescale/timescaledb:latest-pg16
+        # Keep in step with the extension version in the chart's postInitTemplateSQL;
+        # the test asserts the installed version matches it.
+        image: timescale/timescaledb:2.19.3-pg16
         env:
           POSTGRES_PASSWORD: ci
         ports:
