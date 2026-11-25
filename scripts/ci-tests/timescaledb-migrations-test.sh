@@ -49,7 +49,7 @@ gen() { DRY_RUN=1 MIGRATIONS_DIR="$1" bash "$chart/files/migrate.sh"; }
 
 out="$(gen "$chart/migrations")"
 for want in 'pg_advisory_lock' 'CREATE TABLE IF NOT EXISTS migrations.schema_migrations' '\if :drifted' \
-  'ENABLE ROW LEVEL SECURITY' 'SET search_path = pg_catalog, pg_temp' 'SET LOCAL search_path = pg_catalog, public, pg_temp' "'001_candle_reconciliation_views.sql'" "'002_merge_quote_candles_functions.sql'" '\i '; do
+  'ENABLE ROW LEVEL SECURITY' 'SET search_path = pg_catalog, pg_temp' 'SET LOCAL search_path = public, pg_temp' "'001_candle_reconciliation_views.sql'" "'002_merge_quote_candles_functions.sql'" '\i '; do
   grep -qF -- "$want" <<<"$out" || fail "generated script lacks: $want"
 done
 [ "$(grep -c '^\\if :pending' <<<"$out")" -eq "$(ls "$chart"/migrations/*.sql | wc -l)" ] || fail "pending guard per file"

@@ -77,6 +77,36 @@ jobs:
           python3 -c 'import yaml' || pip install pyyaml
           scripts/ci-tests/timescaledb-migrations-test.sh
 
+  timescaledb-migrations-db-test:
+    name: TimescaleDB Migrations DB Test
+    needs: changes
+    if: needs.changes.outputs.timescaledb == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg16
+        env:
+          POSTGRES_PASSWORD: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: ci
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run the migrations against a real TimescaleDB
+        run: |
+          python3 -c 'import yaml' || pip install pyyaml
+          scripts/ci-tests/timescaledb-migrations-db-test.sh
+
   yaml-lint:
     name: YAML Lint
     needs: changes

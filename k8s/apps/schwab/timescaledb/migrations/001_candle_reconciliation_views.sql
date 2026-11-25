@@ -1,7 +1,7 @@
 -- Baseline: the six candle_* reconciliation views added by market-data phases 11 and 12.
--- The baseline check compares the live definitions with the ones below; any difference runs the file instead.
+-- The baseline check runs with search_path = pg_catalog (so references print as public.candles) and compares the live definitions with the ones below; any difference runs the file instead.
 -- Definitions are the live ones (pg_get_viewdef, 2026-11-24), so a fresh cluster and the live one agree.
--- baseline-if: SELECT md5(string_agg(c.relname || ':' || pg_get_viewdef(c.oid, true), E'\n' ORDER BY c.relname)) = 'e5f0cf44c3756149e76749029bc050b6' FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'v' AND c.relname IN ('candle_source_variance', 'candle_backfill_gaps', 'candle_source_variance_1d', 'candle_backfill_gaps_1d', 'candle_source_variance_1h', 'candle_backfill_gaps_1h')
+-- baseline-if: SELECT md5(string_agg(c.relname || ':' || pg_get_viewdef(c.oid, true), E'\n' ORDER BY c.relname)) = '17f8503c028cd236f0ddf79dd72e7c9d' FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'v' AND c.relname IN ('candle_source_variance', 'candle_backfill_gaps', 'candle_source_variance_1d', 'candle_backfill_gaps_1d', 'candle_source_variance_1h', 'candle_backfill_gaps_1h')
 
 CREATE OR REPLACE VIEW candle_backfill_gaps AS
  SELECT q."time",

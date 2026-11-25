@@ -45,7 +45,8 @@ cat >"$script" <<EOF
 \\set ON_ERROR_STOP on
 -- This session is a superuser and the application roles can CREATE in public:
 -- resolve names in pg_catalog only, until a migration's own transaction opens
--- the search path to public.
+-- the search path to public (pg_catalog is searched first either way; listing
+-- it first would make CREATE target it).
 SET search_path = pg_catalog, pg_temp;
 SELECT pg_advisory_lock($LOCK_KEY);
 SET lock_timeout = '$LOCK_TIMEOUT';
@@ -110,7 +111,7 @@ EOF
     \\echo baselined, not run
   \\else
     BEGIN;
-    SET LOCAL search_path = pg_catalog, public, pg_temp;
+    SET LOCAL search_path = public, pg_temp;
     \\i $f
     INSERT INTO migrations.schema_migrations (name, checksum) VALUES ('$name', '$sum');
     COMMIT;

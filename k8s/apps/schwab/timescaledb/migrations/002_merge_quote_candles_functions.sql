@@ -54,12 +54,16 @@ $function$
 
 
 -- add_job does not raise on a duplicate, so look at the job list first. An
--- existing job is put back to the expected interval and enabled; a second job
--- for one procedure is drift this file will not guess about, so it fails.
+-- existing job is put back to the expected interval and enabled; a job for the
+-- same procedure in another schema, or a second one, is drift this file will
+-- not guess about, so it fails. Calls are schema-qualified with every argument
+-- typed, so an overload in a schema the applications can write cannot match.
 DO $$
 DECLARE
   j record;
-  n int;
+  n_public int;
+  n_other int;
+  id int;
 BEGIN
   FOR j IN
     SELECT * FROM (VALUES
@@ -68,15 +72,32 @@ BEGIN
       ('merge_quote_candles_1d', INTERVAL '1 day')
     ) AS t(proc, every)
   LOOP
-    SELECT count(*) INTO n FROM timescaledb_information.jobs WHERE proc_name = j.proc;
-    -- (a same-named job in another schema counts too: it is drift, so it fails below)
-    IF n = 0 THEN
-      PERFORM add_job(j.proc::regproc, j.every);
-    ELSIF n = 1 THEN
-      PERFORM alter_job(job_id, schedule_interval => j.every, scheduled => true)
-        FROM timescaledb_information.jobs WHERE proc_name = j.proc AND proc_schema = 'public';
+    SELECT count(*) FILTER (WHERE proc_schema = 'public'),
+           count(*) FILTER (WHERE proc_schema <> 'public')
+      INTO n_public, n_other
+      FROM timescaledb_information.jobs WHERE proc_name = j.proc;
+    IF n_other > 0 THEN
+      RAISE EXCEPTION '% has a job outside schema public', j.proc;
+    ELSIF n_public = 0 THEN
+      PERFORM public.add_job(('public.' || j.proc)::regproc, j.every::interval, NULL::jsonb,
+                             NULL::timestamptz, true, NULL::regproc, true, NULL::text);
+    ELSIF n_public = 1 THEN
+      SELECT job_id INTO id FROM timescaledb_information.jobs
+        WHERE proc_name = j.proc AND proc_schema = 'public';
+      PERFORM public.alter_job(id, j.every::interval, NULL::interval, NULL::integer, NULL::interval,
+                               true, NULL::jsonb, NULL::timestamptz, false, NULL::regproc,
+                               NULL::boolean, NULL::timestamptz, NULL::text);
     ELSE
-      RAISE EXCEPTION '% has % jobs; expected exactly one', j.proc, n;
+      RAISE EXCEPTION '% has % jobs; expected exactly one', j.proc, n_public;
     END IF;
   END LOOP;
+  IF (SELECT count(*)
+        FROM (VALUES ('merge_quote_candles', INTERVAL '5 minutes'),
+                     ('merge_quote_candles_1h', INTERVAL '1 hour'),
+                     ('merge_quote_candles_1d', INTERVAL '1 day')) v(proc, every)
+        JOIN timescaledb_information.jobs t
+          ON t.proc_name = v.proc AND t.proc_schema = 'public'
+         AND t.schedule_interval = v.every AND t.scheduled) <> 3 THEN
+    RAISE EXCEPTION 'merge_quote_candles jobs are not all scheduled at their intervals';
+  END IF;
 END $$;
