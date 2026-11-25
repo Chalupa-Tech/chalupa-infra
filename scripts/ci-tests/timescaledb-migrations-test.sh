@@ -49,7 +49,7 @@ gen() { DRY_RUN=1 MIGRATIONS_DIR="$1" bash "$chart/files/migrate.sh"; }
 
 out="$(gen "$chart/migrations")"
 for want in 'pg_advisory_lock' 'CREATE TABLE IF NOT EXISTS migrations.schema_migrations' '\if :drifted' \
-  'ENABLE ROW LEVEL SECURITY' "'001_candle_reconciliation_views.sql'" "'002_merge_quote_candles_functions.sql'" '\i '; do
+  'ENABLE ROW LEVEL SECURITY' 'SET search_path = pg_catalog, pg_temp' 'SET LOCAL search_path = pg_catalog, public, pg_temp' "'001_candle_reconciliation_views.sql'" "'002_merge_quote_candles_functions.sql'" '\i '; do
   grep -qF -- "$want" <<<"$out" || fail "generated script lacks: $want"
 done
 [ "$(grep -c '^\\if :pending' <<<"$out")" -eq "$(ls "$chart"/migrations/*.sql | wc -l)" ] || fail "pending guard per file"
@@ -81,9 +81,10 @@ grep -qF 'CREATE SCHEMA IF NOT EXISTS migrations' <<<"$out" || fail "ledger sche
 ! grep -qE '(FROM|INTO) schema_migrations' <<<"$out" || fail "unqualified ledger reference"
 
 # Bad input is rejected before psql is ever reached.
-mkdir "$work/dup" "$work/bad" "$work/empty"
-touch "$work/dup/001_a.sql" "$work/dup/001_b.sql" "$work/bad/Bad.sql"
-for d in dup bad empty; do
+mkdir "$work/dup" "$work/bad" "$work/empty" "$work/broken"
+touch "$work/dup/001_a.sql" "$work/dup/001_b.sql" "$work/bad/Bad.sql" "$work/broken/002_ok.sql"
+ln -s "$work/does-not-exist.sql" "$work/broken/001_gone.sql"   # unreadable: must not be skipped
+for d in dup bad empty broken; do
   if gen "$work/$d" >/dev/null 2>&1; then fail "accepted $d"; fi
 done
 

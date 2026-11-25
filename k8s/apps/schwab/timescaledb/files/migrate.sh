@@ -28,20 +28,25 @@ LOCK_TIMEOUT="${LOCK_TIMEOUT:-30s}"
 script=""
 snap="$(mktemp -d "${TMPDIR:-/tmp}/migrations.XXXXXX")"
 trap 'rm -rf "$script" "$snap"' EXIT
-cp -L "$DIR"/*.sql "$snap"/ 2>/dev/null || true
-
 shopt -s nullglob
-files=("$snap"/*.sql)
-if [ "${#files[@]}" -eq 0 ]; then
+src=("$DIR"/*.sql)
+if [ "${#src[@]}" -eq 0 ]; then
   echo "no migrations found in $DIR" >&2
   exit 1
 fi
+# A file that cannot be copied fails the run (set -e) before any connection.
+cp -L "${src[@]}" "$snap"/
+files=("$snap"/*.sql)
 
 script="$(mktemp "${TMPDIR:-/tmp}/migrate.XXXXXX")"
 
 prev=""
 cat >"$script" <<EOF
 \\set ON_ERROR_STOP on
+-- This session is a superuser and the application roles can CREATE in public:
+-- resolve names in pg_catalog only, until a migration's own transaction opens
+-- the search path to public.
+SET search_path = pg_catalog, pg_temp;
 SELECT pg_advisory_lock($LOCK_KEY);
 SET lock_timeout = '$LOCK_TIMEOUT';
 -- The ledger lives in its own schema, created here and nowhere else: the
@@ -105,6 +110,7 @@ EOF
     \\echo baselined, not run
   \\else
     BEGIN;
+    SET LOCAL search_path = pg_catalog, public, pg_temp;
     \\i $f
     INSERT INTO migrations.schema_migrations (name, checksum) VALUES ('$name', '$sum');
     COMMIT;
@@ -127,6 +133,7 @@ fi
 # password a little after the database reports ready. Only connection and
 # authentication failures retry; SQL and checksum failures below fail at once.
 deadline=$((SECONDS + ${CONNECT_WAIT:-120}))
+export PGOPTIONS="-c search_path=pg_catalog,pg_temp"
 until [ "$(psql --no-psqlrc -Atc 'SELECT NOT pg_is_in_recovery()' 2>/dev/null || true)" = "t" ]; do
   if [ "$SECONDS" -ge "$deadline" ]; then
     echo "primary not reachable with these credentials after ${CONNECT_WAIT:-120}s" >&2
