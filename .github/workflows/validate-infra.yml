@@ -25,6 +25,7 @@ jobs:
       shell: ${{ steps.filter.outputs.shell }}
       ansible: ${{ steps.filter.outputs.ansible }}
       release: ${{ steps.filter.outputs.release }}
+      timescaledb: ${{ steps.filter.outputs.timescaledb }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -41,6 +42,9 @@ jobs:
             release:
               - '.github/workflows/release-reusable.yml'
               - 'scripts/ci-tests/release-detect-version-test.sh'
+            timescaledb:
+              - 'k8s/apps/schwab/timescaledb/**'
+              - 'scripts/ci-tests/timescaledb-migrations-test.sh'
 
   release-workflow-test:
     name: Release Workflow Test
@@ -56,6 +60,20 @@ jobs:
           python3 -c 'import yaml' || pip install pyyaml
           git config --global init.defaultBranch main
           scripts/ci-tests/release-detect-version-test.sh
+
+  timescaledb-migrations-test:
+    name: TimescaleDB Migrations Test
+    needs: changes
+    if: needs.changes.outputs.timescaledb == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Render the chart and check the migration Job script
+        run: |
+          python3 -c 'import yaml' || pip install pyyaml
+          scripts/ci-tests/timescaledb-migrations-test.sh
 
   yaml-lint:
     name: YAML Lint
