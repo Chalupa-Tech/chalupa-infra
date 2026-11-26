@@ -314,6 +314,15 @@ vector:
           _msg_field: message
           _time_field: timestamp
           _stream_fields: "pod,namespace,container,node,level"
+        # Platform phase-96a: after 5 errors the sink stops sending to the
+        # endpoint and probes it with a backoff that doubles after each failed
+        # probe, up to an hour by default, so after a long VictoriaLogs outage
+        # delivery could stay stopped for up to an hour. Measured on a scratch
+        # pod (2026-11-26): nothing delivered 45s after a 5-minute outage
+        # ended. Capped so a probe runs at least every 30s.
+        distribution:
+          retry_initial_backoff_secs: 1
+          retry_max_duration_secs: 30
         request:
           concurrency: 1
           # Platform phase-96a: the default retries a failed request for ever,
@@ -324,6 +333,9 @@ vector:
           # config, 10k lines/s, sink refusing connections (2026-11-26):
           # without the bound, 47Mi to OOMKilled at 256Mi in 38 minutes; with
           # it, flat at about 77Mi. A request is dropped after 5 failed tries
-          # (about 30s when refused, about 5 minutes when the sink hangs) and
-          # counted in component_discarded_events_total{component_id="victorialogs"}.
+          # (about 30s when refused, about 5 minutes when the sink hangs).
+          # A batch dropped after a transport error (refused, timeout, DNS) is
+          # counted in component_discarded_events_total{component_id="victorialogs"};
+          # one whose last try got an HTTP 5xx is marked Errored, which Vector
+          # 0.54 does not count as discarded, so watch component_errors_total too.
           retry_attempts: 5

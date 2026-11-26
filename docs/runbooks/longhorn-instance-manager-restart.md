@@ -146,40 +146,59 @@ That is a log request: a replica failure set `spec.logRequested` on an engine or
 The manager marks the request done (`status.logFetched`) only after the whole pass, and if that status write fails the next reconcile starts the pass again from the top (2026-11-17: 30–60 minute passes, repeated for hours).
 Restarting the instance-manager ends it only by killing the process and its log; this procedure does not touch the engine.
 
-1. Find the requested instances and the manager that owns each:
+1. Name the instance that is replaying and the node printing it.
+   The replaying instance is the one whose `Getting requested log for <instance>` line repeats in one manager's log:
 
    ```bash
-   kubectl -n longhorn-system get engines.longhorn.io,replicas.longhorn.io \
-     -o custom-columns=NAME:.metadata.name,OWNER:.status.ownerID,REQUESTED:.spec.logRequested,FETCHED:.status.logFetched \
-     | awk 'NR==1 || $3=="true"'
+   for P in $(kubectl -n longhorn-system get pod -l app=longhorn-manager -o name); do
+     echo "== $P $(kubectl -n longhorn-system get "$P" -o jsonpath='{.spec.nodeName}')"
+     kubectl -n longhorn-system logs "$P" -c longhorn-manager --since=3h | grep -o 'Getting requested log for [^ ]*' | sort | uniq -c
+   done
    ```
 
-2. Clear the flag on every listed object (use `replicas.longhorn.io` for a replica):
+   Set `INSTANCE` to that name and `NODE` to that pod's node, and confirm the flag is set on it (`engines.longhorn.io` for a name ending `-e-0`, `replicas.longhorn.io` for `-r-…`):
 
    ```bash
-   kubectl -n longhorn-system patch engines.longhorn.io <name> --type=merge -p '{"spec":{"logRequested":false}}'
+   INSTANCE=<name>; NODE=<node>; KIND=engines.longhorn.io   # or replicas.longhorn.io
+   kubectl -n longhorn-system get "$KIND" "$INSTANCE" -o jsonpath='{.status.ownerID} {.spec.logRequested} {.status.logFetched}{"\n"}'
+   ```
+
+   The owner should be `$NODE` and `logRequested` `true`.
+   Other objects may also have `logRequested` set for a failure that is not replaying; leave them, since clearing the flag skips that failure's log for good.
+
+2. Clear the flag on that instance only:
+
+   ```bash
+   kubectl -n longhorn-system patch "$KIND" "$INSTANCE" --type=merge -p '{"spec":{"logRequested":false}}'
    ```
 
    Clear the flag **before** restarting anything: a manager that starts while the flag is still true begins a new pass at once.
    The volume controller sets the flag again only on a new replica failure, so the value stays false.
    With the flag false, the current pass still runs to its end but is not repeated; step 3 cuts it short.
 
-3. Restart the longhorn-manager on the owner node (the `OWNER` column), and wait for it:
+3. Restart the longhorn-manager on `$NODE`, and wait for its replacement (a pod with a different name):
 
    ```bash
-   NODE=<owner node>
-   kubectl -n longhorn-system delete pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE"
+   OLD=$(kubectl -n longhorn-system get pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE" -o name)
+   kubectl -n longhorn-system delete "$OLD" --wait=true
    kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE" --timeout=5m
+   NEW=$(kubectl -n longhorn-system get pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE" -o name)
+   [ "$NEW" != "$OLD" ] && echo "replaced: $OLD -> $NEW" || echo "NOT REPLACED: stop and look"
    ```
 
    This restarts only the control plane on that node: engines and replicas run in the instance-manager and keep serving I/O.
 
-4. Check that it stopped: no new `Getting requested log` for the instance in the new manager pod, and step 1 lists nothing.
+4. Check that it stopped: the replacement's whole log (from its start) has no request for the instance and no lines from it, and the flag is still false.
 
    ```bash
-   POD=$(kubectl -n longhorn-system get pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE" -o name)
-   kubectl -n longhorn-system logs "$POD" -c longhorn-manager --since=5m | grep -c 'Getting requested log'
+   kubectl -n longhorn-system logs "$NEW" -c longhorn-manager > /tmp/lh-new.log && \
+     echo "requests: $(grep -c "Getting requested log for $INSTANCE" /tmp/lh-new.log)  replayed lines: $(grep -c "$INSTANCE: " /tmp/lh-new.log)"
+   kubectl -n longhorn-system get "$KIND" "$INSTANCE" -o jsonpath='{.spec.logRequested}{"\n"}'
    ```
+
+   Both counts 0 and `false`: stopped.
+   If the `logs` command fails, nothing is printed; do not read that as 0.
+   Read the log again a few minutes later: a request set by a new replica failure starts a new, separate pass.
 
 **Tested** in session 276 (2026-11-26) on a throwaway 2-replica volume (engine on dpi1, replicas on dpi1 and dpi2) with a pod writing to it every second:
 
