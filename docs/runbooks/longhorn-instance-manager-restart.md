@@ -139,6 +139,61 @@ kubectl -n longhorn-system logs job/mkfs-guard-now
 kubectl -n longhorn-system rollout status ds/longhorn-csi-plugin
 ```
 
+## Stopping a longhorn-manager log replay without restarting the instance-manager
+
+**Symptom.** One node's longhorn-manager logs `pvc-…-e-0: time=…` (or `pvc-…-r-…: time=…`) lines without pause, and `Getting requested log for <instance>` repeats.
+That is a log request: a replica failure set `spec.logRequested` on an engine or replica, and the manager that owns it prints the process's whole log file, which has no rotation, so it holds everything since the process started.
+The manager marks the request done (`status.logFetched`) only after the whole pass, and if that status write fails the next reconcile starts the pass again from the top (2026-11-17: 30–60 minute passes, repeated for hours).
+Restarting the instance-manager ends it only by killing the process and its log; this procedure does not touch the engine.
+
+1. Find the requested instances and the manager that owns each:
+
+   ```bash
+   kubectl -n longhorn-system get engines.longhorn.io,replicas.longhorn.io \
+     -o custom-columns=NAME:.metadata.name,OWNER:.status.ownerID,REQUESTED:.spec.logRequested,FETCHED:.status.logFetched \
+     | awk 'NR==1 || $3=="true"'
+   ```
+
+2. Clear the flag on every listed object (use `replicas.longhorn.io` for a replica):
+
+   ```bash
+   kubectl -n longhorn-system patch engines.longhorn.io <name> --type=merge -p '{"spec":{"logRequested":false}}'
+   ```
+
+   Clear the flag **before** restarting anything: a manager that starts while the flag is still true begins a new pass at once.
+   The volume controller sets the flag again only on a new replica failure, so the value stays false.
+   With the flag false, the current pass still runs to its end but is not repeated; step 3 cuts it short.
+
+3. Restart the longhorn-manager on the owner node (the `OWNER` column), and wait for it:
+
+   ```bash
+   NODE=<owner node>
+   kubectl -n longhorn-system delete pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE"
+   kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE" --timeout=5m
+   ```
+
+   This restarts only the control plane on that node: engines and replicas run in the instance-manager and keep serving I/O.
+
+4. Check that it stopped: no new `Getting requested log` for the instance in the new manager pod, and step 1 lists nothing.
+
+   ```bash
+   POD=$(kubectl -n longhorn-system get pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE" -o name)
+   kubectl -n longhorn-system logs "$POD" -c longhorn-manager --since=5m | grep -c 'Getting requested log'
+   ```
+
+**Tested** in session 276 (2026-11-26) on a throwaway 2-replica volume (engine on dpi1, replicas on dpi1 and dpi2) with a pod writing to it every second:
+
+| Step | Result |
+|---|---|
+| Replica set to `ERR` from the engine (`longhorn update-replica --mode ERR`), twice | Replica marked failed, `logRequested` set on the **replica** only; dpi2's manager printed the replica's log once (11 lines); the engine's flag was never set (its update from the same reconcile did not land). Rebuilt in about 10s; no write failed |
+| Engine `logRequested` patched to `true` by hand | Accepted; dpi1's manager printed the whole engine log (57 lines, from process start) within a second, `logFetched` persisted, the volume controller cleared the flag; no second pass |
+| Flag false, dpi1 manager restarted | New manager printed nothing; all 9 engines in the cluster kept their state, port and instance-manager; all volumes stayed healthy; the writer saw no failed write |
+| Manager on dpi1 deleted, flag set to `true` while it was down | No other node's manager took the instance over during the 34s it was down; the new dpi1 manager printed the whole engine log on startup, then cleared the flag |
+
+**Not tested:** a real loop.
+The throwaway volume's logs were seconds old, so each pass took under a second and its `logFetched` write landed; the repeat and the long pass that step 3 cuts short were not reproduced.
+That the manager restart ends an in-flight pass rests on the pass running inside the manager process (`printInstanceLogs`, longhorn-manager v1.7.2 `controller/instance_handler.go`), not on observation.
+
 ## Not covered
 
 - Clearing one stale errored process without restarting the whole instance-manager (open question, platform phase-97 priority 2).
