@@ -147,16 +147,18 @@ The manager marks the request done (`status.logFetched`) only after the whole pa
 Restarting the instance-manager ends it only by killing the process and its log; this procedure does not touch the engine.
 
 1. Name the instance that is replaying and the node printing it.
-   The replaying instance is the one whose `Getting requested log for <instance>` line repeats in one manager's log:
+   Each replayed line starts with the instance's name (`msg="pvc-…-e-0: …`), so count the names in each manager's latest output.
+   The `Getting requested log for <instance>` line is printed once per pass, which can be an hour apart, and kubelet rotates the manager's log within minutes during a replay, so do not wait for it.
 
    ```bash
    for P in $(kubectl -n longhorn-system get pod -l app=longhorn-manager -o name); do
      echo "== $P $(kubectl -n longhorn-system get "$P" -o jsonpath='{.spec.nodeName}')"
-     kubectl -n longhorn-system logs "$P" -c longhorn-manager --since=3h | grep -o 'Getting requested log for [^ ]*' | sort | uniq -c
+     kubectl -n longhorn-system logs "$P" -c longhorn-manager --tail=5000 \
+       | grep -oE 'msg="pvc-[0-9a-f-]+-(e-[0-9]+|r-[0-9a-f]+): ' | sort | uniq -c
    done
    ```
 
-   Set `INSTANCE` to that name and `NODE` to that pod's node, and confirm the flag is set on it (`engines.longhorn.io` for a name ending `-e-0`, `replicas.longhorn.io` for `-r-…`):
+   Set `INSTANCE` to the name with thousands of lines and `NODE` to that pod's node, and confirm the flag is set on it (`engines.longhorn.io` for a name ending `-e-0`, `replicas.longhorn.io` for `-r-…`):
 
    ```bash
    INSTANCE=<name>; NODE=<node>; KIND=engines.longhorn.io   # or replicas.longhorn.io
@@ -176,29 +178,34 @@ Restarting the instance-manager ends it only by killing the process and its log;
    The volume controller sets the flag again only on a new replica failure, so the value stays false.
    With the flag false, the current pass still runs to its end but is not repeated; step 3 cuts it short.
 
-3. Restart the longhorn-manager on `$NODE`, and wait for its replacement (a pod with a different name):
+3. Restart the longhorn-manager on `$NODE`, and wait for its replacement to be Ready.
+   Stop at the first line that prints `STOP`; the node has no working manager until a replacement is Ready.
 
    ```bash
-   OLD=$(kubectl -n longhorn-system get pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE" -o name)
-   kubectl -n longhorn-system delete "$OLD" --wait=true
-   kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE" --timeout=5m
-   NEW=$(kubectl -n longhorn-system get pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE" -o name)
-   [ "$NEW" != "$OLD" ] && echo "replaced: $OLD -> $NEW" || echo "NOT REPLACED: stop and look"
+   OLD=$(kubectl -n longhorn-system get pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE" -o jsonpath='{.items[0].metadata.name}')
+   kubectl -n longhorn-system delete pod "$OLD" --wait=true || echo "STOP: delete failed"
+   NEW=""
+   for i in $(seq 1 60); do
+     NEW=$(kubectl -n longhorn-system get pod -l app=longhorn-manager --field-selector spec.nodeName="$NODE" -o jsonpath='{.items[*].metadata.name}')
+     [ -n "$NEW" ] && [ "$NEW" != "$OLD" ] && break; NEW=""; sleep 5
+   done
+   [ -n "$NEW" ] || echo "STOP: no replacement pod after 5 minutes"
+   kubectl -n longhorn-system wait --for=condition=Ready pod "$NEW" --timeout=5m && echo "replaced: $OLD -> $NEW" || echo "STOP: $NEW not Ready"
    ```
 
    This restarts only the control plane on that node: engines and replicas run in the instance-manager and keep serving I/O.
 
-4. Check that it stopped: the replacement's whole log (from its start) has no request for the instance and no lines from it, and the flag is still false.
+4. Check that it stopped, twice a minute or more apart: no replayed lines for the instance in the replacement's output, and the flag still false.
 
    ```bash
-   kubectl -n longhorn-system logs "$NEW" -c longhorn-manager > /tmp/lh-new.log && \
-     echo "requests: $(grep -c "Getting requested log for $INSTANCE" /tmp/lh-new.log)  replayed lines: $(grep -c "$INSTANCE: " /tmp/lh-new.log)"
+   kubectl -n longhorn-system logs "$NEW" -c longhorn-manager --tail=5000 > /tmp/lh-new.log && \
+     echo "replayed lines: $(grep -c "msg=\"$INSTANCE: " /tmp/lh-new.log)  requests: $(grep -c "Getting requested log for $INSTANCE" /tmp/lh-new.log)"
    kubectl -n longhorn-system get "$KIND" "$INSTANCE" -o jsonpath='{.spec.logRequested}{"\n"}'
    ```
 
-   Both counts 0 and `false`: stopped.
-   If the `logs` command fails, nothing is printed; do not read that as 0.
-   Read the log again a few minutes later: a request set by a new replica failure starts a new, separate pass.
+   Both counts 0 and `false` on both reads: stopped.
+   If the `logs` command fails, nothing is printed; that is not 0, so read again.
+   A request set later by a new replica failure starts a new, separate pass.
 
 **Tested** in session 276 (2026-11-26) on a throwaway 2-replica volume (engine on dpi1, replicas on dpi1 and dpi2) with a pod writing to it every second:
 

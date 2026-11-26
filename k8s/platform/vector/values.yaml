@@ -335,7 +335,9 @@ vector:
           # it, flat at about 77Mi. A request is dropped after 5 failed tries
           # (about 30s when refused, about 5 minutes when the sink hangs).
           # A batch dropped after a transport error (refused, timeout, DNS) is
-          # counted in component_discarded_events_total{component_id="victorialogs"};
-          # one whose last try got an HTTP 5xx is marked Errored, which Vector
-          # 0.54 does not count as discarded, so watch component_errors_total too.
+          # counted in component_discarded_events_total{component_id="victorialogs"}.
+          # One whose last try got an HTTP 5xx is counted nowhere: Vector 0.54
+          # only logs "Response contained errors." and marks it Errored, and
+          # drop_self keeps Vector's own logs out of VictoriaLogs; read them
+          # with kubectl logs.
           retry_attempts: 5

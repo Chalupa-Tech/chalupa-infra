@@ -30,4 +30,4 @@ spec:
         # tags, is dropped, so pod churn cannot grow the series count.
         - action: keep
           source_labels: [__name__]
-          regex: vector_(pod_log_lines_total|longhorn_csi_format_failures_total|component_(received|sent|discarded)_events_total|component_errors_total|buffer_(events|byte_size))
+          regex: vector_(pod_log_lines_total|longhorn_csi_format_failures_total|component_(received|sent|discarded)_events_total|component_errors_total|buffer_(events|byte_size|discarded_events_total))
