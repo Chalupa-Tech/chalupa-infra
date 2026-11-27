@@ -2,7 +2,7 @@
 image:
   registry: gitea.tailbecff0.ts.net
   repository: chalupa-tech/go-market-store
-  tag: v0.7.1
+  tag: v0.8.0
 
 metrics:
   port: 9090
