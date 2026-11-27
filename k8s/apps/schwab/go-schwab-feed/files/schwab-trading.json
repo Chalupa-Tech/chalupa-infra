@@ -1383,6 +1383,59 @@
           }
         }
       ]
+    },
+    {
+      "id": 100,
+      "title": "Recorded rows per source per day",
+      "description": "Daily row counts for the last 14 days: option_snapshots grouped by trigger (interval, 1545, close) and events grouped by source. A source whose bar is missing for a day recorded nothing that day.",
+      "type": "barchart",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 89
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
+      "timeFrom": "14d",
+      "targets": [
+        {
+          "rawSql": "SELECT time_bucket('1 day', snapshot_at) AS time, 'option_snapshots / ' || trigger AS metric, count(*) AS rows FROM option_snapshots WHERE $__timeFilter(snapshot_at) GROUP BY 1, 2 UNION ALL SELECT time_bucket('1 day', received_at) AS time, 'events / ' || source AS metric, count(*) AS rows FROM events WHERE $__timeFilter(received_at) GROUP BY 1, 2 ORDER BY 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "prepareTimeSeries",
+          "options": {
+            "format": "many"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 1
+          }
+        }
+      },
+      "options": {
+        "xField": "time",
+        "xTickLabelRotation": 0,
+        "stacking": "none",
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     }
   ],
   "schemaVersion": 39,
